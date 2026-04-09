@@ -15,6 +15,7 @@ class PlayerController(Component):
     def start(self):
         log("PlayerController start sequence!")
         self.transform = self.game_object.get_component(Transform2d)
+        self.transform.scale = Vector2(4.0, 4.0)
         
         # Add the Spritesheet
         self.game_object.add_component(SpriteSheetRenderer, "assets/textures/player_base.png", 9, 56)
@@ -23,11 +24,11 @@ class PlayerController(Component):
     def update(self, delta_time: float):
         if self.transform is not None:
             if Input.is_key_down(Keys.RIGHT):
-                self.transform.x += self.speed * delta_time
+                self.transform.position.x += self.speed * delta_time
             if Input.is_key_down(Keys.LEFT):
-                self.transform.x -= self.speed * delta_time
+                self.transform.position.x -= self.speed * delta_time
             
             if Input.is_key_down(Keys.UP):
-                self.transform.y -= self.speed * delta_time
+                self.transform.position.y -= self.speed * delta_time
             if Input.is_key_down(Keys.DOWN):
-                self.transform.y += self.speed * delta_time
+                self.transform.position.y += self.speed * delta_time

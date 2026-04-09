@@ -49,10 +49,21 @@ Rectangle SpriteSheetRenderer::GetSourceRec() const {
 
 void SpriteSheetRenderer::Render() {
     if (m_transform) {
+        // Source Rectangle: The specific frame from the spritesheet
         Rectangle sourceRec = GetSourceRec();
-        Vector2 position = { m_transform->position.x, m_transform->position.y };
-        
-        // Draw exactly the sub-rectangle of the texture at the transform's position
-        DrawTextureRec(m_texture, sourceRec, position, WHITE);
+
+        // Destination Rectangle: Position and scaled size of that single frame
+        Rectangle destRec = {
+            m_transform->position.x,
+            m_transform->position.y,
+            sourceRec.width * m_transform->scale.x,
+            sourceRec.height * m_transform->scale.y
+        };
+
+        // Origin: Center of the scaled frame
+        Vector2 origin = { destRec.width / 2.0f, destRec.height / 2.0f };
+
+        // Draw with full transform support
+        DrawTexturePro(m_texture, sourceRec, destRec, origin, m_transform->rotation, WHITE);
     }
 }

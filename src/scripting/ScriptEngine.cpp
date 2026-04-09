@@ -222,17 +222,23 @@ PYBIND11_EMBEDDED_MODULE(foxvoid, m) {
             return py::none();
         });
 
+    py::class_<Vector2>(m, "Vector2")
+        .def(py::init<>()) // Default constructor
+        .def(py::init<float, float>(), py::arg("x"), py::arg("y")) // Constructor with params
+        // def_readwrite exposes the public member variable directly with direct memory access
+        .def_readwrite("x", &Vector2::x)
+        .def_readwrite("y", &Vector2::y);
+
     py::class_<Component>(m, "Component")
         .def(py::init<>())
         .def_property_readonly("game_object", [](Component& c) { return c.owner; }, py::return_value_policy::reference);
 
     py::class_<Transform2d, Component>(m, "Transform2d")
-        .def_property("x", 
-            [](Transform2d& t) { return t.position.x; }, 
-            [](Transform2d& t, float v) { t.position.x = v; })
-        .def_property("y", 
-            [](Transform2d& t) { return t.position.y; }, 
-            [](Transform2d& t, float v) { t.position.y = v; });
+        .def(py::init<float, float>(), py::arg("x") = 0.0f, py::arg("y") = 0.0f)
+        // Bind the actual Vector2 and float members
+        .def_readwrite("position", &Transform2d::position)
+        .def_readwrite("scale", &Transform2d::scale)
+        .def_readwrite("rotation", &Transform2d::rotation);
 
     py::class_<SpriteRenderer, Component>(m, "SpriteRenderer")
         .def(py::init<std::string>());

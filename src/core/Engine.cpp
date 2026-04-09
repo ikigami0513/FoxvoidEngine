@@ -45,9 +45,6 @@ void Engine::Run() {
     // Add a Transform component (centered on screen, assuming 800x600 window)
     player->AddComponent<Transform2d>(400.0f, 300.0f);
 
-    // Add a ShapeRenderer component (a 50x50 RED square)
-    player->AddComponent<ShapeRenderer>(50.0f, 50.0f, RED);
-
     player->AddComponent<ScriptComponent>("main", "PlayerController");
 
     // Main game loop: continues as long as the engine is running 

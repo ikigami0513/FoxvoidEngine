@@ -25,13 +25,21 @@ void SpriteRenderer::Start() {
 
 void SpriteRenderer::Render() {
     if (m_transform) {
-        // Draw the texture at the entity's position
-        // Raylib's basic DrawTexture expects integer coordinates
-        DrawTexture(
-            m_texture, 
-            static_cast<int>(m_transform->position.x), 
-            static_cast<int>(m_transform->position.y), 
-            WHITE // Tint color (WHITE means unmodified)
-        );
+        // Source Rectangle: The entire texture
+        Rectangle sourceRec = { 0.0f, 0.0f, (float)m_texture.width, (float)m_texture.height };
+    
+        // Destination Rectangle: Position and scaled size
+        Rectangle destRec = {
+            m_transform->position.x,
+            m_transform->position.y,
+            m_texture.width * m_transform->scale.x,
+            m_texture.height * m_transform->scale.y
+        };
+
+        // Origin: Center of the scaled texture for correct rotation
+        Vector2 origin = { destRec.width / 2.0f, destRec.height / 2.0f };
+
+        // 4. Draw with full transform support
+        DrawTexturePro(m_texture, sourceRec, destRec, origin, m_transform->rotation, WHITE);
     }
 }

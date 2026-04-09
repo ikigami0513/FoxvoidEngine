@@ -46,6 +46,13 @@ class GameObject:
         ...
 
 
+class Vector2:
+    """A 2D vector representing mathematical points or directions."""
+    x: float
+    y: float
+    def __init__(self, x: float = 0.0, y: float = 0.0) -> None: ...
+
+
 class Component:
     """Base class for all engine scripts and components."""
     
@@ -60,27 +67,15 @@ class Component:
 
 
 class Transform2d(Component):
-    """Component managing spatial position (X, Y)."""
+    """Component managing spatial position, rotation, and scale."""
+    
+    position: Vector2
+    scale: Vector2
+    rotation: float
     
     def __init__(self, x: float = 0.0, y: float = 0.0) -> None: 
-        """Creates a new Transform2d component with optional starting coordinates."""
+        """Creates a new Transform2d component."""
         ...
-    
-    @property
-    def x(self) -> float:
-        """The X coordinate of the transform."""
-        ...
-    
-    @x.setter
-    def x(self, value: float) -> None: ...
-    
-    @property
-    def y(self) -> float:
-        """The Y coordinate of the transform."""
-        ...
-    
-    @y.setter
-    def y(self, value: float) -> None: ...
     
 
 class Keys:
