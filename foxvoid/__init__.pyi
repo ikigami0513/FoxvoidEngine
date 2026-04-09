@@ -8,12 +8,14 @@ from typing import TypeVar, Type, Optional
 # It ensures that getting a Transform2d actually returns a Transform2d type in the IDE.
 T = TypeVar('T', bound='Component')
 
+
 def log(msg: str) -> None:
     """
     Prints a message directly to the C++ engine console.
     Bypasses Python's standard stdout to prevent crashes with graphics libraries.
     """
     ...
+
 
 class GameObject:
     """Represents an entity within the engine's scene."""
@@ -30,6 +32,20 @@ class GameObject:
         """
         ...
 
+    def add_component(self, type_obj: Type[T], *args) -> T:
+        """
+        Dynamically instantiates and attaches a new component to this GameObject.
+        
+        Args:
+            type_obj: The class type of the component to create.
+            *args: Variable arguments passed directly to the C++ constructor of the component.
+            
+        Returns:
+            The newly created and attached component instance.
+        """
+        ...
+
+
 class Component:
     """Base class for all engine scripts and components."""
     
@@ -41,6 +57,7 @@ class Component:
     def game_object(self) -> GameObject:
         """The owning GameObject of this component (Read-only)."""
         ...
+
 
 class Transform2d(Component):
     """Component managing spatial position (X, Y)."""
@@ -91,5 +108,18 @@ class Input:
         """
         Checks if a key has been pressed once.
         Returns True only on the exact frame the key was pushed down.
+        """
+        ...
+
+
+class SpriteRenderer(Component):
+    """Renders a 2D texture at the position defined by the entity's Transform2d."""
+    
+    def __init__(self, texture_path: str) -> None: 
+        """
+        Loads an image file into GPU memory for rendering.
+        
+        Args:
+            texture_path: The relative path to the image file (e.g., 'assets/player.png').
         """
         ...

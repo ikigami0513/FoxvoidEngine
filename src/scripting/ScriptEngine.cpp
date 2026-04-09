@@ -3,6 +3,7 @@
 #include "../world/GameObject.hpp"
 #include "../world/Component.hpp"
 #include <physics/Transform2d.hpp>
+#include "../graphics/SpriteRenderer.hpp"
 
 PYBIND11_EMBEDDED_MODULE(foxvoid, m) {
     m.def("log", [](const std::string& msg) {
@@ -30,8 +31,36 @@ PYBIND11_EMBEDDED_MODULE(foxvoid, m) {
                 Transform2d* t = go.GetComponent<Transform2d>();
                 if (t) return py::cast(t, py::return_value_policy::reference);
             }
+            else if (type_name == "SpriteRenderer") {
+                SpriteRenderer* s = go.GetComponent<SpriteRenderer>();
+                if (s) return py::cast(s, py::return_value_policy::reference);
+            }
             
             // Return None if component is not found
+            return py::none();
+        })
+        .def("add_component", [](GameObject& go, py::object type_obj, py::args args) -> py::object {
+            std::string type_name = py::str(py::getattr(type_obj, "__name__"));
+            
+            if (type_name == "Transform2d") {
+                // Extract optional arguments (x, y) if Python provided them
+                float x = 0.0f, y = 0.0f;
+                if (args.size() >= 1) x = args[0].cast<float>();
+                if (args.size() >= 2) y = args[1].cast<float>();
+                
+                Transform2d* t = go.AddComponent<Transform2d>(x, y);
+                return py::cast(t, py::return_value_policy::reference);
+            }
+            else if (type_name == "SpriteRenderer") {
+                // Ensure Python provided the mandatory texture path
+                if (args.size() < 1) {
+                    std::cerr << "[Python] SpriteRenderer requires a texture path string!" << std::endl;
+                    return py::none();
+                }
+                std::string path = args[0].cast<std::string>();
+                SpriteRenderer* s = go.AddComponent<SpriteRenderer>(path);
+                return py::cast(s, py::return_value_policy::reference);
+            }
             return py::none();
         });
 
@@ -46,6 +75,9 @@ PYBIND11_EMBEDDED_MODULE(foxvoid, m) {
         .def_property("y", 
             [](Transform2d& t) { return t.position.y; }, 
             [](Transform2d& t, float v) { t.position.y = v; });
+
+    py::class_<SpriteRenderer, Component>(m, "SpriteRenderer")
+        .def(py::init<std::string>());
 }
 
 py::scoped_interpreter* ScriptEngine::s_interpreter = nullptr;

@@ -12,6 +12,8 @@ class PlayerController(Component):
         log("PlayerController start sequence!")
         self.transform = self.game_object.get_component(Transform2d)
 
+        self.game_object.add_component(SpriteRenderer, "assets/textures/player_base.png")
+
     def update(self, delta_time: float):
         if self.transform is not None:
             # Handle movement (held keys)
