@@ -43,7 +43,9 @@ class Engine {
         int m_windowWidth;
         int m_windowHeight;
         std::string m_windowTitle;
+
         Scene m_activeScene;
+        nlohmann::json m_sceneBackup;
 
         // This texture will hold the rendered game scene off-screen
         RenderTexture2D m_sceneTexture;

@@ -9,7 +9,7 @@ class Transform2d; // Forward declaration to avoid circular includes
 class SpriteRenderer : public Component {
     public:
         // Loads the texture from the given file path
-        SpriteRenderer(const std::string& texturePath);
+        SpriteRenderer(const std::string& texturePath = "");
 
         // Virtual destructor to ensure the texture is unloaded safely
         ~SpriteRenderer() override;
@@ -17,7 +17,19 @@ class SpriteRenderer : public Component {
         void Start() override;
         void Render() override;
 
+        // A helper method to safely change the texture during runtime or editor mode
+        void SetTexture(const std::string& path);
+
+        // Editor UI and Serialization
+        std::string GetName() const override;
+        void OnInspector() override;
+
+        nlohmann::json Serialize() const override;
+        void Deserialize(const nlohmann::json& j) override;
+
     private:
+        std::string m_texturePath;
+
         // Raylib's native texture structure
         Texture2D m_texture;
 

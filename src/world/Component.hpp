@@ -2,6 +2,7 @@
 
 #include <string>
 #include "imgui.h"
+#include <nlohmann/json.hpp>
 
 // Forward declaration to avoid circular dependencies
 class GameObject; 
@@ -35,4 +36,12 @@ class Component {
         virtual void OnInspector() {
             ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "No exposed variables.");
         }
+
+        // Serializes the component's data into a JSON object
+        virtual nlohmann::json Serialize() const {
+            return nlohmann::json::object();
+        }
+    
+        // Restores the component's data from a JSON object
+        virtual void Deserialize(const nlohmann::json& j) {}
 };

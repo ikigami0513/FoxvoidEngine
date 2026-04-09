@@ -27,4 +27,23 @@ class Transform2d : public Component {
             // ImGui::DragFloat is for single values
             ImGui::DragFloat("Rotation", &rotation, 1.0f);
         }
+
+        nlohmann::json Serialize() const override {
+            return {
+                { "type", "Transform2d" },
+                { "x", position.x },
+                { "y", position.y },
+                { "scaleX", scale.x },
+                { "scaleY", scale.y },
+                { "rotation", rotation }
+            };
+        }
+
+        void Deserialize(const nlohmann::json& j) override {
+            position.x = j.value("x", 0.0f);
+            position.y = j.value("y", 0.0f);
+            scale.x    = j.value("scaleX", 1.0f);
+            scale.y    = j.value("scaleY", 1.0f);
+            rotation   = j.value("rotation", 0.0f);
+        }
 };

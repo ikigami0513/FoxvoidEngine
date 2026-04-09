@@ -6,13 +6,33 @@
 
 SpriteRenderer::SpriteRenderer(const std::string& texturePath) {
     // Load the image into GPU memory
-    m_texture = Graphics::LoadTextureFiltered(texturePath);
     m_transform = nullptr;
+    m_texture.id = 0;
+
+    if (!texturePath.empty()) {
+        SetTexture(texturePath);
+    }
 }
 
 SpriteRenderer::~SpriteRenderer() {
     // Crucial: Free GPU memory when the component or GameObject is destroyed
-    UnloadTexture(m_texture);
+    if (m_texture.id != 0) {
+        UnloadTexture(m_texture);
+    }
+}
+
+void SpriteRenderer::SetTexture(const std::string& path) {
+    // If a texture is already loaded, free its GPU memory first
+    if (m_texture.id != 0) {
+        UnloadTexture(m_texture);
+    }
+
+    m_texturePath = path;
+
+    // Only try to load if the path isn't empty
+    if (!m_texturePath.empty()) {
+        m_texture = Graphics::LoadTextureFiltered(m_texturePath);
+    }
 }
 
 void SpriteRenderer::Start() {
@@ -42,5 +62,49 @@ void SpriteRenderer::Render() {
 
         // 4. Draw with full transform support
         DrawTexturePro(m_texture, sourceRec, destRec, origin, m_transform->rotation, WHITE);
+    }
+}
+
+std::string SpriteRenderer::GetName() const {
+    return "Sprite Renderer";
+}
+
+void SpriteRenderer::OnInspector() {
+    // 1. Prepare a C-string buffer for ImGui text input
+    char buffer[256];
+    strncpy(buffer, m_texturePath.c_str(), sizeof(buffer));
+    buffer[sizeof(buffer) - 1] = '\0';
+
+    // 2. Draw the InputText. 
+    // We use ImGuiInputTextFlags_EnterReturnsTrue so it only loads when the user presses Enter 
+    // (otherwise it would try to load incomplete paths on every keystroke!)
+    if (ImGui::InputText("Texture Path", buffer, sizeof(buffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
+        std::string newPath(buffer);
+        if (newPath != m_texturePath) {
+            SetTexture(newPath); // This safely unloads the old and loads the new
+        }
+    }
+    
+    ImGui::TextDisabled("Press ENTER to load new texture");
+
+    // 3. Show useful debug info
+    if (m_texture.id != 0) {
+        ImGui::Text("Resolution: %d x %d", m_texture.width, m_texture.height);
+    } else {
+        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "No texture loaded!");
+    }
+}
+
+nlohmann::json SpriteRenderer::Serialize() const {
+    return {
+        {"type", "SpriteRenderer"},
+        {"texturePath", m_texturePath}
+    };
+}
+
+void SpriteRenderer::Deserialize(const nlohmann::json& j) {
+    std::string path = j.value("texturePath", "");
+    if (!path.empty()) {
+        SetTexture(path);
     }
 }

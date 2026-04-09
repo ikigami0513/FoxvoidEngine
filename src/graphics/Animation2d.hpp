@@ -8,11 +8,17 @@ class SpriteSheetRenderer; // Forward declaration
 class Animation2d : public Component {
 public:
     // Initializes the animation with a frame sequence, speed, and looping option
-    Animation2d(const std::vector<int>& frames, float speed, bool loop = true);
+    Animation2d(const std::vector<int>& frames = {0}, float speed = 0.15f, bool loop = true);
     ~Animation2d() override = default;
 
     void Start() override;
     void Update(float deltaTime) override;
+
+    std::string GetName() const override;
+    void OnInspector() override;
+
+    nlohmann::json Serialize() const override;
+    void Deserialize(const nlohmann::json& j) override;
 
 private:
     std::vector<int> m_frames; // The sequence of frames to play
@@ -23,4 +29,8 @@ private:
     float m_timer;             // Time accumulator
     
     SpriteSheetRenderer* m_sprite; // Pointer to the renderer we want to control
+
+    // Helpers to easily edit the vector in ImGui text input
+    std::string GetFramesAsString() const;
+    void ParseFramesFromString(const std::string& str);
 };

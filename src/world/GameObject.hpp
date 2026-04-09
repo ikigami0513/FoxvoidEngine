@@ -83,6 +83,18 @@ class GameObject {
             return components;
         }
 
+        nlohmann::json Serialize() const {
+            nlohmann::json j;
+            j["name"] = name;
+            j["components"] = nlohmann::json::array();
+
+            for (const auto& comp : components) {
+                j["components"].push_back(comp->Serialize());
+            }
+
+            return j;
+        }
+
     private:
         // We use unique_ptr so components are automatically destroyed when the GameObject dies
         std::vector<std::unique_ptr<Component>> components;

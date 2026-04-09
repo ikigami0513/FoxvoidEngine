@@ -137,7 +137,8 @@ void Engine::Render() {
         if (ImGui::Button("PLAY")) {
             m_isPlaying = true;
             std::cout << "[Editor] Entered PLAY mode." << std::endl;
-            // TODO later: Save the initial scene state here (Serialization)
+            
+            m_sceneBackup = m_activeScene.Serialize();
         }
         ImGui::PopStyleColor();
     } else {
@@ -146,7 +147,8 @@ void Engine::Render() {
         if (ImGui::Button("STOP")) {
             m_isPlaying = false;
             std::cout << "[Editor] Entered EDIT mode." << std::endl;
-            // TODO later: Reload the initial scene state here (Serialization)
+            
+            m_activeScene.Deserialize(m_sceneBackup);
         }
         ImGui::PopStyleColor();
     }
