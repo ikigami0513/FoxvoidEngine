@@ -36,3 +36,13 @@ class PlayerController(Component):
                 self.transform.position.y -= self.speed * delta_time
             if Input.is_key_down(Keys.DOWN):
                 self.transform.position.y += self.speed * delta_time
+
+            if Input.is_key_pressed(Keys.KEY_SPACE):
+                log("my friend")
+
+                friend = GameObject.instantiate("Friend")
+
+                transform = friend.add_component(Transform2d, self.transform.position.x + 20, self.transform.position.y + 20)
+                transform.scale = Vector2(4.0, 4.0)
+                friend.add_component(SpriteSheetRenderer, "assets/textures/player_base.png", 9, 56)                
+                friend.add_component(Animation2d, [0, 1, 2, 3, 4, 5], 0.15, True)

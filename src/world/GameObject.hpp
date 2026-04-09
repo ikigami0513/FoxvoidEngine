@@ -19,6 +19,16 @@ class GameObject {
         GameObject(const GameObject&) = delete;
         GameObject& operator=(const GameObject&) = delete;
 
+        // Marks the GameObject to be destroyed at the end of the frame
+        void Destroy() {
+            m_pendingDestroy = true;
+        }
+
+        // Checks if the GameObject is scheduled for destruction
+        bool IsPendingDestroy() const {
+            return m_pendingDestroy;
+        }
+
         // Iterate through all components and call their update methods
         void Update(float deltaTime) {
             for (auto& component : components) {
@@ -70,4 +80,7 @@ class GameObject {
     private:
         // We use unique_ptr so components are automatically destroyed when the GameObject dies
         std::vector<std::unique_ptr<Component>> components;
+
+        // The death flag
+        bool m_pendingDestroy = false;
 };

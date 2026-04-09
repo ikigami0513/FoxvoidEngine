@@ -34,6 +34,25 @@ def is_pixel_art_mode() -> bool:
 
 class GameObject:
     """Represents an entity within the engine's scene."""
+    @staticmethod
+    def instantiate(name: str) -> GameObject:
+        """
+        Creates a new empty GameObject in the active scene.
+        
+        Args:
+            name: The name of the new entity.
+            
+        Returns:
+            The newly created GameObject instance.
+        """
+        ...
+
+    def destroy(self) -> None:
+        """
+        Marks this GameObject for destruction. 
+        It will be safely removed from memory at the end of the current C++ frame.
+        """
+        ...
     
     def get_component(self, type_obj: Type[T]) -> Optional[T]:
         """

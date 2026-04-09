@@ -6,12 +6,18 @@
 #include <scripting/ScriptEngine.hpp>
 #include <scripting/ScriptComponent.hpp>
 
+Engine* Engine::s_instance = nullptr;
+
 Engine::Engine(int width, int height, const std::string& title)
     : m_windowWidth(width), 
       m_windowHeight(height), 
       m_windowTitle(title), 
       m_isRunning(false) 
 {
+    // Assign the current instance to our static pointer 
+    // so Engine::Get() can return it properly.
+    s_instance = this;
+
     // Initialize the Raylib window
     InitWindow(m_windowWidth, m_windowHeight, m_windowTitle.c_str());
     

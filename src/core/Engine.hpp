@@ -20,6 +20,12 @@ class Engine {
         // Starts the main game loop
         void Run();
 
+        // Returns the active instance of the Engine
+        static Engine* Get() { return s_instance; }
+        
+        // Returns a reference to the active scene to allow GameObject instantiation
+        Scene& GetActiveScene() { return m_activeScene; }
+
     private:
         // Core loop stages
         void ProcessInput();
@@ -32,4 +38,7 @@ class Engine {
         int m_windowHeight;
         std::string m_windowTitle;
         Scene m_activeScene;
+
+        // Static pointer holding the unique Engine instance
+        static Engine* s_instance;
 };

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <pybind11/stl.h>
 
+#include "../../core/Engine.hpp"
 #include "../../world/GameObject.hpp"
 #include "../../world/Component.hpp"
 #include "../../physics/Transform2d.hpp"
@@ -19,6 +20,27 @@ void BindCore(py::module_& m) {
         .def_property_readonly("game_object", [](Component& c) { return c.owner; }, py::return_value_policy::reference);
 
     py::class_<GameObject>(m, "GameObject")
+        // We return GameObject* directly. Pybind11 will apply the reference policy automatically
+        // and convert nullptr to Python's None safely.
+        .def_static("instantiate", [](const std::string& name) -> GameObject* {
+            std::cout << "[C++] Attempting to instantiate: " << name << std::endl;
+            
+            // Safety check in case the Engine singleton is null
+            if (!Engine::Get()) {
+                std::cerr << "[C++] FATAL ERROR: Engine::Get() returned nullptr!" << std::endl;
+                return nullptr;
+            }
+
+            GameObject* newGo = Engine::Get()->GetActiveScene().CreateGameObject(name);
+
+            if (!newGo) {
+                std::cerr << "[Python] Failed to instantiate: " << name << std::endl;
+            }
+
+            return newGo;
+        }, py::return_value_policy::reference)
+        // Expose the Destroy method so Python can schedule objects for deletion
+        .def("destroy", &GameObject::Destroy)
         .def("get_component", [](GameObject& go, py::object type_obj) -> py::object {
             // Get the string name of the requested class (e.g., "Transform2d")
             std::string type_name = py::str(py::getattr(type_obj, "__name__"));
