@@ -85,11 +85,126 @@ class Transform2d(Component):
 
 class Keys:
     """Raylib keyboard key codes."""
+    KEY_NULL: int
+    KEY_APOSTROPHE: int
+    KEY_COMMA: int
+    KEY_MINUS: int
+    KEY_PERIOD: int
+    KEY_SLASH: int
+
+    KEY_ZERO: int
+    KEY_ONE: int
+    KEY_TWO: int
+    KEY_THREE: int
+    KEY_FOUR: int
+    KEY_FIVE: int
+    KEY_SIX: int
+    KEY_SEVEN: int
+    KEY_EIGHT: int
+    KEY_NINE: int
+
+    KEY_SEMICOLON: int
+    KEY_EQUAL: int
+
+    KEY_A: int
+    KEY_B: int
+    KEY_C: int
+    KEY_D: int
+    KEY_E: int
+    KEY_F: int
+    KEY_G: int
+    KEY_H: int
+    KEY_I: int
+    KEY_J: int
+    KEY_K: int
+    KEY_L: int
+    KEY_M: int
+    KEY_N: int
+    KEY_O: int
+    KEY_P: int
+    KEY_Q: int
+    KEY_R: int
+    KEY_S: int
+    KEY_T: int
+    KEY_U: int
+    KEY_V: int
+    KEY_W: int
+    KEY_X: int
+    KEY_Y: int
+    KEY_Z: int
+
+    KEY_LEFT_BRACKET: int
+    KEY_BACKSLASH: int
+    KEY_RIGHT_BRACKET: int
+    KEY_GRAVE: int
+
+    KEY_SPACE: int
+    KEY_ESCAPE: int
+    KEY_ENTER: int
+    KEY_TAB: int
+    KEY_BACKSPACE: int
+    KEY_INSERT: int
+    KEY_DELETE: int
     RIGHT: int
     LEFT: int
     DOWN: int
     UP: int
-    SPACE: int
+    KEY_PAGE_UP: int
+    KEY_PAGE_DOWN: int
+    KEY_HOME: int
+    KEY_END: int
+    KEY_CAPS_LOCK: int
+    KEY_SCROLL_LOCK: int
+    KEY_NUM_LOCK: int
+    KEY_PRINT_SCREEN: int
+    KEY_PAUSE: int
+
+    KEY_F1: int
+    KEY_F2: int
+    KEY_F3: int
+    KEY_F4: int
+    KEY_F5: int
+    KEY_F6: int
+    KEY_F7: int
+    KEY_F8: int
+    KEY_F9: int
+    KEY_F10: int
+    KEY_F11: int
+    KEY_F12: int
+
+    KEY_LEFT_SHIFT: int
+    KEY_LEFT_CONTROL: int
+    KEY_LEFT_ALT: int
+    KEY_LEFT_SUPER: int
+    KEY_RIGHT_SHIFT: int
+    KEY_RIGHT_CONTROL: int
+    KEY_RIGHT_ALT: int
+    KEY_RIGHT_SUPER: int
+    KEY_KB_MENU: int
+
+    KEY_KP_0: int
+    KEY_KP_1: int
+    KEY_KP_2: int
+    KEY_KP_3: int
+    KEY_KP_4: int
+    KEY_KP_5: int
+    KEY_KP_6: int
+    KEY_KP_7: int
+    KEY_KP_8: int
+    KEY_KP_9: int
+
+    KEY_KP_DECIMAL: int
+    KEY_KP_DIVIDE: int
+    KEY_KP_MULTIPLY: int
+    KEY_KP_SUBTRACT: int
+    KEY_KP_ADD: int
+    KEY_KP_ENTER: int
+    KEY_KP_EQUAL: int
+
+    KEY_BACK: int
+    KEY_MENU: int
+    KEY_VOLUME_UP: int
+    KEY_VOLUME_DOWN: int
 
 
 class Input:
