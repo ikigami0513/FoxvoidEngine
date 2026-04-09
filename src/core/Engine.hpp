@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <filesystem>
 #include <raylib.h>
 #include "world/Scene.hpp"
 
@@ -32,6 +33,12 @@ class Engine {
         void ProcessInput();
         void Update(float deltaTime);
         void Render();
+
+        // The root path of the project assets
+        std::filesystem::path m_assetsPath = "assets";
+
+        // Recursive function to read and display the folder tree
+        void DrawDirectoryNode(const std::filesystem::path& path);
 
         // Engine state
         bool m_isRunning;

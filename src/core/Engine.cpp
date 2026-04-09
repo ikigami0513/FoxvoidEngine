@@ -11,6 +11,8 @@
 #include "AssetManager.hpp"
 #include <graphics/Animator2d.hpp>
 
+namespace fs = std::filesystem;
+
 Engine* Engine::s_instance = nullptr;
 
 Engine::Engine(int width, int height, const std::string& title)
@@ -71,8 +73,6 @@ Engine::~Engine() {
 }
 
 void Engine::Run() {
-    m_activeScene.LoadFromFile("assets/scenes/default_scene.json");
-    
     // Main game loop: continues as long as the engine is running 
     // and the user hasn't pressed ESC or the close button
     while (m_isRunning && !WindowShouldClose()) {
@@ -101,6 +101,57 @@ void Engine::Update(float deltaTime) {
     // This ensures objects created via the Editor or Engine::Run
     // are immediately added to the scene graph.
     m_activeScene.Flush();
+}
+
+void Engine::DrawDirectoryNode(const fs::path& path) {
+    // If the directory does not exist, stop right here
+    if (!fs::exists(path)) return;
+
+    // Iterate through all items in the current directory
+    for (const auto& entry : fs::directory_iterator(path)) {
+        const auto& filename = entry.path().filename().string();
+        std::string extension = entry.path().extension().string();
+
+        if (entry.is_directory()) {
+            // It's a FOLDER
+            // Create a collapsible tree node
+            if (ImGui::TreeNodeEx(filename.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
+                // Recursive call to read the contents of this subfolder
+                DrawDirectoryNode(entry.path()); 
+                ImGui::TreePop(); // Close the node
+            }
+        } else {
+            // It's a FILE
+            // Draw it as a "Leaf" (no children to expand)
+            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
+            
+            // Add a small visual icon prefix based on the file type (optional but looks nice)
+            std::string displayName = "  " + filename;
+            if (extension == ".json") displayName = "[Scene] " + filename;
+            else if (extension == ".py") displayName = "[Script] " + filename;
+            else if (extension == ".png") displayName = "[Image] " + filename;
+
+            ImGui::TreeNodeEx(displayName.c_str(), flags);
+            
+            // INTERACTION: What happens when we interact with this file?
+            if (ImGui::IsItemHovered()) {
+                // Double left-click
+                if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+                    
+                    // If it's a scene, load it!
+                    if (extension == ".json") {
+                        std::cout << "[Editor] Loading scene via Project Browser: " << filename << std::endl;
+                        
+                        // Safety: Clear the editor selection before changing the scene
+                        m_selectedObject = nullptr; 
+                        
+                        // Load the new scene
+                        m_activeScene.LoadFromFile(entry.path().string());
+                    }
+                }
+            }
+        }
+    }
 }
 
 void Engine::Render() {
@@ -250,6 +301,17 @@ void Engine::Render() {
         // If nothing is selected, display a helpful message
         ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "Select an object in the Hierarchy.");
     }
+
+    ImGui::End();
+
+    ImGui::Begin("Project");
+
+    // Display the current path so we know where we are
+    ImGui::TextDisabled("Path: %s", m_assetsPath.string().c_str());
+    ImGui::Separator();
+
+    // Start the recursive reading from the root asset folder
+    DrawDirectoryNode(m_assetsPath);
 
     ImGui::End();
 
