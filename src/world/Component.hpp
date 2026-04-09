@@ -1,5 +1,8 @@
 #pragma once
 
+#include <string>
+#include "imgui.h"
+
 // Forward declaration to avoid circular dependencies
 class GameObject; 
 
@@ -24,4 +27,12 @@ class Component {
 
         // Called every frame after update, specifically for drawing via Raylib
         virtual void Render() {}
+
+        // Returns the name of the component for the Inspecteur header
+        virtual std::string GetName() const { return "Component"; }
+
+        // Called by the Editor to draw ImGui controls for this specific component
+        virtual void OnInspector() {
+            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "No exposed variables.");
+        }
 };

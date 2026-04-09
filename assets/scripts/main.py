@@ -10,11 +10,6 @@ class PlayerController(Component):
         super().__init__()
         self.speed = 400.0
         self.transform: Optional[Transform2d] = None
-        self.sprite: Optional[SpriteSheetRenderer] = None
-        
-        # Custom logic variables for animation
-        self.animation_timer = 0.0
-        self.animation_speed = 0.1 # Change frame every 0.1 seconds
 
     def start(self):
         log("PlayerController start sequence!")

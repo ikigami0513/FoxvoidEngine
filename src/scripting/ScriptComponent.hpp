@@ -13,6 +13,14 @@ public:
     void Start() override;
     void Update(float deltaTime) override;
 
+    std::string GetName() const override;
+
+    // Dynamically inspects the Python object and draws its variables
+    void OnInspector() override;
+
 private:
+    std::string m_scriptName;
+    std::string m_className;
+
     py::object m_instance; 
 };

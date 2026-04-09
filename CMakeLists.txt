@@ -16,7 +16,7 @@ include(FetchContent)
 FetchContent_Declare(
     raylib
     GIT_REPOSITORY https://github.com/raysan5/raylib.git
-    GIT_TAG        5.0 # Lock to version 5.0 for stability
+    GIT_TAG        5.5 # Lock to version 5.5 for stability
 )
 FetchContent_MakeAvailable(raylib)
 
@@ -27,6 +27,26 @@ FetchContent_Declare(
     GIT_TAG        v3.11.3
 )
 FetchContent_MakeAvailable(json)
+
+# --- IMGUI & RLIMGUI (Editor UI) ---
+
+# 1. Fetch Dear ImGui (We MUST use the 'docking' branch for a modern editor)
+FetchContent_Declare(
+    imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG        docking
+)
+FetchContent_MakeAvailable(imgui)
+
+# 2. Fetch rlImGui (The bridge between Raylib and ImGui)
+FetchContent_Declare(
+    rlImGui
+    GIT_REPOSITORY https://github.com/raylib-extras/rlImGui.git
+    GIT_TAG        main
+)
+# Tell rlImGui where to find the ImGui we just downloaded to avoid duplicates
+set(IMGUI_DIR ${imgui_SOURCE_DIR}) 
+FetchContent_MakeAvailable(rlImGui)
 
 # --- PYTHON & PYBIND11 SETUP ---
 
@@ -45,8 +65,16 @@ FetchContent_MakeAvailable(pybind11)
 # Find all .cpp files inside the src/ directory and its subdirectories
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "src/*.cpp")
 
+set(IMGUI_SOURCES
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${rlimgui_SOURCE_DIR}/rlImGui.cpp
+)
+
 # Define the executable using the variable holding all the found files
-add_executable(FoxvoidEngine ${SOURCES})
+add_executable(FoxvoidEngine ${SOURCES} ${IMGUI_SOURCES})
 
 # Link the downloaded libraries to the game
 # We use pybind11::embed because we are running Python INSIDE C++, 
@@ -58,4 +86,8 @@ target_link_libraries(FoxvoidEngine PRIVATE
 )
 
 # Add the src/ folder to the include paths
-target_include_directories(FoxvoidEngine PRIVATE src)
+target_include_directories(FoxvoidEngine PRIVATE 
+    src
+    ${imgui_SOURCE_DIR}
+    ${rlimgui_SOURCE_DIR}
+)

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <raylib.h>
 #include "world/Scene.hpp"
 
 // The Engine class encapsulates the core loop and window management.
@@ -38,6 +39,12 @@ class Engine {
         int m_windowHeight;
         std::string m_windowTitle;
         Scene m_activeScene;
+
+        // This texture will hold the rendered game scene off-screen
+        RenderTexture2D m_sceneTexture;
+
+        // Keeps track of the currently selected entity in the Hierarchy
+        GameObject* m_selectedObject = nullptr;
 
         // Static pointer holding the unique Engine instance
         static Engine* s_instance;

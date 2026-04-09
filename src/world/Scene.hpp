@@ -19,6 +19,12 @@ class Scene {
             return ptr;
         }
 
+        // Read-only access to the game objects for the Editor
+        // Returns a constant reference to the vector, preventing external modifications
+        const std::vector<std::unique_ptr<GameObject>>& GetGameObjects() const {
+            return gameObjects;
+        }
+
         // Triggers the update loop for all GameObjects and cleans up dead ones
         void Update(float deltaTime) {
             // Update all objects

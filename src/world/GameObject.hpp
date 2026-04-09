@@ -77,6 +77,12 @@ class GameObject {
             return nullptr; // Return null if the component is not found
         }
 
+        // Access to components for the Editor
+        // Returns a constant reference to the components list
+        const std::vector<std::unique_ptr<Component>>& GetComponents() const {
+            return components;
+        }
+
     private:
         // We use unique_ptr so components are automatically destroyed when the GameObject dies
         std::vector<std::unique_ptr<Component>> components;
