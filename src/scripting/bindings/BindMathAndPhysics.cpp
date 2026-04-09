@@ -1,5 +1,7 @@
 #include "../ScriptBindings.hpp"
 #include <raylib.h>
+#include <iostream>
+#include "../../world/GameObject.hpp"
 #include "../../physics/Transform2d.hpp"
 
 void BindMathAndPhysics(py::module_& m) {
@@ -16,4 +18,17 @@ void BindMathAndPhysics(py::module_& m) {
         .def_readwrite("position", &Transform2d::position)
         .def_readwrite("scale", &Transform2d::scale)
         .def_readwrite("rotation", &Transform2d::rotation);
+
+    ComponentRegistry::Register<Transform2d>("Transform2d", 
+        [](GameObject& go, py::args args) -> py::object {
+            float x = 0.0f, y = 0.0f;
+            
+            // Extract optional X and Y if Python provided them
+            if (args.size() >= 1) x = args[0].cast<float>();
+            if (args.size() >= 2) y = args[1].cast<float>();
+            
+            auto* t = go.AddComponent<Transform2d>(x, y);
+            return py::cast(t, py::return_value_policy::reference);
+        }
+    );
 }
