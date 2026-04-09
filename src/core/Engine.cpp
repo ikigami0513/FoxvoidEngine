@@ -22,6 +22,9 @@ Engine::Engine(int width, int height, const std::string& title)
     // so Engine::Get() can return it properly.
     s_instance = this;
 
+    // Make the Engine window resizable
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+
     // Initialize the Raylib window
     InitWindow(m_windowWidth, m_windowHeight, m_windowTitle.c_str());
     
