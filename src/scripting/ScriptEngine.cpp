@@ -1,10 +1,13 @@
 #include "ScriptEngine.hpp"
 #include <iostream>
+#include <pybind11/stl.h>
+
 #include "../world/GameObject.hpp"
 #include "../world/Component.hpp"
 #include <physics/Transform2d.hpp>
 #include "../graphics/SpriteRenderer.hpp"
 #include <graphics/SpriteSheetRenderer.hpp>
+#include <graphics/Animation2d.hpp>
 
 PYBIND11_EMBEDDED_MODULE(foxvoid, m) {
     m.def("log", [](const std::string& msg) {
@@ -39,6 +42,10 @@ PYBIND11_EMBEDDED_MODULE(foxvoid, m) {
             else if (type_name == "SpriteSheetRenderer") {
                 SpriteSheetRenderer* s = go.GetComponent<SpriteSheetRenderer>();
                 if (s) return py::cast(s, py::return_value_policy::reference);
+            }
+            else if (type_name == "Animation2d") {
+                Animation2d* a = go.GetComponent<Animation2d>();
+                if (a) return py::cast(a, py::return_value_policy::reference);
             }
             
             // Return None if component is not found
@@ -78,6 +85,24 @@ PYBIND11_EMBEDDED_MODULE(foxvoid, m) {
                 SpriteSheetRenderer* s = go.AddComponent<SpriteSheetRenderer>(path, cols, rows);
                 return py::cast(s, py::return_value_policy::reference);
             }
+            else if (type_name == "Animation2d") {
+                // Ensure Python provided at least the frames and speed
+                if (args.size() < 2) {
+                    std::cerr << "[Python] Animation2d requires (frames_list, speed, [loop])!" << std::endl;
+                    return py::none();
+                }
+                // Automatically casts Python list to std::vector<int> thanks to stl.h
+                std::vector<int> frames = args[0].cast<std::vector<int>>();
+                float speed = args[1].cast<float>();
+                bool loop = true; // Default value
+                
+                if (args.size() >= 3) {
+                    loop = args[2].cast<bool>();
+                }
+                
+                Animation2d* a = go.AddComponent<Animation2d>(frames, speed, loop);
+                return py::cast(a, py::return_value_policy::reference);
+            }
 
             return py::none();
         });
@@ -103,6 +128,10 @@ PYBIND11_EMBEDDED_MODULE(foxvoid, m) {
         .def_property("frame", &SpriteSheetRenderer::GetFrame, &SpriteSheetRenderer::SetFrame)
         // Read-only property for the total frame count
         .def_property_readonly("frame_count", &SpriteSheetRenderer::GetFrameCount);
+
+    py::class_<Animation2d, Component>(m, "Animation2d")
+        .def(py::init<std::vector<int>, float, bool>(), 
+             py::arg("frames"), py::arg("speed"), py::arg("loop") = true);
 }
 
 py::scoped_interpreter* ScriptEngine::s_interpreter = nullptr;

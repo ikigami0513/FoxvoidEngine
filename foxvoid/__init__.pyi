@@ -2,7 +2,7 @@
 # and autocompletion. The "..." (Ellipsis) indicate to Python that the actual 
 # implementation is handled natively in C++.
 
-from typing import TypeVar, Type, Optional
+from typing import TypeVar, Type, Optional, List
 
 # Type variable for smart autocompletion in the get_component method.
 # It ensures that getting a Transform2d actually returns a Transform2d type in the IDE.
@@ -150,4 +150,22 @@ class SpriteSheetRenderer(Component):
     @property
     def frame_count(self) -> int:
         """Total number of frames in the spritesheet (Read-only)."""
+        ...
+
+
+class Animation2d(Component):
+    """
+    Handles frame-by-frame animation by controlling a SpriteSheetRenderer.
+    Performance is maximized as the timer logic runs natively in C++.
+    """
+    
+    def __init__(self, frames: List[int], speed: float, loop: bool = True) -> None: 
+        """
+        Initializes the animation sequence.
+        
+        Args:
+            frames: Sequence of frame indices to play (e.g., [0, 1, 2, 3]).
+            speed: Time in seconds each frame is displayed.
+            loop: If True, the animation repeats indefinitely.
+        """
         ...
