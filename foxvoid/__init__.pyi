@@ -123,3 +123,31 @@ class SpriteRenderer(Component):
             texture_path: The relative path to the image file (e.g., 'assets/player.png').
         """
         ...
+
+
+class SpriteSheetRenderer(Component):
+    """Renders a specific frame from a grid-based spritesheet texture."""
+    
+    def __init__(self, texture_path: str, columns: int, rows: int) -> None: 
+        """
+        Loads a spritesheet into GPU memory.
+        
+        Args:
+            texture_path: The relative path to the image file.
+            columns: The number of columns in the spritesheet grid.
+            rows: The number of rows in the spritesheet grid.
+        """
+        ...
+        
+    @property
+    def frame(self) -> int:
+        """The current frame index being rendered (0 to frame_count - 1)."""
+        ...
+        
+    @frame.setter
+    def frame(self, value: int) -> None: ...
+    
+    @property
+    def frame_count(self) -> int:
+        """Total number of frames in the spritesheet (Read-only)."""
+        ...

@@ -4,6 +4,7 @@
 #include "../world/Component.hpp"
 #include <physics/Transform2d.hpp>
 #include "../graphics/SpriteRenderer.hpp"
+#include <graphics/SpriteSheetRenderer.hpp>
 
 PYBIND11_EMBEDDED_MODULE(foxvoid, m) {
     m.def("log", [](const std::string& msg) {
@@ -35,6 +36,10 @@ PYBIND11_EMBEDDED_MODULE(foxvoid, m) {
                 SpriteRenderer* s = go.GetComponent<SpriteRenderer>();
                 if (s) return py::cast(s, py::return_value_policy::reference);
             }
+            else if (type_name == "SpriteSheetRenderer") {
+                SpriteSheetRenderer* s = go.GetComponent<SpriteSheetRenderer>();
+                if (s) return py::cast(s, py::return_value_policy::reference);
+            }
             
             // Return None if component is not found
             return py::none();
@@ -61,6 +66,19 @@ PYBIND11_EMBEDDED_MODULE(foxvoid, m) {
                 SpriteRenderer* s = go.AddComponent<SpriteRenderer>(path);
                 return py::cast(s, py::return_value_policy::reference);
             }
+            else if (type_name == "SpriteSheetRenderer") {
+                // Ensure Python provided the mandatory path, cols, and rows
+                if (args.size() < 3) {
+                    std::cerr << "[Python] SpriteSheetRenderer requires (texture_path, columns, rows)!" << std::endl;
+                    return py::none();
+                }
+                std::string path = args[0].cast<std::string>();
+                int cols = args[1].cast<int>();
+                int rows = args[2].cast<int>();
+                SpriteSheetRenderer* s = go.AddComponent<SpriteSheetRenderer>(path, cols, rows);
+                return py::cast(s, py::return_value_policy::reference);
+            }
+
             return py::none();
         });
 
@@ -78,6 +96,13 @@ PYBIND11_EMBEDDED_MODULE(foxvoid, m) {
 
     py::class_<SpriteRenderer, Component>(m, "SpriteRenderer")
         .def(py::init<std::string>());
+
+    py::class_<SpriteSheetRenderer, Component>(m, "SpriteSheetRenderer")
+        .def(py::init<std::string, int, int>())
+        // We bind GetFrame and SetFrame to a clean Python property '.frame'
+        .def_property("frame", &SpriteSheetRenderer::GetFrame, &SpriteSheetRenderer::SetFrame)
+        // Read-only property for the total frame count
+        .def_property_readonly("frame_count", &SpriteSheetRenderer::GetFrameCount);
 }
 
 py::scoped_interpreter* ScriptEngine::s_interpreter = nullptr;
