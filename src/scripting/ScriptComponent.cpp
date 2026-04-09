@@ -16,6 +16,21 @@ ScriptComponent::ScriptComponent(const std::string& moduleName, const std::strin
     }
 }
 
+ScriptComponent::~ScriptComponent() {
+    if (m_instance) {
+        try {
+            Component* nativeComponent = m_instance.cast<Component*>();
+            if (nativeComponent) {
+                nativeComponent->owner = nullptr;
+            }
+            
+            m_instance = py::none(); 
+        } catch (...) {
+            
+        }
+    }
+}
+
 void ScriptComponent::Start() {
     if (!m_instance) return;
 
@@ -127,5 +142,106 @@ void ScriptComponent::OnInspector() {
         // If anything goes wrong in Python, print it in red inside the Inspector
         ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Python Error:");
         ImGui::TextWrapped("%s", e.what());
+    }
+}
+
+nlohmann::json ScriptComponent::Serialize() const {
+    nlohmann::json j;
+    
+    j["type"] = "ScriptComponent";
+
+    // 1. Save the core data needed to find and reload the script
+    j["scriptName"] = m_scriptName;
+    j["className"] = m_className;
+
+    // 2. Automatically save all valid Python variables
+    nlohmann::json properties;
+
+    if (m_instance) {
+        try {
+            py::dict attributes = m_instance.attr("__dict__");
+
+            for (auto item : attributes) {
+                std::string key = py::str(item.first);
+                
+                // Skip private/internal variables
+                if (key.rfind("_", 0) == 0) continue;
+
+                py::object value = py::reinterpret_borrow<py::object>(item.second);
+
+                // Skip component references (they are managed by the C++ engine, not the script state)
+                if (py::isinstance<Component>(value)) continue;
+
+                // Dynamically check types and save them to the JSON properties object
+                if (py::isinstance<py::bool_>(value)) {
+                    properties[key] = value.cast<bool>();
+                } 
+                else if (py::isinstance<py::float_>(value)) {
+                    properties[key] = value.cast<float>();
+                } 
+                else if (py::isinstance<py::int_>(value)) {
+                    properties[key] = value.cast<int>();
+                } 
+                else if (py::isinstance<py::str>(value)) {
+                    properties[key] = value.cast<std::string>();
+                }
+            }
+        } catch (const py::error_already_set& e) {
+            std::cerr << "[ScriptComponent] Auto-Serialize Error:\n" << e.what() << std::endl;
+        }
+    }
+
+    j["properties"] = properties;
+
+    return j;
+}
+
+void ScriptComponent::Deserialize(const nlohmann::json& j) {
+    // 1. Restore the script identifiers
+    if (j.contains("scriptName")) m_scriptName = j["scriptName"].get<std::string>();
+    if (j.contains("className")) m_className = j["className"].get<std::string>();
+
+    // 2. If this component was created via deserialization (empty), we need to instantiate Python now
+    if (!m_instance && !m_scriptName.empty() && !m_className.empty()) {
+        try {
+            py::module_ mod = py::module_::import(m_scriptName.c_str());
+            py::object cls = mod.attr(m_className.c_str());
+            m_instance = cls();
+            
+            // IMPORTANT: Immediately bind the owner pointer so Python knows its GameObject
+            Component* nativeComponent = m_instance.cast<Component*>();
+            if (nativeComponent) {
+                nativeComponent->owner = this->owner;
+            }
+        } catch (const py::error_already_set& e) {
+            std::cerr << "[ScriptComponent] Deserialize Instantiation Error:\n" << e.what() << std::endl;
+            return;
+        }
+    }
+
+    // 3. Automatically restore all saved variables into the Python instance
+    if (j.contains("properties") && m_instance) {
+        auto props = j["properties"];
+        
+        for (auto& el : props.items()) {
+            std::string key = el.key();
+            try {
+                // Determine the JSON type and push it directly into the Python dictionary
+                if (el.value().is_boolean()) {
+                    m_instance.attr(key.c_str()) = el.value().get<bool>();
+                } 
+                else if (el.value().is_number_float()) {
+                    m_instance.attr(key.c_str()) = el.value().get<float>();
+                } 
+                else if (el.value().is_number_integer()) {
+                    m_instance.attr(key.c_str()) = el.value().get<int>();
+                } 
+                else if (el.value().is_string()) {
+                    m_instance.attr(key.c_str()) = el.value().get<std::string>();
+                }
+            } catch (const py::error_already_set& e) {
+                std::cerr << "[ScriptComponent] Failed to restore property '" << key << "':\n" << e.what() << std::endl;
+            }
+        }
     }
 }

@@ -9,6 +9,8 @@
 #include <graphics/SpriteRenderer.hpp>
 #include <graphics/SpriteSheetRenderer.hpp>
 #include <graphics/Animation2d.hpp>
+#include "../scripting/ScriptComponent.hpp"
+#include "../graphics/Animator2d.hpp"
 
 class Scene {
     public:
@@ -28,6 +30,16 @@ class Scene {
         // Returns a constant reference to the vector, preventing external modifications
         const std::vector<std::unique_ptr<GameObject>>& GetGameObjects() const {
             return gameObjects;
+        }
+
+        void Start() {
+            for (auto& go : gameObjects) {
+                go->Start();
+            }
+            
+            for (auto& go : m_pendingObjects) {
+                go->Start();
+            }
         }
 
         // Runs game logic
@@ -110,6 +122,14 @@ class Scene {
                         else if (type == "Animation2d") {
                             auto* anim = go->AddComponent<Animation2d>();
                             anim->Deserialize(compJson);
+                        }
+                        else if (type == "Animator2d") {
+                            auto* animator = go->AddComponent<Animator2d>();
+                            animator->Deserialize(compJson);
+                        }
+                        else if (type == "ScriptComponent") {
+                            auto* sc = go->AddComponent<ScriptComponent>();
+                            sc->Deserialize(compJson);
                         }
                     }
                 }

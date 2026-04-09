@@ -3,6 +3,7 @@
 #include "../world/GameObject.hpp"
 #include "../physics/Transform2d.hpp"
 #include <iostream>
+#include <core/AssetManager.hpp>
 
 SpriteRenderer::SpriteRenderer(const std::string& texturePath) {
     // Load the image into GPU memory
@@ -14,12 +15,7 @@ SpriteRenderer::SpriteRenderer(const std::string& texturePath) {
     }
 }
 
-SpriteRenderer::~SpriteRenderer() {
-    // Crucial: Free GPU memory when the component or GameObject is destroyed
-    if (m_texture.id != 0) {
-        UnloadTexture(m_texture);
-    }
-}
+SpriteRenderer::~SpriteRenderer() {}
 
 void SpriteRenderer::SetTexture(const std::string& path) {
     // If a texture is already loaded, free its GPU memory first
@@ -31,7 +27,7 @@ void SpriteRenderer::SetTexture(const std::string& path) {
 
     // Only try to load if the path isn't empty
     if (!m_texturePath.empty()) {
-        m_texture = Graphics::LoadTextureFiltered(m_texturePath);
+        m_texture = AssetManager::GetTexture(path);
     }
 }
 

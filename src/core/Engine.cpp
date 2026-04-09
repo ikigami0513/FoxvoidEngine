@@ -8,6 +8,8 @@
 #include <rlImGui.h>
 #include <graphics/SpriteSheetRenderer.hpp>
 #include <graphics/Animation2d.hpp>
+#include "AssetManager.hpp"
+#include <graphics/Animator2d.hpp>
 
 Engine* Engine::s_instance = nullptr;
 
@@ -54,6 +56,8 @@ Engine::~Engine() {
 
     ScriptEngine::Shutdown();
 
+    AssetManager::Clear();
+
     // Shutdown ImGui
     rlImGuiShutdown();
 
@@ -73,7 +77,14 @@ void Engine::Run() {
     // Add a Transform component (centered on screen, assuming 800x600 window)
     player->AddComponent<Transform2d>(400.0f, 300.0f);
     player->AddComponent<SpriteSheetRenderer>("assets/textures/player_base.png", 9, 56);
-    player->AddComponent<Animation2d>(std::vector<int>{0, 1, 2, 3, 4, 5}, 0.15f, true);
+    player->AddComponent<Animation2d>();
+    
+    Animator2d* animator = player->AddComponent<Animator2d>();
+    animator->AddAnimation("idle_down", std::vector<int>{0, 1, 2, 3, 4, 5}, 0.1, true);
+    animator->AddAnimation("idle_right", std::vector<int>{9, 10, 11, 12, 13, 14}, 0.1, true);
+
+    animator->Play("idle_down");
+
     player->AddComponent<ScriptComponent>("main", "PlayerController");
 
     // Main game loop: continues as long as the engine is running 
@@ -141,7 +152,11 @@ void Engine::Render() {
             m_isPlaying = true;
             std::cout << "[Editor] Entered PLAY mode." << std::endl;
             
+            m_selectedObject = nullptr;
+
             m_sceneBackup = m_activeScene.Serialize();
+
+            m_activeScene.Start();
         }
         ImGui::PopStyleColor();
     } else {
@@ -151,6 +166,8 @@ void Engine::Render() {
             m_isPlaying = false;
             std::cout << "[Editor] Entered EDIT mode." << std::endl;
             
+            m_selectedObject = nullptr;
+
             m_activeScene.Deserialize(m_sceneBackup);
         }
         ImGui::PopStyleColor();

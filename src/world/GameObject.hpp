@@ -29,6 +29,12 @@ class GameObject {
             return m_pendingDestroy;
         }
 
+        void Start() {
+            for (auto& component : components) {
+                component->Start();
+            }
+        }
+
         // Iterate through all components and call their update methods
         void Update(float deltaTime) {
             for (auto& component : components) {

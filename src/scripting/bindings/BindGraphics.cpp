@@ -6,6 +6,7 @@
 #include "../../graphics/SpriteRenderer.hpp"
 #include "../../graphics/SpriteSheetRenderer.hpp"
 #include "../../graphics/Animation2d.hpp"
+#include "../../graphics/Animator2d.hpp"
 
 void BindGraphics(py::module_& m) {
     m.def("set_pixel_art_mode", [](bool enable) {
@@ -72,6 +73,22 @@ void BindGraphics(py::module_& m) {
             
             auto* a = go.AddComponent<Animation2d>(frames, speed, loop);
             return py::cast(a, py::return_value_policy::reference);
+        }
+    );
+
+    py::class_<Animator2d, Component>(m, "Animator2d")
+        .def(py::init<>())
+        .def("add_animation", &Animator2d::AddAnimation)
+        .def("play", &Animator2d::Play);
+
+    ComponentRegistry::Register<Animator2d>("Animator2d", 
+        [](GameObject& go, py::args args) -> py::object {
+            // Animator2d does not require any arguments upon creation.
+            // Animations are added later via the 'add_animation' method in Python.
+            auto* animator = go.AddComponent<Animator2d>();
+            
+            // Return the reference to Python
+            return py::cast(animator, py::return_value_policy::reference);
         }
     );
 }

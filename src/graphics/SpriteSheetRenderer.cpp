@@ -4,6 +4,7 @@
 #include "Graphics.hpp"
 #include <iostream>
 #include <cstring>
+#include <core/AssetManager.hpp>
 
 SpriteSheetRenderer::SpriteSheetRenderer(const std::string& texturePath, int columns, int rows)
     : m_columns(columns), m_rows(rows), m_currentFrame(0), m_transform(nullptr) 
@@ -15,12 +16,7 @@ SpriteSheetRenderer::SpriteSheetRenderer(const std::string& texturePath, int col
     }
 }
 
-SpriteSheetRenderer::~SpriteSheetRenderer() {
-    // Free GPU memory
-    if (m_texture.id != 0) {
-        UnloadTexture(m_texture);
-    }
-}
+SpriteSheetRenderer::~SpriteSheetRenderer() {}
 
 void SpriteSheetRenderer::SetTexture(const std::string& path) {
     if (m_texture.id != 0) {
@@ -30,7 +26,7 @@ void SpriteSheetRenderer::SetTexture(const std::string& path) {
     m_texturePath = path;
     
     if (!m_texturePath.empty()) {
-        m_texture = Graphics::LoadTextureFiltered(m_texturePath);
+        m_texture = AssetManager::GetTexture(path);
     }
 }
 
