@@ -1,11 +1,12 @@
 #include "SpriteRenderer.hpp"
+#include "Graphics.hpp"
 #include "../world/GameObject.hpp"
 #include "../physics/Transform2d.hpp"
 #include <iostream>
 
 SpriteRenderer::SpriteRenderer(const std::string& texturePath) {
     // Load the image into GPU memory
-    m_texture = LoadTexture(texturePath.c_str());
+    m_texture = Graphics::LoadTextureFiltered(texturePath);
     m_transform = nullptr;
 }
 

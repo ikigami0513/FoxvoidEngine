@@ -1,6 +1,10 @@
 from foxvoid import *
 from typing import Optional
 
+
+set_pixel_art_mode(True)
+
+
 class PlayerController(Component):
     def __init__(self):
         super().__init__()

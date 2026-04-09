@@ -8,10 +8,19 @@
 #include "../graphics/SpriteRenderer.hpp"
 #include <graphics/SpriteSheetRenderer.hpp>
 #include <graphics/Animation2d.hpp>
+#include "../graphics/Graphics.hpp"
 
 PYBIND11_EMBEDDED_MODULE(foxvoid, m) {
     m.def("log", [](const std::string& msg) {
         std::cout << "[Python] " << msg << std::endl;
+    });
+
+    m.def("set_pixel_art_mode", [](bool enable) {
+        Graphics::pixelArtMode = enable;
+    });
+    
+    m.def("is_pixel_art_mode", []() {
+        return Graphics::pixelArtMode;
     });
 
     // Create a submodule for Keys. This will act like a namespace/enum in Python.

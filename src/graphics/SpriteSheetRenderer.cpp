@@ -1,12 +1,13 @@
 #include "SpriteSheetRenderer.hpp"
 #include "../world/GameObject.hpp"
 #include "../physics/Transform2d.hpp"
+#include "Graphics.hpp"
 #include <iostream>
 
 SpriteSheetRenderer::SpriteSheetRenderer(const std::string& texturePath, int columns, int rows)
     : m_columns(columns), m_rows(rows), m_currentFrame(0), m_transform(nullptr) 
 {
-    m_texture = LoadTexture(texturePath.c_str());
+    m_texture = Graphics::LoadTextureFiltered(texturePath);
 }
 
 SpriteSheetRenderer::~SpriteSheetRenderer() {

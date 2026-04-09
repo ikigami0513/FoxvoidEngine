@@ -17,6 +17,21 @@ def log(msg: str) -> None:
     ...
 
 
+def set_pixel_art_mode(enable: bool) -> None:
+    """
+    Globally configures texture filtering. 
+    Call this BEFORE instantiating GameObjects with sprites.
+    - True: Nearest-neighbor filtering (Sharp, blocky, perfect for pixel art).
+    - False: Bilinear filtering (Smooth, interpolated edges).
+    """
+    ...
+
+
+def is_pixel_art_mode() -> bool:
+    """Returns whether the engine is currently in pixel art mode."""
+    ...
+
+
 class GameObject:
     """Represents an entity within the engine's scene."""
     
