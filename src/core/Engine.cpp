@@ -6,6 +6,8 @@
 #include <scripting/ScriptComponent.hpp>
 #include <imgui.h>
 #include <rlImGui.h>
+#include <graphics/SpriteSheetRenderer.hpp>
+#include <graphics/Animation2d.hpp>
 
 Engine* Engine::s_instance = nullptr;
 
@@ -13,7 +15,8 @@ Engine::Engine(int width, int height, const std::string& title)
     : m_windowWidth(width), 
       m_windowHeight(height), 
       m_windowTitle(title), 
-      m_isRunning(false) 
+      m_isRunning(false),
+      m_isPlaying(false)
 {
     // Assign the current instance to our static pointer 
     // so Engine::Get() can return it properly.
@@ -66,7 +69,8 @@ void Engine::Run() {
     
     // Add a Transform component (centered on screen, assuming 800x600 window)
     player->AddComponent<Transform2d>(400.0f, 300.0f);
-
+    player->AddComponent<SpriteSheetRenderer>("assets/textures/player_base.png", 9, 56);
+    player->AddComponent<Animation2d>(std::vector<int>{0, 1, 2, 3, 4, 5}, 0.15f, true);
     player->AddComponent<ScriptComponent>("main", "PlayerController");
 
     // Main game loop: continues as long as the engine is running 
@@ -88,7 +92,15 @@ void Engine::ProcessInput() {
 }
 
 void Engine::Update(float deltaTime) {
-    m_activeScene.Update(deltaTime);
+    // Only run game logic (Python scripts, animations) if PLAY is active
+    if (m_isPlaying) {
+        m_activeScene.Update(deltaTime);
+    }
+
+    // Always manage memory, even in Edit mode
+    // This ensures objects created via the Editor or Engine::Run
+    // are immediately added to the scene graph.
+    m_activeScene.Flush();
 }
 
 void Engine::Render() {
@@ -115,6 +127,31 @@ void Engine::Render() {
     
     // Enable global docking over the entire application viewport
     ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport()); 
+
+    ImGui::Begin("Toolbar");
+
+    // Change button color and text based on the current state
+    if (!m_isPlaying) {
+        // Green Play Button
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.2f, 1.0f));
+        if (ImGui::Button("PLAY")) {
+            m_isPlaying = true;
+            std::cout << "[Editor] Entered PLAY mode." << std::endl;
+            // TODO later: Save the initial scene state here (Serialization)
+        }
+        ImGui::PopStyleColor();
+    } else {
+        // Red Stop Button
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+        if (ImGui::Button("STOP")) {
+            m_isPlaying = false;
+            std::cout << "[Editor] Entered EDIT mode." << std::endl;
+            // TODO later: Reload the initial scene state here (Serialization)
+        }
+        ImGui::PopStyleColor();
+    }
+    
+    ImGui::End();
 
     // --- WINDOW 1: THE VIEWPORT (The Game Scene) ---
     // Remove inner margins (padding) so the render texture touches the window borders

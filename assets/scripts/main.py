@@ -16,10 +16,6 @@ class PlayerController(Component):
         self.transform = self.game_object.get_component(Transform2d)
         self.transform.scale = Vector2(4.0, 4.0)
         
-        # Add the Spritesheet
-        self.game_object.add_component(SpriteSheetRenderer, "assets/textures/player_base.png", 9, 56)
-        self.game_object.add_component(Animation2d, [0, 1, 2, 3, 4, 5], 0.15, True)
-
     def update(self, delta_time: float):
         if self.transform is not None:
             if Input.is_key_down(Keys.RIGHT):

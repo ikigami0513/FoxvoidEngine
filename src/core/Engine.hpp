@@ -35,6 +35,11 @@ class Engine {
 
         // Engine state
         bool m_isRunning;
+
+        // Play / Edit mode state
+        // True when  the game is running, False when in Editor mode
+        bool m_isPlaying;
+
         int m_windowWidth;
         int m_windowHeight;
         std::string m_windowTitle;

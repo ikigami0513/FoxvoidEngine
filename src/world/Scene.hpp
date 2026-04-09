@@ -25,13 +25,17 @@ class Scene {
             return gameObjects;
         }
 
-        // Triggers the update loop for all GameObjects and cleans up dead ones
+        // Runs game logic
         void Update(float deltaTime) {
             // Update all objects
             for (auto& go : gameObjects) {
                 go->Update(deltaTime);
             }
+        }
 
+        // Memory management separated from game logic
+        // Safely adds pending objects and removes destroyed ones
+        void Flush() {
             // GARBAGE COLLECTION (Deferred Destruction)
             // Safely remove and destroy any GameObject marked as pending destroy.
             // Doing this AFTER the update loop prevents iteration crashes (iterator invalidation).
