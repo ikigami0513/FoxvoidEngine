@@ -2,6 +2,8 @@
 
 #include <vector>
 #include <memory>
+#include <fstream>
+#include <iostream>
 #include <algorithm>
 #include "GameObject.hpp"
 #include "../physics/Transform2d.hpp"
@@ -78,6 +80,39 @@ class Scene {
         void Clear() {
             gameObjects.clear();
             m_pendingObjects.clear();
+        }
+
+        // Saves the serialized scene to a JSON file on the disk
+        void SaveToFile(const std::string& filepath) const {
+            nlohmann::json j = Serialize();
+
+            std::ofstream file(filepath);
+            if (file.is_open()) {
+                // dump(4) adds an indentation of 4 spaces for readability
+                file << j.dump(4);
+                file.close();
+                std::cout << "[Scene] Successfully saved to: " << filepath << std::endl;
+            } else {
+                std::cerr << "[Scene] Failed to open file for saving: " << filepath << std::endl;
+            }
+        }
+
+        // Loads a scene from a JSON file
+        void LoadFromFile(const std::string& filepath) {
+            std::ifstream file(filepath);
+            if (file.is_open()) {
+                nlohmann::json j;
+                try {
+                    file >> j;
+                    Deserialize(j);
+                    std::cout << "[Scene] Successfully loaded from: " << filepath << std::endl;
+                } catch (const nlohmann::json::parse_error& e) {
+                    std::cerr << "[Scene] JSON parsing error in " << filepath << ":\n" << e.what() << std::endl;
+                }
+                file.close();
+            } else {
+                std::cerr << "[Scene] Failed to open file for loading: " << filepath << std::endl;
+            }
         }
 
         nlohmann::json Serialize() const {

@@ -71,22 +71,8 @@ Engine::~Engine() {
 }
 
 void Engine::Run() {
-    // Create a new GameObject in the scene
-    GameObject* player = m_activeScene.CreateGameObject("Player");
+    m_activeScene.LoadFromFile("assets/scenes/default_scene.json");
     
-    // Add a Transform component (centered on screen, assuming 800x600 window)
-    player->AddComponent<Transform2d>(400.0f, 300.0f);
-    player->AddComponent<SpriteSheetRenderer>("assets/textures/player_base.png", 9, 56);
-    player->AddComponent<Animation2d>();
-    
-    Animator2d* animator = player->AddComponent<Animator2d>();
-    animator->AddAnimation("idle_down", std::vector<int>{0, 1, 2, 3, 4, 5}, 0.1, true);
-    animator->AddAnimation("idle_right", std::vector<int>{9, 10, 11, 12, 13, 14}, 0.1, true);
-
-    animator->Play("idle_down");
-
-    player->AddComponent<ScriptComponent>("main", "PlayerController");
-
     // Main game loop: continues as long as the engine is running 
     // and the user hasn't pressed ESC or the close button
     while (m_isRunning && !WindowShouldClose()) {
@@ -143,6 +129,19 @@ void Engine::Render() {
     ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport()); 
 
     ImGui::Begin("Toolbar");
+
+    if (ImGui::Button("SAVE SCENE")) {
+        m_activeScene.SaveToFile("assets/scenes/default_scene.json");
+    }
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("LOAD SCENE")) {
+        m_selectedObject = nullptr; // Clear selection to prevent crashes
+        m_activeScene.LoadFromFile("assets/scenes/default_scene.json");
+    }
+
+    ImGui::SameLine();
 
     // Change button color and text based on the current state
     if (!m_isPlaying) {
