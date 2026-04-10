@@ -12,11 +12,31 @@ void GameViewPanel::Draw(RenderTexture2D& gameTexture, bool& focusGameWindow) {
         focusGameWindow = false; // Reset the flag immediately
     }
     
-    ImVec2 size = ImGui::GetContentRegionAvail();
-    if (size.x > 0.0f && size.y > 0.0f) {
-        // Remember to flip the texture vertically for OpenGL
-        Rectangle sourceRec = { 0.0f, 0.0f, (float)gameTexture.texture.width, -(float)gameTexture.texture.height };
-        rlImGuiImageRect(&gameTexture.texture, (int)size.x, (int)size.y, sourceRec);
+    ImVec2 windowSize = ImGui::GetContentRegionAvail();
+    if (windowSize.x > 0.0f && windowSize.y > 0.0f) {
+        // Aspect Ratio Calculation
+        float texWidth = (float)gameTexture.texture.width;
+        float texHeight = (float)gameTexture.texture.height;
+        float targetAspect = texWidth / texHeight;
+        float windowAspect = windowSize.x / windowSize.y;
+
+        ImVec2 drawSize;
+        if (windowAspect > targetAspect) {
+            drawSize.y = windowSize.y;
+            drawSize.x = windowSize.y * targetAspect;
+        } else {
+            drawSize.x = windowSize.x;
+            drawSize.y = windowSize.x / targetAspect;
+        }
+
+        // Calculate centered position
+        ImVec2 cursorPos = ImGui::GetCursorPos();
+        cursorPos.x += (windowSize.x - drawSize.x) * 0.5f;
+        cursorPos.y += (windowSize.y - drawSize.y) * 0.5f;
+        ImGui::SetCursorPos(cursorPos);
+
+        Rectangle sourceRec = { 0.0f, 0.0f, texWidth, -texHeight };
+        rlImGuiImageRect(&gameTexture.texture, (int)drawSize.x, (int)drawSize.y, sourceRec);
     }
     
     ImGui::End();

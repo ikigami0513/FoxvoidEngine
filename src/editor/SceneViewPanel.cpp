@@ -13,11 +13,34 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera) {
     camera.Update(isHovered);
 
     // Get the available size inside this specific ImGui window
-    ImVec2 size = ImGui::GetContentRegionAvail();
-    if (size.x > 0.0f && size.y > 0.0f) {
-        // In OpenGL, textures are stored upside down. We use negative height to flip it.
-        Rectangle sourceRec = { 0.0f, 0.0f, (float)sceneTexture.texture.width, -(float)sceneTexture.texture.height };
-        rlImGuiImageRect(&sceneTexture.texture, (int)size.x, (int)size.y, sourceRec);
+    ImVec2 windowSize = ImGui::GetContentRegionAvail();
+    if (windowSize.x > 0.0f && windowSize.y > 0.0f) {
+        // Aspect Ratio Calculation
+        float texWidth = (float)sceneTexture.texture.width;
+        float texHeight = (float)sceneTexture.texture.height;
+        float targetAspect = texWidth / texHeight;
+        float windowAspect = windowSize.x / windowSize.y;
+
+        ImVec2 drawSize;
+        if (windowAspect > targetAspect) {
+            // Window is wider than the texture -> Fit to height
+            drawSize.y = windowSize.y;
+            drawSize.x = windowSize.y * targetAspect;
+        } else {
+            // Window is taller than the texture -> Fit to width
+            drawSize.x = windowSize.x;
+            drawSize.y = windowSize.x / targetAspect;
+        }
+
+        // Calculate centered position
+        ImVec2 cursorPos = ImGui::GetCursorPos(); // Top-left of the available region
+        cursorPos.x += (windowSize.x - drawSize.x) * 0.5f;
+        cursorPos.y += (windowSize.y - drawSize.y) * 0.5f;
+        ImGui::SetCursorPos(cursorPos);
+
+        // Draw the image with the correctly scaled size
+        Rectangle sourceRec = { 0.0f, 0.0f, texWidth, -texHeight };
+        rlImGuiImageRect(&sceneTexture.texture, (int)drawSize.x, (int)drawSize.y, sourceRec);
     }
     
     ImGui::End();
