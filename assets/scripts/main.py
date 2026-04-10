@@ -31,7 +31,7 @@ class PlayerController(Component):
             if Input.is_key_pressed(Keys.KEY_SPACE):
                 log("my friend")
 
-                friend = GameObject.instantiate("Friend")
+                friend = GameObject.spawn("Friend")
 
                 transform = friend.add_component(Transform2d, self._transform.position.x + 20, self._transform.position.y + 20)
                 transform.scale = Vector2(4.0, 4.0)

@@ -35,7 +35,7 @@ def is_pixel_art_mode() -> bool:
 class GameObject:
     """Represents an entity within the engine's scene."""
     @staticmethod
-    def instantiate(name: str) -> GameObject:
+    def spawn(name: str) -> GameObject:
         """
         Creates a new empty GameObject in the active scene.
         
@@ -44,6 +44,19 @@ class GameObject:
             
         Returns:
             The newly created GameObject instance.
+        """
+        ...
+
+    @staticmethod
+    def instantiate(prefab_path: str) -> Optional[GameObject]:
+        """
+        Instantiates a new GameObject from a saved JSON prefab file.
+        
+        Args:
+            prefab_path: The relative path to the .json prefab file (e.g., 'assets/prefabs/Bullet.json').
+            
+        Returns:
+            The newly instantiated GameObject instance, or None if the file could not be loaded.
         """
         ...
 

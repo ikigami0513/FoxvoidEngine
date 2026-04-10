@@ -23,8 +23,8 @@ void BindCore(py::module_& m) {
     py::class_<GameObject>(m, "GameObject")
         // We return GameObject* directly. Pybind11 will apply the reference policy automatically
         // and convert nullptr to Python's None safely.
-        .def_static("instantiate", [](const std::string& name) -> GameObject* {
-            std::cout << "[C++] Attempting to instantiate: " << name << std::endl;
+        .def_static("spawn", [](const std::string& name) -> GameObject* {
+            std::cout << "[C++] Attempting to spawn: " << name << std::endl;
             
             // Safety check in case the Engine singleton is null
             if (!Engine::Get()) {
@@ -35,7 +35,24 @@ void BindCore(py::module_& m) {
             GameObject* newGo = Engine::Get()->GetActiveScene().CreateGameObject(name);
 
             if (!newGo) {
-                std::cerr << "[Python] Failed to instantiate: " << name << std::endl;
+                std::cerr << "[Python] Failed to spawn: " << name << std::endl;
+            }
+
+            return newGo;
+        }, py::return_value_policy::reference)
+        // Allows Python scripts to spawn a completely pre-configured entity from a JSON file
+        .def_static("instantiate", [](const std::string& prefabPath) -> GameObject* {
+            // Safety check
+            if (!Engine::Get()) {
+                std::cerr << "[C++] FATAL ERROR: Engine::Get() returned nullptr!" << std::endl;
+                return nullptr;
+            }
+
+            // Call the engine's active scene to read the file and build the object
+            GameObject* newGo = Engine::Get()->GetActiveScene().Instantiate(prefabPath);
+
+            if (!newGo) {
+                std::cerr << "[Python] Failed to instantiate prefab from path: " << prefabPath << std::endl;
             }
 
             return newGo;
