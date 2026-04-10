@@ -159,6 +159,36 @@ class Scene {
             Flush(); // Crucial: move them from pending to active!
         }
 
+        // Instantiates a new GameObject from a JSON prefab file
+        GameObject* Instantiate(const std::string& prefabPath) {
+            // Open the prefab JSON file
+            std::ifstream file(prefabPath);
+            if (!file.is_open()) {
+                std::cerr << "[Scene] Error: Could not open prefab file: " << prefabPath << std::endl;
+                return nullptr;
+            }
+
+            // Parse the JSON data
+            nlohmann::json j;
+            file >> j;
+            file.close();
+
+            // Extract the name, adding a suffix to indicate it's a clone
+            std::string name = j.value("name", "New Prefab") + " (Clone)";
+
+            // Create a fresh GameObject in the current scene
+            GameObject* newObj = CreateGameObject(name);
+
+            //  Inject the saved data into the new object
+            // This will reconstruct all the components (Transform, Sprite, Scripts...)
+            newObj->Deserialize(j);
+
+            std::cout << "[Scene] Successfully instantiated prefab: " << prefabPath << std::endl;
+            
+            // Return the pointer so the caller can manipulate it immediately
+            return newObj;
+        }
+
     private:
         // The scene owns the GameObjects
         std::vector<std::unique_ptr<GameObject>> gameObjects;

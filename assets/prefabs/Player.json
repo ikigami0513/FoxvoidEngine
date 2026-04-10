@@ -1,0 +1,67 @@
+{
+    "components": [
+        {
+            "rotation": 0.0,
+            "scaleX": 4.0,
+            "scaleY": 4.0,
+            "type": "Transform2d",
+            "x": 400.0,
+            "y": 300.0
+        },
+        {
+            "columns": 9,
+            "rows": 56,
+            "texturePath": "assets/textures/player_base.png",
+            "type": "SpriteSheetRenderer"
+        },
+        {
+            "frames": [
+                0
+            ],
+            "loop": true,
+            "speed": 0.15000000596046448,
+            "type": "Animation2d"
+        },
+        {
+            "animations": {
+                "idle_down": {
+                    "frameDuration": 0.10000000149011612,
+                    "frames": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5
+                    ],
+                    "loop": true
+                },
+                "idle_right": {
+                    "frameDuration": 0.10000000149011612,
+                    "frames": [
+                        9,
+                        10,
+                        11,
+                        12,
+                        13,
+                        14
+                    ],
+                    "loop": true
+                }
+            },
+            "currentAnimation": "idle_down",
+            "currentFrameIndex": 0,
+            "timer": 0.0,
+            "type": "Animator2d"
+        },
+        {
+            "className": "PlayerController",
+            "properties": {
+                "speed": 400.0
+            },
+            "scriptName": "main",
+            "type": "ScriptComponent"
+        }
+    ],
+    "name": "Player"
+}

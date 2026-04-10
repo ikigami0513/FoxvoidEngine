@@ -3,6 +3,7 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <iostream>
 #include "Component.hpp"
 
 class GameObject {
@@ -111,6 +112,9 @@ class GameObject {
 
             return j;
         }
+
+        // Reconstructs the GameObject and all its components from a JSON object
+        void Deserialize(nlohmann::json& j);
 
     private:
         // We use unique_ptr so components are automatically destroyed when the GameObject dies
