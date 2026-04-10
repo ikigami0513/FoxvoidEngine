@@ -51,6 +51,9 @@ Engine::Engine(int width, int height, const std::string& title)
     // We give it the base resolution of the game
     m_sceneTexture = LoadRenderTexture(m_windowWidth, m_windowHeight);
 
+    // Initialize the Editor Camera, passing the base resolution so it centers correctly
+    m_editorCamera = std::make_unique<EditorCamera>((float)m_windowWidth, (float)m_windowHeight);
+
     // Initialize ImGui and enable Docking
     rlImGuiSetup(true); // true = dark theme
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable; // Enable Docking Space!
@@ -118,11 +121,20 @@ void Engine::Update(float deltaTime) {
 void Engine::Render() {
     // Pass 1: Game Rendering (OFF-SCREEN)
     BeginTextureMode(m_sceneTexture);
-        // Clear the background with the game's default color
-        ClearBackground(RAYWHITE); 
+        // Use a dark gray background to make the grid pop out nicely
+        ClearBackground(Color{ 40, 40, 40, 255 });
         
-        // Draw all entities present in the active scene
-        m_activeScene.Render();    
+        // Activate the 2D Camera
+        m_editorCamera->Begin();
+            
+            // Draw the background grid (100 lines, spaced by 50 pixels)
+            m_editorCamera->DrawGrid(100, 50.0f);
+
+            // Draw all entities. They will now be affected by zoom and pan!
+            m_activeScene.Render();    
+            
+        // Deactivate the camera
+        m_editorCamera->End();
     EndTextureMode();
 
     // Pass 2: Editor Rendering (ON-SCREEN)
@@ -138,7 +150,7 @@ void Engine::Render() {
 
     // Draw all the isolated editor panels
     m_toolbarPanel.Draw(m_activeScene, m_selectedObject, m_isPlaying, m_sceneBackup);
-    m_sceneViewPanel.Draw(m_sceneTexture);
+    m_sceneViewPanel.Draw(m_sceneTexture, *m_editorCamera);
     m_hierarchyPanel.Draw(m_activeScene, m_selectedObject);
     m_console.Draw("Console");
     m_inspectorPanel.Draw(m_selectedObject);

@@ -72,6 +72,9 @@ class Engine {
         InspectorPanel m_inspectorPanel;
         ProjectPanel m_projectPanel;
 
+        // The camera used to navigate the scene in the editor
+        std::unique_ptr<EditorCamera> m_editorCamera;
+
         // Pointers for the stream redirectors
         std::unique_ptr<ConsoleSink> m_coutRedirect;
         std::unique_ptr<ConsoleSink> m_cerrRedirect;
