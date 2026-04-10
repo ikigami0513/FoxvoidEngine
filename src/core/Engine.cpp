@@ -47,9 +47,10 @@ Engine::Engine(int width, int height, const std::string& title)
     // One single call to register everything needed for the Scene loading
     EngineSetup::RegisterNativeComponents();
 
-    // Create the render texture
+    // Create both render textures
     // We give it the base resolution of the game
     m_sceneTexture = LoadRenderTexture(m_windowWidth, m_windowHeight);
+    m_gameTexture = LoadRenderTexture(m_windowWidth, m_windowHeight);
 
     // Initialize the Editor Camera, passing the base resolution so it centers correctly
     m_editorCamera = std::make_unique<EditorCamera>((float)m_windowWidth, (float)m_windowHeight);
@@ -79,8 +80,9 @@ Engine::~Engine() {
     rlImGuiShutdown();
 
     // Free the VRAM
-    // Safely unload the render texture from the GPU
+    // Safely unload the render textures from the GPU
     UnloadRenderTexture(m_sceneTexture);
+    UnloadRenderTexture(m_gameTexture);
 
     // Close the Raylib window and free graphics resources
     CloseWindow();
@@ -119,7 +121,15 @@ void Engine::Update(float deltaTime) {
 }
 
 void Engine::Render() {
-    // Pass 1: Game Rendering (OFF-SCREEN)
+    // Pass 1: Game Rendering (What the player sees)
+    BeginTextureMode(m_gameTexture);
+        ClearBackground(RAYWHITE);
+
+        // Draw all entities normally
+        m_activeScene.Render();
+    EndTextureMode();
+
+    // Pass 2: Editor Rendering
     BeginTextureMode(m_sceneTexture);
         // Use a dark gray background to make the grid pop out nicely
         ClearBackground(Color{ 40, 40, 40, 255 });
@@ -137,7 +147,7 @@ void Engine::Render() {
         m_editorCamera->End();
     EndTextureMode();
 
-    // Pass 2: Editor Rendering (ON-SCREEN)
+    // Pass 3: Editor Rendering (ON-SCREEN)
     BeginDrawing();
     
     // Clear the actual application window with a dark color behind the editor panels
@@ -150,7 +160,11 @@ void Engine::Render() {
 
     // Draw all the isolated editor panels
     m_toolbarPanel.Draw(m_activeScene, m_selectedObject, m_isPlaying, m_sceneBackup);
+    
+    // Draw both panels, feeding them their respective textures
     m_sceneViewPanel.Draw(m_sceneTexture, *m_editorCamera);
+    m_gameViewPanel.Draw(m_gameTexture);
+
     m_hierarchyPanel.Draw(m_activeScene, m_selectedObject);
     m_console.Draw("Console");
     m_inspectorPanel.Draw(m_selectedObject);

@@ -10,6 +10,7 @@
 #include "editor/InspectorPanel.hpp"
 #include "editor/ProjectPanel.hpp"
 #include "editor/SceneViewPanel.hpp"
+#include "editor/GameViewPanel.hpp"
 #include "editor/ToolbarPanel.hpp"
 
 // The Engine class encapsulates the core loop and window management.
@@ -58,8 +59,9 @@ class Engine {
         Scene m_activeScene;
         nlohmann::json m_sceneBackup;
 
-        // This texture will hold the rendered game scene off-screen
-        RenderTexture2D m_sceneTexture;
+        // Render textures
+        RenderTexture2D m_sceneTexture; // What the Editor sees
+        RenderTexture2D m_gameTexture; // What the Player sees
 
         // Keeps track of the currently selected entity in the Hierarchy
         GameObject* m_selectedObject = nullptr;
@@ -67,7 +69,10 @@ class Engine {
         // Editor UI Panels
         EditorConsole m_console;
         ToolbarPanel m_toolbarPanel;
+
         SceneViewPanel m_sceneViewPanel;
+        GameViewPanel m_gameViewPanel;
+
         HierarchyPanel m_hierarchyPanel;
         InspectorPanel m_inspectorPanel;
         ProjectPanel m_projectPanel;
