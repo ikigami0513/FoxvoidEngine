@@ -282,6 +282,21 @@ void Engine::Render() {
             m_selectedObject = go.get();
         }
 
+        // Context Menu (Right Click)
+        if (ImGui::BeginPopupContextItem()) {
+            if (ImGui::Selectable("Delete Entity")) {
+                // Mark the object for destruction (the Scene will clean it up on the next Flush)
+                go->Destroy();
+
+                // Safety: If the deleted object was selected, clear the inspector.
+                if (isSelected) {
+                    m_selectedObject = nullptr;
+                }
+            }
+
+            ImGui::EndPopup();
+        }
+
         ImGui::PopID();
     }
 
@@ -307,13 +322,39 @@ void Engine::Render() {
 
         ImGui::Separator();
 
-        // --- 2. Display existing components ---
+        // Display existing components
+        
+        // Temporary pointer to store the component to be removed
+        Component* componentToRemove = nullptr;
+
         for (const auto& comp : m_selectedObject->GetComponents()) {
             ImGui::PushID(comp.get());
-            if (ImGui::CollapsingHeader(comp->GetName().c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+            
+            // Draw the collapsing header
+            bool isOpen = ImGui::CollapsingHeader(comp->GetName().c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+
+            // Context Menu (Right click on header)
+            if (ImGui::BeginPopupContextItem()) {
+                // Make the text red to indicate a destructive action
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
+                if (ImGui::Selectable("Remove Component")) {
+                    // Register the intent to remove, but do NOT do it IMMEDIATELY
+                    componentToRemove = comp.get();
+                }
+                ImGui::PopStyleColor();
+                ImGui::EndPopup();
+            }
+
+            // If the header is open, draw the variables
+            if (isOpen) {
                 comp->OnInspector();
             }
+            
             ImGui::PopID();
+        }
+
+        if (componentToRemove != nullptr) {
+            m_selectedObject->RemoveComponent(componentToRemove);
         }
 
         ImGui::Separator();

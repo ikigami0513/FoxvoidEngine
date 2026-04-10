@@ -49,6 +49,17 @@ class GameObject {
             }
         }
 
+        // Safely removes a component from the entity
+        void RemoveComponent(Component* compToRemove) {
+            if (!compToRemove) return;
+
+            // std::erase_if will find the component with this memory address
+            // and remove it from the vector (which automatically calls its destructor)
+            std::erase_if(components, [compToRemove](const std::unique_ptr<Component>& comp) {
+                return comp.get() == compToRemove;
+            });
+        }
+
         // Template method to dynamically add any component type to this GameObject
         // Args&& allows passing constructor arguments directly
         template<typename T, typename... Args>
