@@ -1,7 +1,7 @@
 #include "SceneViewPanel.hpp"
 #include <rlImGui.h>
 
-void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera) {
+void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject) {
     // Remove inner margins (padding) so the render texture touches the window borders
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::Begin("Scene View");
@@ -41,6 +41,34 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera) {
         // Draw the image with the correctly scaled size
         Rectangle sourceRec = { 0.0f, 0.0f, texWidth, -texHeight };
         rlImGuiImageRect(&sceneTexture.texture, (int)drawSize.x, (int)drawSize.y, sourceRec);
+
+        // Mouse picking logic
+        // Only pick if we hover the image and click the Left Mouse Button
+        if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+            // Get Mouse position exactly relative to the drawn image's top-left corner
+            ImVec2 mousePosAbsolute = ImGui::GetMousePos();
+            ImVec2 imagePosAbsolute = ImGui::GetItemRectMin(); 
+            
+            Vector2 mousePosRel = {
+                mousePosAbsolute.x - imagePosAbsolute.x,
+                mousePosAbsolute.y - imagePosAbsolute.y
+            };
+
+            // Convert from UI size to RenderTexture size
+            Vector2 renderTexturePos = {
+                (mousePosRel.x / drawSize.x) * texWidth,
+                (mousePosRel.y / drawSize.y) * texHeight
+            };
+
+            // Convert from RenderTexture space to World Space (applying Camera Zoom/Pan)
+            Vector2 worldPos = GetScreenToWorld2D(renderTexturePos, camera.GetCamera());
+
+            // Raycast in the scene to find the object
+            GameObject* pickedObject = activeScene.PickObject(worldPos);
+            
+            // Update the selection (will be nullptr if clicking on empty space, which is great for deselection)
+            selectedObject = pickedObject;
+        }
     }
     
     ImGui::End();

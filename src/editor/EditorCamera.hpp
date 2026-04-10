@@ -20,6 +20,8 @@ class EditorCamera {
         // Draws a background grid to help orient the user in the world space
         void DrawGrid(int slices, float spacing);
 
+        Camera2D GetCamera() const { return m_camera; }
+
     private:
         Camera2D m_camera;
         bool m_isPanning;

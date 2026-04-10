@@ -170,7 +170,7 @@ void Engine::Render() {
     m_toolbarPanel.Draw(m_activeScene, m_selectedObject, m_isPlaying, m_sceneBackup, m_focusGameWindow);
     
     // Draw both panels, feeding them their respective textures
-    m_sceneViewPanel.Draw(m_sceneTexture, *m_editorCamera);
+    m_sceneViewPanel.Draw(m_sceneTexture, *m_editorCamera, m_activeScene, m_selectedObject);
     m_gameViewPanel.Draw(m_gameTexture, m_focusGameWindow);
 
     m_hierarchyPanel.Draw(m_activeScene, m_selectedObject);

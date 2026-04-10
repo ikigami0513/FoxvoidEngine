@@ -20,6 +20,8 @@ class SpriteRenderer : public Component {
         // A helper method to safely change the texture during runtime or editor mode
         void SetTexture(const std::string& path);
 
+        Texture2D GetTexture() const { return m_texture; }
+
         // Editor UI and Serialization
         std::string GetName() const override;
         void OnInspector() override;

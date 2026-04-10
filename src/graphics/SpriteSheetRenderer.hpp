@@ -20,6 +20,8 @@ class SpriteSheetRenderer : public Component {
         // Safely unloads the old texture and loads the new one
         void SetTexture(const std::string& path);
 
+        Texture2D GetTexture() const { return m_texture; }
+
         // Changes the current frame to display
         void SetFrame(int frameIndex);
         int GetFrame() const { return m_currentFrame; }
@@ -33,6 +35,9 @@ class SpriteSheetRenderer : public Component {
         nlohmann::json Serialize() const override;
         void Deserialize(const nlohmann::json& j) override;
 
+        // Calculates the specific source rectangle for the current frame
+        Rectangle GetSourceRec() const;
+
     private:
         std::string m_texturePath;
         Texture2D m_texture;
@@ -41,7 +46,4 @@ class SpriteSheetRenderer : public Component {
         int m_columns;
         int m_rows;
         int m_currentFrame;
-        
-        // Calculates the specific source rectangle for the current frame
-        Rectangle GetSourceRec() const;
 };

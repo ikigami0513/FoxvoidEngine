@@ -189,6 +189,45 @@ class Scene {
             return newObj;
         }
 
+        // Returns the top-most GameObject at the given world position, or nullptr if empty
+        GameObject* PickObject(Vector2 worldPos) {
+            // We iterate backwards (rbegin to rend) to pick the object drawn ON TOP first
+            for (auto it = gameObjects.rbegin(); it != gameObjects.rend(); ++it) {
+                auto& go = *it;
+                auto transform = go->GetComponent<Transform2d>();
+
+                if (!transform) continue; // If it has no transform, it can't be clicked
+
+                // Default bounding box (fallback if the object has no renderer)
+                Rectangle bounds = { transform->position.x - 25.0f, transform->position.y - 25.0f, 50.0f, 50.0f };
+
+                // Try to get precise bounds from a SpriteRenderer
+                auto sprite = go->GetComponent<SpriteRenderer>();
+                if (sprite && sprite->GetTexture().id != 0) {
+                    float width = sprite->GetTexture().width * transform->scale.x;
+                    float height = sprite->GetTexture().height * transform->scale.y;
+                    // Subtract half width/height because our origin is at the center
+                    bounds = { transform->position.x - (width / 2.0f), transform->position.y - (height / 2.0f), width, height };
+                }
+
+                // Try to get precise bounds from a SpriteSheetRenderer
+                auto spriteSheet = go->GetComponent<SpriteSheetRenderer>();
+                if (spriteSheet && spriteSheet->GetTexture().id != 0) {
+                    Rectangle sourceRec = spriteSheet->GetSourceRec();
+                    float width = sourceRec.width * transform->scale.x;
+                    float height = sourceRec.height * transform->scale.y;
+                    bounds = { transform->position.x - (width / 2.0f), transform->position.y - (height / 2.0f), width, height };
+                }
+
+                // Check if the world cursor intersects with the calculated bounding box
+                if (CheckCollisionPointRec(worldPos, bounds)) {
+                    return go.get();
+                }
+            }
+
+            return nullptr;
+        }
+
     private:
         // The scene owns the GameObjects
         std::vector<std::unique_ptr<GameObject>> gameObjects;
