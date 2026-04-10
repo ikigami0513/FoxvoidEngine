@@ -3,19 +3,6 @@
 void ToolbarPanel::Draw(Scene& activeScene, GameObject*& selectedObject, bool& isPlaying, nlohmann::json& sceneBackup, bool& focusGameWindow) {
     ImGui::Begin("Toolbar");
 
-    if (ImGui::Button("SAVE SCENE")) {
-        activeScene.SaveToFile("assets/scenes/default_scene.json");
-    }
-
-    ImGui::SameLine();
-
-    if (ImGui::Button("LOAD SCENE")) {
-        selectedObject = nullptr; // Clear selection to prevent crashes
-        activeScene.LoadFromFile("assets/scenes/default_scene.json");
-    }
-
-    ImGui::SameLine();
-
     // Change button color and text based on the current state
     if (!isPlaying) {
         // Green Play Button

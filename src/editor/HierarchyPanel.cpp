@@ -31,7 +31,7 @@ void HierarchyPanel::Draw(Scene& activeScene, GameObject*& selectedObject) {
                 nlohmann::json prefabJson = go->Serialize();
 
                 // Create the file path using the object's name
-                std::string path = "assets/prefabs/" + go->name + ".json";
+                std::string path = "assets/prefabs/" + go->name + ".prefab";
                 std::ofstream file(path);
 
                 if (file.is_open()) {
@@ -59,8 +59,8 @@ void HierarchyPanel::Draw(Scene& activeScene, GameObject*& selectedObject) {
                 std::string droppedPath = (const char*)payload->Data;
                 std::filesystem::path fsPath(droppedPath);
                 
-                // If it's a JSON file, spawn it!
-                if (fsPath.extension() == ".json") {
+                // If it's a Prefab file, spawn it!
+                if (fsPath.extension() == ".prefab") {
                     GameObject* newObj = activeScene.Instantiate(droppedPath);
                     if (newObj) selectedObject = newObj; // Auto-select the newly spawned prefab
                 }
@@ -92,7 +92,7 @@ void HierarchyPanel::Draw(Scene& activeScene, GameObject*& selectedObject) {
                 std::filesystem::path fsPath(droppedPath);
                 
                 // Instantiate the prefab if a JSON file was dropped
-                if (fsPath.extension() == ".json") {
+                if (fsPath.extension() == ".prefab") {
                     GameObject* newObj = activeScene.Instantiate(droppedPath);
                     
                     // Automatically select the new object to immediately see it in the Inspector

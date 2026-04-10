@@ -35,7 +35,9 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
             
             // Add a small visual icon prefix based on the file type (optional but looks nice)
             std::string displayName = "  " + filename;
-            if (extension == ".json") displayName = "[Scene] " + filename;
+
+            if (extension == ".scene") displayName = "[Scene] " + filename;
+            else if (extension == ".prefab") displayName = "[Prefab] " + filename;
             else if (extension == ".py") displayName = "[Script] " + filename;
             else if (extension == ".png") displayName = "[Image] " + filename;
 
@@ -44,7 +46,7 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
             // Drag and drop source
             // If the user clicks and drags this item, initialize the drag payload
             if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
-                // Get the relative path of the file (e.g., "assets/textures/player.pn")
+                // Get the relative path of the file (e.g., "assets/textures/player.png")
                 std::string itemPath = entry.path().string();
 
                 // Set the payload data. 
@@ -64,7 +66,7 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
                 if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
                     
                     // If it's a scene, load it!
-                    if (extension == ".json") {
+                    if (extension == ".scene") {
                         std::cout << "[Editor] Loading scene via Project Browser: " << filename << std::endl;
                         
                         // Safety: Clear the editor selection before changing the scene
