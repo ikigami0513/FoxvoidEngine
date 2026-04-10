@@ -1,16 +1,32 @@
 #include "SceneViewPanel.hpp"
 #include <rlImGui.h>
+#include "ImGuizmo.h"
+#include <raymath.h>
 
 void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject) {
     // Remove inner margins (padding) so the render texture touches the window borders
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::Begin("Scene View");
 
+    // Gizmo operation state
+    // We store the current tool (Translate, Rotate, Scale)
+    static ImGuizmo::OPERATION currentGizmoOperation = ImGuizmo::TRANSLATE;
+
+    ImGuiIO& io = ImGui::GetIO();
+    if (!io.WantTextInput) {
+        if (ImGui::IsKeyPressed(ImGuiKey_W)) currentGizmoOperation = ImGuizmo::TRANSLATE;
+        if (ImGui::IsKeyPressed(ImGuiKey_E)) currentGizmoOperation = ImGuizmo::ROTATE;
+        if (ImGui::IsKeyPressed(ImGuiKey_R)) currentGizmoOperation = ImGuizmo::SCALE;
+    }
+
     // Check if the user's mouse is currently hovering this specific ImGui window
     bool isHovered = ImGui::IsWindowHovered();
 
-    // Pass the hover state to the camera so it only pans/zooms when appropriate
-    camera.Update(isHovered);
+    // Don't move the camera if we are currently dragging the Gizmo
+    if (!ImGuizmo::IsUsing()) {
+        // Pass the hover state to the camera so it only pans/zooms when appropriate
+        camera.Update(isHovered);
+    }
 
     // Get the available size inside this specific ImGui window
     ImVec2 windowSize = ImGui::GetContentRegionAvail();
@@ -38,13 +54,68 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
         cursorPos.y += (windowSize.y - drawSize.y) * 0.5f;
         ImGui::SetCursorPos(cursorPos);
 
+        ImVec2 imagePosAbsolute = ImGui::GetCursorScreenPos();
+
         // Draw the image with the correctly scaled size
         Rectangle sourceRec = { 0.0f, 0.0f, texWidth, -texHeight };
         rlImGuiImageRect(&sceneTexture.texture, (int)drawSize.x, (int)drawSize.y, sourceRec);
 
+        // Gizmos
+        if (selectedObject) {
+            auto transform = selectedObject->GetComponent<Transform2d>();
+            if (transform) {
+                // Setup ImGuizmo environment
+                ImGuizmo::SetOrthographic(true); // We are in 2D
+                ImGuizmo::SetDrawlist();
+                ImGuizmo::SetRect(imagePosAbsolute.x, imagePosAbsolute.y, drawSize.x, drawSize.y);
+
+                // Extract Raylib camera matrices
+                Camera2D cam2d = camera.GetCamera();
+                Matrix viewMatrix = GetCameraMatrix2D(cam2d);
+                Matrix projMatrix = MatrixOrtho(0.0f, texWidth, texHeight, 0.0f, -1.0f, 1.0f);
+
+                // Raylib matrices are column-major, just like OpenGL/ImGuizmo expects.
+                float view[16] = {
+                    viewMatrix.m0, viewMatrix.m1, viewMatrix.m2, viewMatrix.m3,
+                    viewMatrix.m4, viewMatrix.m5, viewMatrix.m6, viewMatrix.m7,
+                    viewMatrix.m8, viewMatrix.m9, viewMatrix.m10, viewMatrix.m11,
+                    viewMatrix.m12, viewMatrix.m13, viewMatrix.m14, viewMatrix.m15
+                };
+                
+                float proj[16] = {
+                    projMatrix.m0, projMatrix.m1, projMatrix.m2, projMatrix.m3,
+                    projMatrix.m4, projMatrix.m5, projMatrix.m6, projMatrix.m7,
+                    projMatrix.m8, projMatrix.m9, projMatrix.m10, projMatrix.m11,
+                    projMatrix.m12, projMatrix.m13, projMatrix.m14, projMatrix.m15
+                };
+
+                // Extract the object's local Transform into a 4x4 matrix
+                float translation[3] = { transform->position.x, transform->position.y, 0.0f };
+                float rotation[3] = { 0.0f, 0.0f, transform->rotation };
+                float scale[3] = { transform->scale.x, transform->scale.y, 1.0f };
+                
+                float objMatrix[16];
+                ImGuizmo::RecomposeMatrixFromComponents(translation, rotation, scale, objMatrix);
+
+                // Draw and interact with the Gizmo
+                // We use WORLD mode for 2D because local rotation can skew 2D scaling weirdly
+                ImGuizmo::Manipulate(view, proj, currentGizmoOperation, ImGuizmo::WORLD, objMatrix);
+
+                // If the user dragged the Gizmo, apply the new values back to the Transform2d
+                if (ImGuizmo::IsUsing()) {
+                    ImGuizmo::DecomposeMatrixToComponents(objMatrix, translation, rotation, scale);
+                    transform->position.x = translation[0];
+                    transform->position.y = translation[1];
+                    transform->rotation = rotation[2];
+                    transform->scale.x = scale[0];
+                    transform->scale.y = scale[1];
+                }
+            }
+        }
+
         // Mouse picking logic
         // Only pick if we hover the image and click the Left Mouse Button
-        if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+        if (!ImGuizmo::IsOver() && ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
             // Get Mouse position exactly relative to the drawn image's top-left corner
             ImVec2 mousePosAbsolute = ImGui::GetMousePos();
             ImVec2 imagePosAbsolute = ImGui::GetItemRectMin(); 

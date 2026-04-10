@@ -6,6 +6,7 @@
 #include <scripting/ScriptComponent.hpp>
 #include <imgui.h>
 #include <rlImGui.h>
+#include "ImGuizmo.h"
 #include <graphics/SpriteSheetRenderer.hpp>
 #include <graphics/Animation2d.hpp>
 #include "AssetManager.hpp"
@@ -156,29 +157,30 @@ void Engine::Render() {
     // Pass 3: Editor Rendering (ON-SCREEN)
     BeginDrawing();
     
-    // Clear the actual application window with a dark color behind the editor panels
-    ClearBackground(DARKGRAY); 
+        // Clear the actual application window with a dark color behind the editor panels
+        ClearBackground(DARKGRAY); 
 
-    rlImGuiBegin();
-    
-    // Enable global docking over the entire application viewport
-    ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport()); 
+        rlImGuiBegin();
+            ImGuizmo::BeginFrame();
+        
+            // Enable global docking over the entire application viewport
+            ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport()); 
 
-    m_mainMenuBar.Draw(m_activeScene, m_currentScenePath, m_isRunning, m_selectedObject);
+            m_mainMenuBar.Draw(m_activeScene, m_currentScenePath, m_isRunning, m_selectedObject);
 
-    // Draw all the isolated editor panels
-    m_toolbarPanel.Draw(m_activeScene, m_selectedObject, m_isPlaying, m_sceneBackup, m_focusGameWindow);
-    
-    // Draw both panels, feeding them their respective textures
-    m_sceneViewPanel.Draw(m_sceneTexture, *m_editorCamera, m_activeScene, m_selectedObject);
-    m_gameViewPanel.Draw(m_gameTexture, m_focusGameWindow);
+            // Draw all the isolated editor panels
+            m_toolbarPanel.Draw(m_activeScene, m_selectedObject, m_isPlaying, m_sceneBackup, m_focusGameWindow);
+            
+            // Draw both panels, feeding them their respective textures
+            m_sceneViewPanel.Draw(m_sceneTexture, *m_editorCamera, m_activeScene, m_selectedObject);
+            m_gameViewPanel.Draw(m_gameTexture, m_focusGameWindow);
 
-    m_hierarchyPanel.Draw(m_activeScene, m_selectedObject);
-    m_console.Draw("Console");
-    m_inspectorPanel.Draw(m_selectedObject);
-    m_projectPanel.Draw(m_activeScene, m_selectedObject, m_assetsPath);
+            m_hierarchyPanel.Draw(m_activeScene, m_selectedObject);
+            m_console.Draw("Console");
+            m_inspectorPanel.Draw(m_selectedObject);
+            m_projectPanel.Draw(m_activeScene, m_selectedObject, m_assetsPath);
 
-    rlImGuiEnd();
+        rlImGuiEnd();
     EndDrawing();
 }
 

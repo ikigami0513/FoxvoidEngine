@@ -48,6 +48,14 @@ FetchContent_Declare(
 set(IMGUI_DIR ${imgui_SOURCE_DIR}) 
 FetchContent_MakeAvailable(rlImGui)
 
+# 3. Fetch ImGuizmo (Standard library for visual manipulation in ImGui)
+FetchContent_Declare(
+    imguizmo
+    GIT_REPOSITORY https://github.com/CedricGuillemet/ImGuizmo.git
+    GIT_TAG        master
+)
+FetchContent_MakeAvailable(imguizmo)
+
 # --- PYTHON & PYBIND11 SETUP ---
 
 # 1. Find the Python installation on the host system
@@ -71,6 +79,7 @@ set(IMGUI_SOURCES
     ${imgui_SOURCE_DIR}/imgui_tables.cpp
     ${imgui_SOURCE_DIR}/imgui_widgets.cpp
     ${rlimgui_SOURCE_DIR}/rlImGui.cpp
+    ${imguizmo_SOURCE_DIR}/ImGuizmo.cpp
 )
 
 # Define the executable using the variable holding all the found files
@@ -90,4 +99,5 @@ target_include_directories(FoxvoidEngine PRIVATE
     src
     ${imgui_SOURCE_DIR}
     ${rlimgui_SOURCE_DIR}
+    ${imguizmo_SOURCE_DIR}
 )
