@@ -1,6 +1,6 @@
 #include "ToolbarPanel.hpp"
 
-void ToolbarPanel::Draw(Scene& activeScene, GameObject*& selectedObject, bool& isPlaying, nlohmann::json& sceneBackup) {
+void ToolbarPanel::Draw(Scene& activeScene, GameObject*& selectedObject, bool& isPlaying, nlohmann::json& sceneBackup, bool& focusGameWindow) {
     ImGui::Begin("Toolbar");
 
     if (ImGui::Button("SAVE SCENE")) {
@@ -27,6 +27,9 @@ void ToolbarPanel::Draw(Scene& activeScene, GameObject*& selectedObject, bool& i
             selectedObject = nullptr;
             sceneBackup = activeScene.Serialize();
             activeScene.Start();
+
+            // Set the flag to true so the Game view can grab focus on its next draw call
+            focusGameWindow = true;
         }
         ImGui::PopStyleColor();
     } else {

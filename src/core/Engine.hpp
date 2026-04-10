@@ -84,6 +84,9 @@ class Engine {
         std::unique_ptr<ConsoleSink> m_coutRedirect;
         std::unique_ptr<ConsoleSink> m_cerrRedirect;
 
+        // Flag to trigger tab switching
+        bool m_focusGameWindow = false;
+
         // Static pointer holding the unique Engine instance
         static Engine* s_instance;
 };

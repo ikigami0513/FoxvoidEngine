@@ -159,11 +159,11 @@ void Engine::Render() {
     ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport()); 
 
     // Draw all the isolated editor panels
-    m_toolbarPanel.Draw(m_activeScene, m_selectedObject, m_isPlaying, m_sceneBackup);
+    m_toolbarPanel.Draw(m_activeScene, m_selectedObject, m_isPlaying, m_sceneBackup, m_focusGameWindow);
     
     // Draw both panels, feeding them their respective textures
     m_sceneViewPanel.Draw(m_sceneTexture, *m_editorCamera);
-    m_gameViewPanel.Draw(m_gameTexture);
+    m_gameViewPanel.Draw(m_gameTexture, m_focusGameWindow);
 
     m_hierarchyPanel.Draw(m_activeScene, m_selectedObject);
     m_console.Draw("Console");
