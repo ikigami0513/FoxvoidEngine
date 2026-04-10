@@ -1,0 +1,28 @@
+{
+    "gameObjects": [
+        {
+            "components": [
+                {
+                    "color": [
+                        99,
+                        212,
+                        20,
+                        255
+                    ],
+                    "height": 50.0,
+                    "type": "ShapeRenderer",
+                    "width": 50.0
+                },
+                {
+                    "rotation": 0.0,
+                    "scaleX": 1.0,
+                    "scaleY": 1.0,
+                    "type": "Transform2d",
+                    "x": 0.0,
+                    "y": 0.0
+                }
+            ],
+            "name": "Green Rect"
+        }
+    ]
+}

@@ -164,6 +164,8 @@ void Engine::Render() {
     // Enable global docking over the entire application viewport
     ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport()); 
 
+    m_mainMenuBar.Draw(m_activeScene, m_currentScenePath, m_isRunning, m_selectedObject);
+
     // Draw all the isolated editor panels
     m_toolbarPanel.Draw(m_activeScene, m_selectedObject, m_isPlaying, m_sceneBackup, m_focusGameWindow);
     

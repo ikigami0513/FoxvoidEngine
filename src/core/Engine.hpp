@@ -12,6 +12,7 @@
 #include "editor/SceneViewPanel.hpp"
 #include "editor/GameViewPanel.hpp"
 #include "editor/ToolbarPanel.hpp"
+#include <editor/MainMenuBar.hpp>
 
 // The Engine class encapsulates the core loop and window management.
 class Engine {
@@ -80,6 +81,8 @@ class Engine {
         InspectorPanel m_inspectorPanel;
         ProjectPanel m_projectPanel;
 
+        MainMenuBar m_mainMenuBar;
+
         // The camera used to navigate the scene in the editor
         std::unique_ptr<EditorCamera> m_editorCamera;
 
@@ -89,6 +92,8 @@ class Engine {
 
         // Flag to trigger tab switching
         bool m_focusGameWindow = false;
+
+        std::string m_currentScenePath = "";
 
         // Static pointer holding the unique Engine instance
         static Engine* s_instance;
