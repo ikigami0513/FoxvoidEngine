@@ -1,5 +1,8 @@
 #include "ScriptComponent.hpp"
 #include <iostream>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
 
 ScriptComponent::ScriptComponent(const std::string& moduleName, const std::string& className)
     : m_scriptName(moduleName), m_className(className)
@@ -82,6 +85,51 @@ void ScriptComponent::OnInspector() {
         
         if (ImGui::InputText("Module (File)", modBuffer, sizeof(modBuffer))) m_scriptName = modBuffer;
         if (ImGui::InputText("Class", clsBuffer, sizeof(clsBuffer))) m_className = clsBuffer;
+
+        // Drag and drop target
+        // We create a drop target specifically covering the area of the input fields above.
+        if (ImGui::BeginDragDropTarget()) {
+            // Accept ONLY payloads with our specific identifier
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                
+                // Extract the string from the payload data
+                std::string droppedPath = (const char*)payload->Data;
+                std::filesystem::path fsPath(droppedPath);
+                
+                // Ensure the user dropped a Python script and not a PNG image
+                if (fsPath.extension() == ".py") {
+                    // 1. The module name is always the file name without extension
+                    m_scriptName = fsPath.stem().string();
+                    
+                    // 2. Default fallback for the class name
+                    m_className = m_scriptName; 
+
+                    // 3. SMART PARSING: Open the Python file and look for the actual class name!
+                    std::ifstream file(fsPath);
+                    if (file.is_open()) {
+                        std::string line;
+                        // Read the file line by line
+                        while (std::getline(file, line)) {
+                            // Look for the keyword "class "
+                            size_t classPos = line.find("class ");
+                            if (classPos != std::string::npos) {
+                                // Extract the class name (between "class " and either "(" or ":")
+                                size_t start = classPos + 6; // 6 is the length of "class "
+                                size_t end = line.find_first_of("(: \r\n", start);
+                                
+                                if (end != std::string::npos) {
+                                    // Successfully found the real class name!
+                                    m_className = line.substr(start, end - start);
+                                    break; // Stop reading the file, we found what we needed
+                                }
+                            }
+                        }
+                        file.close();
+                    }
+                }
+            }
+            ImGui::EndDragDropTarget();
+        }
 
         // Button to instantiate the Python script directly from the editor
         if (ImGui::Button("Load Script") && !m_scriptName.empty() && !m_className.empty()) {

@@ -4,6 +4,7 @@
 #include "../physics/Transform2d.hpp"
 #include <iostream>
 #include <core/AssetManager.hpp>
+#include <filesystem>
 
 SpriteRenderer::SpriteRenderer(const std::string& texturePath) {
     // Load the image into GPU memory
@@ -79,6 +80,26 @@ void SpriteRenderer::OnInspector() {
         if (newPath != m_texturePath) {
             SetTexture(newPath); // This safely unloads the old and loads the new
         }
+    }
+
+    // Drag and drop target
+    // Make the InputText act as a drop target for content browser items
+    if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+            
+            std::string droppedPath = (const char*)payload->Data;
+            std::filesystem::path fsPath(droppedPath);
+            
+            // Extract the extension and convert it to lowercase for safe comparison
+            std::string ext = fsPath.extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+            
+            // Check against a list of Raylib-supported image formats
+            if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga") {
+                SetTexture(droppedPath);
+            }
+        }
+        ImGui::EndDragDropTarget();
     }
     
     ImGui::TextDisabled("Press ENTER to load new texture");

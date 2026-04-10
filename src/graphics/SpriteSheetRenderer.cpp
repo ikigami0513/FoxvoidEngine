@@ -5,6 +5,7 @@
 #include <iostream>
 #include <cstring>
 #include <core/AssetManager.hpp>
+#include <filesystem>
 
 SpriteSheetRenderer::SpriteSheetRenderer(const std::string& texturePath, int columns, int rows)
     : m_columns(columns), m_rows(rows), m_currentFrame(0), m_transform(nullptr) 
@@ -103,6 +104,26 @@ void SpriteSheetRenderer::OnInspector() {
         if (newPath != m_texturePath) {
             SetTexture(newPath);
         }
+    }
+
+    // Drag and drop target
+    // Make the InputText act as a drop target for content browser items
+    if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+            
+            std::string droppedPath = (const char*)payload->Data;
+            std::filesystem::path fsPath(droppedPath);
+            
+            // Extract the extension and convert it to lowercase for safe comparison
+            std::string ext = fsPath.extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+            
+            // Check against a list of Raylib-supported image formats
+            if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga") {
+                SetTexture(droppedPath);
+            }
+        }
+        ImGui::EndDragDropTarget();
     }
 
     // 2. Grid Dimensions (Columns and Rows)

@@ -41,6 +41,23 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
 
             ImGui::TreeNodeEx(displayName.c_str(), flags);
             
+            // Drag and drop source
+            // If the user clicks and drags this item, initialize the drag payload
+            if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
+                // Get the relative path of the file (e.g., "assets/textures/player.pn")
+                std::string itemPath = entry.path().string();
+
+                // Set the payload data. 
+                // "CONTENT_BROWSER_ITEM" is our custom identifier.
+                // We add +1 to the size to ensure the null-terminator ('\0') is included.
+                ImGui::SetDragDropPayload("CONTENT_BROWSER_ITEM", itemPath.c_str(), itemPath.size() + 1);
+                
+                // Display a tooltip right next to the mouse cursor while dragging
+                ImGui::Text("Drop %s", filename.c_str());
+                
+                ImGui::EndDragDropSource();
+            }
+
             // INTERACTION: What happens when we interact with this file?
             if (ImGui::IsItemHovered()) {
                 // Double left-click
