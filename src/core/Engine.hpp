@@ -6,6 +6,11 @@
 #include <raylib.h>
 #include "world/Scene.hpp"
 #include "editor/EditorConsole.hpp"
+#include "editor/HierarchyPanel.hpp"
+#include "editor/InspectorPanel.hpp"
+#include "editor/ProjectPanel.hpp"
+#include "editor/SceneViewPanel.hpp"
+#include "editor/ToolbarPanel.hpp"
 
 // The Engine class encapsulates the core loop and window management.
 class Engine {
@@ -39,9 +44,6 @@ class Engine {
         // The root path of the project assets
         std::filesystem::path m_assetsPath = "assets";
 
-        // Recursive function to read and display the folder tree
-        void DrawDirectoryNode(const std::filesystem::path& path);
-
         // Engine state
         bool m_isRunning;
 
@@ -62,7 +64,13 @@ class Engine {
         // Keeps track of the currently selected entity in the Hierarchy
         GameObject* m_selectedObject = nullptr;
 
+        // Editor UI Panels
         EditorConsole m_console;
+        ToolbarPanel m_toolbarPanel;
+        SceneViewPanel m_sceneViewPanel;
+        HierarchyPanel m_hierarchyPanel;
+        InspectorPanel m_inspectorPanel;
+        ProjectPanel m_projectPanel;
 
         // Pointers for the stream redirectors
         std::unique_ptr<ConsoleSink> m_coutRedirect;
