@@ -2,8 +2,10 @@
 
 #include <string>
 #include <filesystem>
+#include <memory>
 #include <raylib.h>
 #include "world/Scene.hpp"
+#include "editor/EditorConsole.hpp"
 
 // The Engine class encapsulates the core loop and window management.
 class Engine {
@@ -59,6 +61,12 @@ class Engine {
 
         // Keeps track of the currently selected entity in the Hierarchy
         GameObject* m_selectedObject = nullptr;
+
+        EditorConsole m_console;
+
+        // Pointers for the stream redirectors
+        std::unique_ptr<ConsoleSink> m_coutRedirect;
+        std::unique_ptr<ConsoleSink> m_cerrRedirect;
 
         // Static pointer holding the unique Engine instance
         static Engine* s_instance;

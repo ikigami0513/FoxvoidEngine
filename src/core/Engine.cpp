@@ -34,6 +34,13 @@ Engine::Engine(int width, int height, const std::string& title)
     // Initialize the Raylib window
     InitWindow(m_windowWidth, m_windowHeight, m_windowTitle.c_str());
     
+    // Initialize the stream redirectors
+    // Everything sent to std::cout will be captured as Info (white text)
+    m_coutRedirect = std::make_unique<ConsoleSink>(std::cout, LogLevel::Info, m_console);
+
+    // Everything sent to std::cerr will be captured as Error (red text)
+    m_cerrRedirect = std::make_unique<ConsoleSink>(std::cerr, LogLevel::Error, m_console);
+
     // Set a target frame rate to avoid burning CPU cycles
     SetTargetFPS(60);
 
@@ -306,6 +313,8 @@ void Engine::Render() {
     }
 
     ImGui::End();
+
+    m_console.Draw("Console");
 
     ImGui::Begin("Inspector");
 
