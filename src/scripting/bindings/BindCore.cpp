@@ -9,6 +9,7 @@
 #include "../../graphics/SpriteRenderer.hpp"
 #include "../../graphics/SpriteSheetRenderer.hpp"
 #include "../../graphics/Animation2d.hpp"
+#include <world/ComponentRegistry.hpp>
 
 void BindCore(py::module_& m) {
     m.def("log", [](const std::string& msg) {

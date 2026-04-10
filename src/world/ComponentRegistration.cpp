@@ -1,0 +1,25 @@
+#include "ComponentRegistration.hpp"
+#include "ComponentRegistry.hpp"
+
+#include "../physics/Transform2d.hpp"
+#include "../graphics/ShapeRenderer.hpp"
+#include "../graphics/SpriteRenderer.hpp"
+#include "../graphics/SpriteSheetRenderer.hpp"
+#include "../graphics/Animation2d.hpp"
+#include "../graphics/Animator2d.hpp"
+#include "../scripting/ScriptComponent.hpp"
+
+namespace EngineSetup {
+    void RegisterNativeComponents() {
+        // Register all native components to the C++ Engine.
+        ComponentRegistry::RegisterCPP<Transform2d>("Transform2d");
+
+        ComponentRegistry::RegisterCPP<ShapeRenderer>("ShapeRenderer");
+        ComponentRegistry::RegisterCPP<SpriteRenderer>("SpriteRenderer");
+        ComponentRegistry::RegisterCPP<SpriteSheetRenderer>("SpriteSheetRenderer");
+        ComponentRegistry::RegisterCPP<Animation2d>("Animation2d");
+        ComponentRegistry::RegisterCPP<Animator2d>("Animator2d");
+
+        ComponentRegistry::RegisterCPP<ScriptComponent>("ScriptComponent");
+    }
+}

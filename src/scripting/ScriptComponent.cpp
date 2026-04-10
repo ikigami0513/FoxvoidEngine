@@ -70,10 +70,34 @@ std::string ScriptComponent::GetName() const {
 }
 
 void ScriptComponent::OnInspector() {
-    // Safety check: ensure the Python script is actually loaded and instantiated
+    // Script configuration if not yet loaded ---
     if (!m_instance) {
-        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Python instance is null!");
-        return;
+        ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.2f, 1.0f), "No Python script loaded.");
+        
+        // Buffers for the text input fields
+        char modBuffer[256];
+        char clsBuffer[256];
+        strncpy(modBuffer, m_scriptName.c_str(), sizeof(modBuffer));
+        strncpy(clsBuffer, m_className.c_str(), sizeof(clsBuffer));
+        
+        if (ImGui::InputText("Module (File)", modBuffer, sizeof(modBuffer))) m_scriptName = modBuffer;
+        if (ImGui::InputText("Class", clsBuffer, sizeof(clsBuffer))) m_className = clsBuffer;
+
+        // Button to instantiate the Python script directly from the editor
+        if (ImGui::Button("Load Script") && !m_scriptName.empty() && !m_className.empty()) {
+            try {
+                py::module_ mod = py::module_::import(m_scriptName.c_str());
+                py::object cls = mod.attr(m_className.c_str());
+                m_instance = cls();
+                
+                // Link the native C++ component pointer to the Python instance
+                Component* nativeComponent = m_instance.cast<Component*>();
+                if (nativeComponent) nativeComponent->owner = this->owner;
+            } catch (const py::error_already_set& e) {
+                std::cerr << "[ScriptComponent] Load Error:\n" << e.what() << std::endl;
+            }
+        }
+        return; // Stop rendering the inspector here as long as the script isn't loaded
     }
 
     try {

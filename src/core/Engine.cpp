@@ -10,6 +10,8 @@
 #include <graphics/Animation2d.hpp>
 #include "AssetManager.hpp"
 #include <graphics/Animator2d.hpp>
+#include "world/ComponentRegistration.hpp"
+#include <world/ComponentRegistry.hpp>
 
 namespace fs = std::filesystem;
 
@@ -34,6 +36,9 @@ Engine::Engine(int width, int height, const std::string& title)
     
     // Set a target frame rate to avoid burning CPU cycles
     SetTargetFPS(60);
+
+    // One single call to register everything needed for the Scene loading
+    EngineSetup::RegisterNativeComponents();
 
     // Create the render texture
     // We give it the base resolution of the game
@@ -253,17 +258,31 @@ void Engine::Render() {
     // The hierarchy (Scene Graph)
     ImGui::Begin("Hierarchy");
 
+    // Button to create a new game object on the fly
+    if (ImGui::Button("+ Add Game Object", ImVec2(-1, 0))) { // ImVec2(-1, 0) takes the full width
+        // Create the object and select it automatically to save time!
+        m_selectedObject = m_activeScene.CreateGameObject("New Game Object");
+    }
+
+    ImGui::Separator();
+
     // Iterate through all alive objects in the active scene
     for (const auto& go : m_activeScene.GetGameObjects()) {
         // Check if the current object in the loop is the one we selected
         bool isSelected = (m_selectedObject == go.get());
 
+        ImGui::PushID(go.get());
+
+        std::string displayName = go->name.empty() ? "<Unnamed>" : go->name;
+
         // ImGui::Selectable creates a clickable text line. 
         // If clicked, it returns true.
-        if (ImGui::Selectable(go->name.c_str(), isSelected)) {
+        if (ImGui::Selectable(displayName.c_str(), isSelected)) {
             // Update the engine's selected object pointer
             m_selectedObject = go.get();
         }
+
+        ImGui::PopID();
     }
 
     // Click on empty space to deselect
@@ -276,29 +295,54 @@ void Engine::Render() {
     ImGui::Begin("Inspector");
 
     if (m_selectedObject != nullptr) {
-        // Display the name of the selected object
-        ImGui::Text("Name: %s", m_selectedObject->name.c_str());
+        // --- 1. Rename the entity ---
+        // We use a buffer to allow modifying the name directly in the inspector
+        char nameBuffer[256];
+        strncpy(nameBuffer, m_selectedObject->name.c_str(), sizeof(nameBuffer));
+        nameBuffer[sizeof(nameBuffer) - 1] = '\0'; // Ensure null-termination
+        
+        if (ImGui::InputText("Name", nameBuffer, sizeof(nameBuffer))) {
+            m_selectedObject->name = std::string(nameBuffer);
+        }
 
         ImGui::Separator();
 
-        // Iterate through all components attached to the selected object
+        // --- 2. Display existing components ---
         for (const auto& comp : m_selectedObject->GetComponents()) {
-            // Push an ID so ImGui doesn't get confused if two components have identical variables
             ImGui::PushID(comp.get());
-
-            // Create a collapsible header for each component using its specific name
-            // ImGuiTreeNodeFlags_DefaultOpen ensures it's expanded by default
             if (ImGui::CollapsingHeader(comp->GetName().c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
-                
-                // Call the component's custom UI code
                 comp->OnInspector();
             }
-            
             ImGui::PopID();
+        }
+
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // --- 3. Add new components ---
+        // Center the button horizontally
+        float windowWidth = ImGui::GetWindowSize().x;
+        float buttonWidth = 150.0f;
+        ImGui::SetCursorPosX((windowWidth - buttonWidth) * 0.5f);
+        
+        if (ImGui::Button("Add Component", ImVec2(buttonWidth, 0))) {
+            ImGui::OpenPopup("AddComponentPopup");
+        }
+
+        // The content of the dropdown menu popup
+        if (ImGui::BeginPopup("AddComponentPopup")) {
+            // Dynamically iterate through all registered component names
+            for (const std::string& typeName : ComponentRegistry::registeredTypes) {
+                if (ImGui::Selectable(typeName.c_str())) {
+                    // Use the factory to add the chosen component to the selected object
+                    ComponentRegistry::factories[typeName](*m_selectedObject);
+                }
+            }
+
+            ImGui::EndPopup();
         }
     }
     else {
-        // If nothing is selected, display a helpful message
         ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "Select an object in the Hierarchy.");
     }
 

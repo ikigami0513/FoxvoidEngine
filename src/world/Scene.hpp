@@ -13,6 +13,8 @@
 #include <graphics/Animation2d.hpp>
 #include "../scripting/ScriptComponent.hpp"
 #include "../graphics/Animator2d.hpp"
+#include <scripting/ScriptBindings.hpp>
+#include "ComponentRegistry.hpp"
 
 class Scene {
     public:
@@ -138,33 +140,18 @@ class Scene {
                     for (const auto& compJson : goJson["components"]) {
                         std::string type = compJson.value("type", "");
                         
-                        if (type == "Transform2d") {
-                            auto* t = go->AddComponent<Transform2d>();
-                            t->Deserialize(compJson);
-                        }
-                        else if (type == "ShapeRenderer") {
-                            auto* sr = go->AddComponent<ShapeRenderer>();
-                            sr->Deserialize(compJson);
-                        }
-                        else if (type == "SpriteRenderer") {
-                            auto* spr = go->AddComponent<SpriteRenderer>();
-                            spr->Deserialize(compJson);
-                        }
-                        else if (type == "SpriteSheetRenderer") {
-                            auto* ssr = go->AddComponent<SpriteSheetRenderer>();
-                            ssr->Deserialize(compJson);
-                        }
-                        else if (type == "Animation2d") {
-                            auto* anim = go->AddComponent<Animation2d>();
-                            anim->Deserialize(compJson);
-                        }
-                        else if (type == "Animator2d") {
-                            auto* animator = go->AddComponent<Animator2d>();
-                            animator->Deserialize(compJson);
-                        }
-                        else if (type == "ScriptComponent") {
-                            auto* sc = go->AddComponent<ScriptComponent>();
-                            sc->Deserialize(compJson);
+                        // Search for the type in our C++ factory registry
+                        auto it = ComponentRegistry::factories.find(type);
+                        
+                        if (it != ComponentRegistry::factories.end()) {
+                            // Execute the lambda to create the specific component
+                            Component* newComp = it->second(*go);
+                            
+                            // Polymorphic deserialization: 
+                            // The virtual method ensures the correct derived logic is called
+                            newComp->Deserialize(compJson);
+                        } else {
+                            std::cerr << "[Scene] Warning: Unknown component type in JSON: " << type << std::endl;
                         }
                     }
                 }

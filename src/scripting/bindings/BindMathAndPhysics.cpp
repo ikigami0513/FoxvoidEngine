@@ -3,6 +3,7 @@
 #include <iostream>
 #include "../../world/GameObject.hpp"
 #include "../../physics/Transform2d.hpp"
+#include <world/ComponentRegistry.hpp>
 
 void BindMathAndPhysics(py::module_& m) {
     py::class_<Vector2>(m, "Vector2")

@@ -7,6 +7,7 @@
 #include "../../graphics/SpriteSheetRenderer.hpp"
 #include "../../graphics/Animation2d.hpp"
 #include "../../graphics/Animator2d.hpp"
+#include <world/ComponentRegistry.hpp>
 
 void BindGraphics(py::module_& m) {
     m.def("set_pixel_art_mode", [](bool enable) {
