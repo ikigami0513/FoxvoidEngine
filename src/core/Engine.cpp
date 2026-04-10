@@ -59,6 +59,12 @@ Engine::Engine(int width, int height, const std::string& title)
     rlImGuiSetup(true); // true = dark theme
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable; // Enable Docking Space!
 
+    ImGuiIO& io = ImGui::GetIO();
+    ImFont* font = io.Fonts->AddFontFromFileTTF("assets/fonts/Roboto-Regular.ttf", 28.0f);
+    io.FontDefault = font;
+
+    ApplyModernTheme();
+
     // If the window was successfully created, mark the engine as running
     if (IsWindowReady()) {
         m_isRunning = true;
@@ -172,4 +178,68 @@ void Engine::Render() {
 
     rlImGuiEnd();
     EndDrawing();
+}
+
+void Engine::ApplyModernTheme() {
+    // Get the global ImGui style instance
+    ImGuiStyle& style = ImGui::GetStyle();
+    ImVec4* colors = style.Colors;
+
+    // =========================================================
+    // 1. GEOMETRY (Rounding & Borders)
+    // =========================================================
+    // Soften all corners to remove the blocky 90s look
+    style.WindowRounding    = 6.0f;
+    style.ChildRounding     = 4.0f;
+    style.FrameRounding     = 4.0f;
+    style.PopupRounding     = 4.0f;
+    style.ScrollbarRounding = 4.0f;
+    style.GrabRounding      = 3.0f;
+    style.TabRounding       = 4.0f;
+
+    // Remove harsh borders to make the UI look flat and modern
+    style.WindowBorderSize  = 0.0f;
+    style.FrameBorderSize   = 0.0f;
+    style.PopupBorderSize   = 1.0f; // Keep a small border for popups so they don't blend in
+
+    // =========================================================
+    // 2. COLORS (Sleek Dark Theme with Orange Accent)
+    // =========================================================
+    // Backgrounds (Dark gradients)
+    colors[ImGuiCol_WindowBg]           = ImVec4(0.12f, 0.12f, 0.12f, 1.0f);
+    colors[ImGuiCol_ChildBg]            = ImVec4(0.15f, 0.15f, 0.15f, 1.0f);
+    colors[ImGuiCol_PopupBg]            = ImVec4(0.08f, 0.08f, 0.08f, 0.94f);
+    
+    // Inputs and Frames (Buttons, Text boxes)
+    colors[ImGuiCol_FrameBg]            = ImVec4(0.20f, 0.20f, 0.20f, 1.0f);
+    colors[ImGuiCol_FrameBgHovered]     = ImVec4(0.30f, 0.30f, 0.30f, 1.0f);
+    colors[ImGuiCol_FrameBgActive]      = ImVec4(0.40f, 0.40f, 0.40f, 1.0f);
+    
+    // Window Headers (Title bars)
+    colors[ImGuiCol_TitleBg]            = ImVec4(0.09f, 0.09f, 0.09f, 1.0f);
+    colors[ImGuiCol_TitleBgActive]      = ImVec4(0.15f, 0.15f, 0.15f, 1.0f);
+    
+    // Tabs (Docking space)
+    colors[ImGuiCol_Tab]                = ImVec4(0.15f, 0.15f, 0.15f, 1.0f);
+    colors[ImGuiCol_TabHovered]         = ImVec4(0.30f, 0.30f, 0.30f, 1.0f);
+    colors[ImGuiCol_TabActive]          = ImVec4(0.25f, 0.25f, 0.25f, 1.0f);
+    colors[ImGuiCol_TabUnfocused]       = ImVec4(0.10f, 0.10f, 0.10f, 1.0f);
+    colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.15f, 0.15f, 0.15f, 1.0f);
+    
+    // Standard Buttons
+    colors[ImGuiCol_Button]             = ImVec4(0.25f, 0.25f, 0.25f, 1.0f);
+    colors[ImGuiCol_ButtonHovered]      = ImVec4(0.35f, 0.35f, 0.35f, 1.0f);
+    colors[ImGuiCol_ButtonActive]       = ImVec4(0.45f, 0.45f, 0.45f, 1.0f);
+    
+    // --- ACCENT COLOR (Foxvoid Orange) ---
+    // This color is used for Checkboxes, Sliders, and active elements
+    ImVec4 accentColor          = ImVec4(0.90f, 0.45f, 0.10f, 1.0f); 
+    ImVec4 accentHovered        = ImVec4(1.00f, 0.55f, 0.20f, 1.0f);
+    
+    colors[ImGuiCol_CheckMark]          = accentColor;
+    colors[ImGuiCol_SliderGrab]         = accentColor;
+    colors[ImGuiCol_SliderGrabActive]   = accentHovered;
+    colors[ImGuiCol_Header]             = ImVec4(0.30f, 0.30f, 0.30f, 1.0f); // Used for CollapsingHeaders
+    colors[ImGuiCol_HeaderHovered]      = ImVec4(0.40f, 0.40f, 0.40f, 1.0f);
+    colors[ImGuiCol_HeaderActive]       = ImVec4(0.45f, 0.45f, 0.45f, 1.0f);
 }

@@ -42,6 +42,9 @@ class Engine {
         void Update(float deltaTime);
         void Render();
 
+        // Applies a modern, profesionnal look to the ImGui interface
+        void ApplyModernTheme();
+
         // The root path of the project assets
         std::filesystem::path m_assetsPath = "assets";
 
