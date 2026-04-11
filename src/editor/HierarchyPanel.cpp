@@ -1,11 +1,19 @@
 #include "HierarchyPanel.hpp"
+#include "commands/CommandHistory.hpp"
+#include "commands/CreateObjectCommand.hpp"
+#include "commands/DeleteObjectCommand.hpp"
 
 void HierarchyPanel::Draw(Scene& activeScene, GameObject*& selectedObject) {
     ImGui::Begin("Hierarchy");
 
     // Button to create a new game object on the fly
     if (ImGui::Button("+ Add Game Object", ImVec2(-1, 0))) {
-        selectedObject = activeScene.CreateGameObject("New Game Object");
+        GameObject* newObj = activeScene.CreateGameObject("New Game Object");
+
+        // Push to history
+        CommandHistory::AddCommand(std::make_unique<CreateObjectCommand>(activeScene, newObj));
+
+        selectedObject = newObj;
     }
 
     ImGui::Separator();
@@ -46,7 +54,10 @@ void HierarchyPanel::Draw(Scene& activeScene, GameObject*& selectedObject) {
             }
 
             if (ImGui::Selectable("Delete Game Object")) {
-                go->Destroy();
+                // We do not call go->Destroy();
+                // We let the command handle the extraction
+                CommandHistory::AddCommand(std::make_unique<DeleteObjectCommand>(activeScene, go.get()));
+
                 // Safety: Clear selection if the deleted object was selected
                 if (isSelected) selectedObject = nullptr;
             }
@@ -62,7 +73,11 @@ void HierarchyPanel::Draw(Scene& activeScene, GameObject*& selectedObject) {
                 // If it's a Prefab file, spawn it!
                 if (fsPath.extension() == ".prefab") {
                     GameObject* newObj = activeScene.Instantiate(droppedPath);
-                    if (newObj) selectedObject = newObj; // Auto-select the newly spawned prefab
+                    if (newObj) {
+                        // Push to history
+                        CommandHistory::AddCommand(std::make_unique<CreateObjectCommand>(activeScene, newObj));
+                        selectedObject = newObj;
+                    }
                 }
             }
             ImGui::EndDragDropTarget();

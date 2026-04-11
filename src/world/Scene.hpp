@@ -33,11 +33,11 @@ class Scene {
         // Read-only access to the game objects for the Editor
         // Returns a constant reference to the vector, preventing external modifications
         const std::vector<std::unique_ptr<GameObject>>& GetGameObjects() const {
-            return gameObjects;
+            return m_gameObjects;
         }
 
         void Start() {
-            for (auto& go : gameObjects) {
+            for (auto& go : m_gameObjects) {
                 go->Start();
             }
             
@@ -49,7 +49,7 @@ class Scene {
         // Runs game logic
         void Update(float deltaTime) {
             // Update all objects
-            for (auto& go : gameObjects) {
+            for (auto& go : m_gameObjects) {
                 go->Update(deltaTime);
             }
         }
@@ -60,13 +60,13 @@ class Scene {
             // GARBAGE COLLECTION (Deferred Destruction)
             // Safely remove and destroy any GameObject marked as pending destroy.
             // Doing this AFTER the update loop prevents iteration crashes (iterator invalidation).
-            std::erase_if(gameObjects, [](const std::unique_ptr<GameObject>& go) {
+            std::erase_if(m_gameObjects, [](const std::unique_ptr<GameObject>& go) {
                 return go->IsPendingDestroy();
             });
 
             // Now that the loop is over, it is safe to add our new objects into the main scene.
             for (auto& newGo : m_pendingObjects) {
-                gameObjects.push_back(std::move(newGo));
+                m_gameObjects.push_back(std::move(newGo));
             }
             // Clear the waiting room for the next frame
             m_pendingObjects.clear();
@@ -74,13 +74,13 @@ class Scene {
 
         // Triggers the render loop for all GameObjects in the scene
         void Render() {
-            for (auto& go : gameObjects) {
+            for (auto& go : m_gameObjects) {
                 go->Render();
             }
         }
 
         void Clear() {
-            gameObjects.clear();
+            m_gameObjects.clear();
             m_pendingObjects.clear();
         }
 
@@ -120,7 +120,7 @@ class Scene {
         nlohmann::json Serialize() const {
             nlohmann::json j;
             j["gameObjects"] = nlohmann::json::array();
-            for (const auto& go : gameObjects) {
+            for (const auto& go : m_gameObjects) {
                 j["gameObjects"].push_back(go->Serialize());
             }
             return j;
@@ -192,7 +192,7 @@ class Scene {
         // Returns the top-most GameObject at the given world position, or nullptr if empty
         GameObject* PickObject(Vector2 worldPos) {
             // We iterate backwards (rbegin to rend) to pick the object drawn ON TOP first
-            for (auto it = gameObjects.rbegin(); it != gameObjects.rend(); ++it) {
+            for (auto it = m_gameObjects.rbegin(); it != m_gameObjects.rend(); ++it) {
                 auto& go = *it;
                 auto transform = go->GetComponent<Transform2d>();
 
@@ -228,9 +228,36 @@ class Scene {
             return nullptr;
         }
 
+        // Remove the object from the scene but returns its ownership without destroying it
+        std::unique_ptr<GameObject> ExtractGameObject(GameObject* target) {
+            // Find the object in our container
+            auto it = std::find_if(m_gameObjects.begin(), m_gameObjects.end(),
+                [target](const std::unique_ptr<GameObject>& go) { return go.get() == target; });
+
+            if (it != m_gameObjects.end()) {
+                // Transfer ownership out of the vector
+                std::unique_ptr<GameObject> extractedObject = std::move(*it);
+
+                // Remove the empty pointer from the vector
+                m_gameObjects.erase(it);
+
+                return extractedObject;
+            }
+
+            return nullptr;
+        }
+
+        // Puts an existing object back into the scene
+        void InjectGameObject(std::unique_ptr<GameObject> object) {
+            if (object) {
+                // Put the object back into the scene
+                m_gameObjects.push_back(std::move(object));
+            }
+        }
+
     private:
         // The scene owns the GameObjects
-        std::vector<std::unique_ptr<GameObject>> gameObjects;
+        std::vector<std::unique_ptr<GameObject>> m_gameObjects;
 
         // The waiting room for newly instantiated objects
         std::vector<std::unique_ptr<GameObject>> m_pendingObjects;
