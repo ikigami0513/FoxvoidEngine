@@ -3,6 +3,8 @@
 #include "ImGuizmo.h"
 #include <raymath.h>
 #include "extras/IconsFontAwesome6.h"
+#include "commands/CommandHistory.hpp"
+#include "commands/Transform2dCommand.hpp"
 
 void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject) {
     // Remove inner margins (padding) so the render texture touches the window borders
@@ -153,14 +155,48 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                 // We use WORLD mode for 2D because local rotation can skew 2D scaling weirdly
                 ImGuizmo::Manipulate(view, proj, currentGizmoOperation, ImGuizmo::WORLD, objMatrix);
 
-                // If the user dragged the Gizmo, apply the new values back to the Transform2d
+                // Undo / Redo gizmo tracking
+                static bool wasUsingGizmo = false;
+                static Transform2dState initialTransformState;
+
                 if (ImGuizmo::IsUsing()) {
+                    if (!wasUsingGizmo) {
+                        // The user JUST clicked on the Gizmo! Save the current state.
+                        initialTransformState = { transform->position, transform->rotation, transform->scale };
+                        wasUsingGizmo = true;
+                    }
+
+                    // Apply the continuous movement to the transform
                     ImGuizmo::DecomposeMatrixToComponents(objMatrix, translation, rotation, scale);
                     transform->position.x = translation[0];
                     transform->position.y = translation[1];
                     transform->rotation = rotation[2];
                     transform->scale.x = scale[0];
                     transform->scale.y = scale[1];
+
+                } else {
+                    if (wasUsingGizmo) {
+                        // The user JUST released the mouse click! The drag is over.
+                        // We record this movement as a single undoable action.
+                        
+                        Transform2dState currentState = { transform->position, transform->rotation, transform->scale };
+
+                        // We check if it actually moved to avoid empty commands
+                        if (initialTransformState.position.x != currentState.position.x ||
+                            initialTransformState.position.y != currentState.position.y ||
+                            initialTransformState.rotation != currentState.rotation ||
+                            initialTransformState.scale.x != currentState.scale.x ||
+                            initialTransformState.scale.y != currentState.scale.y)
+                        {
+                            // Important: We bypass AddCommand because AddCommand calls Execute().
+                            // The object is ALREADY in the new position, we just want to push it to history.
+                            
+                            // To do this cleanly, let's create a custom pointer and push it directly (we'll need a small update to CommandHistory for this later, or we can just use AddCommand and let it set the position again, which is harmless and easier!)
+                            CommandHistory::AddCommand(std::make_unique<Transform2dCommand>(selectedObject, initialTransformState, currentState));
+                        }
+
+                        wasUsingGizmo = false;
+                    }
                 }
             }
         }

@@ -2,6 +2,7 @@
 #include <imgui.h>
 #include <iostream>
 #include <filesystem>
+#include "commands/CommandHistory.hpp"
 
 void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& isRunning, GameObject*& selectedObject) {
     // Global Shortcuts
@@ -15,6 +16,16 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
             activeScene.SaveToFile(currentScenePath);
             std::cout << "[Editor] Scene saved via shortcut to " << currentScenePath << std::endl;
         }
+    }
+
+    // Check for Ctrl + Z (QWERTY) or Ctrl + W (AZERTY) for Undo
+    if (io.KeyCtrl && (ImGui::IsKeyPressed(ImGuiKey_Z) || ImGui::IsKeyPressed(ImGuiKey_W)) && !io.WantTextInput) {
+        CommandHistory::Undo();
+    }
+
+    // Check for Ctrl + Y (Redo)
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y) && !io.WantTextInput) {
+        CommandHistory::Redo();
     }
     
     // Draw the top menu bar
@@ -44,6 +55,24 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
             if (ImGui::MenuItem("Save Scene as...")) {
                 m_openSavePopup = true;
             }
+
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Edit")) {
+            // Undo
+            ImGui::BeginDisabled(!CommandHistory::CanUndo());
+            if (ImGui::MenuItem("Undo", "Ctrl+Z")) {
+                CommandHistory::Undo();
+            }
+            ImGui::EndDisabled();
+
+            // Redo
+            ImGui::BeginDisabled(!CommandHistory::CanRedo());
+            if (ImGui::MenuItem("Redo", "Ctrl+Y")) {
+                CommandHistory::Redo();
+            }
+            ImGui::EndDisabled();
 
             ImGui::EndMenu();
         }
