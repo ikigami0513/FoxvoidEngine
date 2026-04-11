@@ -60,6 +60,55 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
         Rectangle sourceRec = { 0.0f, 0.0f, texWidth, -texHeight };
         rlImGuiImageRect(&sceneTexture.texture, (int)drawSize.x, (int)drawSize.y, sourceRec);
 
+        // We must capture if the image is hovered right here before drawing anything else on top of it 
+        bool isImageHovered = ImGui::IsItemHovered();
+
+        // Floating gizmo toolbar
+        // Save cursor position to draw the toolbar at the top left of the scene view
+        ImVec2 toolbarPos = ImVec2(10.0f, ImGui::GetCursorStartPos().y + 10.0f);
+        ImGui::SetCursorPos(toolbarPos);
+
+        // Styling the floating background
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.1f, 0.1f, 0.1f, 0.85f));
+        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
+
+        if (ImGui::BeginChild("GizmoToolbar", ImVec2(110, 36), false, ImGuiWindowFlags_NoScrollbar)) {
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 0));
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
+            ImGui::SetCursorPos(ImVec2(4, 4)); // Small internal padding
+
+            // Lambda helper to draw styled toggle buttons
+            auto drawGizmoButton = [](const char* label, ImGuizmo::OPERATION op, ImGuizmo::OPERATION& current) {
+                bool isSelected = (current == op);
+                if (isSelected) {
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.90f, 0.45f, 0.10f, 1.0f)); // Foxvoid Orange
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.00f, 0.55f, 0.20f, 1.0f));
+                }
+                
+                if (ImGui::Button(label, ImVec2(28, 28))) current = op;
+                
+                if (isSelected) ImGui::PopStyleColor(2);
+            };
+
+            // Draw the 3 buttons
+            drawGizmoButton("T", ImGuizmo::TRANSLATE, currentGizmoOperation);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Translate (W)");
+            ImGui::SameLine();
+            
+            drawGizmoButton("R", ImGuizmo::ROTATE, currentGizmoOperation);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Rotate (E)");
+            ImGui::SameLine();
+            
+            drawGizmoButton("S", ImGuizmo::SCALE, currentGizmoOperation);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Scale (R)");
+
+            ImGui::PopStyleVar(2);
+        }
+
+        ImGui::EndChild();
+        ImGui::PopStyleColor();
+        ImGui::PopStyleVar();
+
         // Gizmos
         if (selectedObject) {
             auto transform = selectedObject->GetComponent<Transform2d>();
@@ -115,7 +164,7 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
 
         // Mouse picking logic
         // Only pick if we hover the image and click the Left Mouse Button
-        if (!ImGuizmo::IsOver() && ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+        if (!ImGuizmo::IsOver() && isImageHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
             // Get Mouse position exactly relative to the drawn image's top-left corner
             ImVec2 mousePosAbsolute = ImGui::GetMousePos();
             ImVec2 imagePosAbsolute = ImGui::GetItemRectMin(); 
