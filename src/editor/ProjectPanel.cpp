@@ -11,9 +11,7 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, const f
         m_currentDirectory = assetsPath;
     }
 
-    // ==========================================
-    // --- TOOLBAR ---
-    // ==========================================
+    // Toolbar
     // Button to switch views
     if (ImGui::Button(m_isTreeView ? ICON_FA_FOLDER_OPEN " Switch to Explorer" : ICON_FA_SITEMAP " Switch to Tree")) {
         m_isTreeView = !m_isTreeView;
@@ -38,9 +36,7 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, const f
 
     ImGui::Separator();
 
-    // ==========================================
-    // --- VIEWPORT ---
-    // ==========================================
+    // Viewport
     // Add a little padding inside the window
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(4, 4));
 
@@ -54,9 +50,6 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, const f
     ImGui::End();
 }
 
-// =========================================================================
-// EXPLORER VIEW (Current Directory Only)
-// =========================================================================
 void ProjectPanel::DrawExplorerView(Scene& activeScene, GameObject*& selectedObject, std::string& currentScenePath) {
     // If the directory does not exist, stop right here
     if (!fs::exists(m_currentDirectory)) return;
@@ -127,9 +120,6 @@ void ProjectPanel::DrawExplorerView(Scene& activeScene, GameObject*& selectedObj
     }
 }
 
-// =========================================================================
-// TREE VIEW (Recursive)
-// =========================================================================
 void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedObject, const fs::path& path, std::string& currentScenePath) {
     // If the directory does not exist, stop right here
     if (!fs::exists(path)) return;
