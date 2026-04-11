@@ -1,17 +1,136 @@
 #include "ProjectPanel.hpp"
+#include <imgui.h>
+#include <iostream>
+#include <extras/IconsFontAwesome6.h>
 
-void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, const fs::path& assetsPath) {
+void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, const fs::path& assetsPath, std::string& currentScenePath) {
     ImGui::Begin("Project");
 
-    ImGui::TextDisabled("Path: %s", assetsPath.string().c_str());
+    // Initialize the current directory the very first time the panel is drawn
+    if (m_currentDirectory.empty()) {
+        m_currentDirectory = assetsPath;
+    }
+
+    // ==========================================
+    // --- TOOLBAR ---
+    // ==========================================
+    // Button to switch views
+    if (ImGui::Button(m_isTreeView ? ICON_FA_FOLDER_OPEN " Switch to Explorer" : ICON_FA_SITEMAP " Switch to Tree")) {
+        m_isTreeView = !m_isTreeView;
+    }
+
+    ImGui::SameLine();
+
+    if (!m_isTreeView) {
+        // Explorer View Toolbar: We need a "Back" button to go up a directory
+        ImGui::BeginDisabled(m_currentDirectory == assetsPath); // Disable if we are at the root
+        if (ImGui::Button(ICON_FA_ARROW_LEFT)) {
+            m_currentDirectory = m_currentDirectory.parent_path();
+        }
+        ImGui::EndDisabled();
+
+        ImGui::SameLine();
+        ImGui::TextDisabled("%s", m_currentDirectory.string().c_str());
+    } else {
+        // Tree View Toolbar: Just show the root path
+        ImGui::TextDisabled("Path: %s", assetsPath.string().c_str());
+    }
+
     ImGui::Separator();
 
-    DrawDirectoryNode(activeScene, selectedObject, assetsPath);
+    // ==========================================
+    // --- VIEWPORT ---
+    // ==========================================
+    // Add a little padding inside the window
+    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(4, 4));
 
+    if (m_isTreeView) {
+        DrawDirectoryNode(activeScene, selectedObject, assetsPath, currentScenePath);
+    } else {
+        DrawExplorerView(activeScene, selectedObject, currentScenePath);
+    }
+
+    ImGui::PopStyleVar();
     ImGui::End();
 }
 
-void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedObject, const fs::path& path) {
+// =========================================================================
+// EXPLORER VIEW (Current Directory Only)
+// =========================================================================
+void ProjectPanel::DrawExplorerView(Scene& activeScene, GameObject*& selectedObject, std::string& currentScenePath) {
+    // If the directory does not exist, stop right here
+    if (!fs::exists(m_currentDirectory)) return;
+
+    // Iterate through all items in the current directory
+    for (const auto& entry : fs::directory_iterator(m_currentDirectory)) {
+        const auto& filename = entry.path().filename().string();
+        std::string extension = entry.path().extension().string();
+
+        // Filter exclusions
+        // Ignore Python cache directories
+        if (entry.is_directory() && filename == "__pycache__") continue;
+        // Ignore compiled python files
+        if (!entry.is_directory() && extension == ".pyc") continue;
+        // Ignore hidden files/folders (starting with a dot, like .git or .vscode)
+        if (!filename.empty() && filename[0] == '.') continue;
+
+        bool isDir = entry.is_directory();
+        
+        // Add a small visual icon prefix based on the file type
+        std::string icon = isDir ? ICON_FA_FOLDER : ICON_FA_FILE;
+        if (!isDir) {
+            if (extension == ".scene") icon = ICON_FA_CUBES;
+            else if (extension == ".prefab") icon = ICON_FA_BOX;
+            else if (extension == ".py") icon = ICON_FA_FILE_CODE;
+            else if (extension == ".png") icon = ICON_FA_IMAGE;
+        }
+
+        std::string displayName = icon + "  " + filename;
+
+        // Draw the item as a selectable row
+        if (ImGui::Selectable(displayName.c_str(), false, ImGuiSelectableFlags_AllowDoubleClick)) {
+            // INTERACTION: What happens when we interact with this file?
+            if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+                if (isDir) {
+                    // It's a FOLDER -> Enter the folder!
+                    m_currentDirectory /= filename; 
+                } else if (extension == ".scene") {
+                    // It's a FILE -> If it's a scene, load it!
+                    std::cout << "[Editor] Loading scene via Project Browser: " << filename << std::endl;
+                    
+                    // Safety: Clear the editor selection before changing the scene
+                    selectedObject = nullptr; 
+                    currentScenePath = entry.path().string();
+                    
+                    // Load the new scene
+                    activeScene.LoadFromFile(currentScenePath);
+                }
+            }
+        }
+
+        // Drag and drop source (For Files Only in Explorer view)
+        // If the user clicks and drags this item, initialize the drag payload
+        if (!isDir && ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
+            // Get the relative path of the file (e.g., "assets/textures/player.png")
+            std::string itemPath = entry.path().string();
+
+            // Set the payload data. 
+            // "CONTENT_BROWSER_ITEM" is our custom identifier.
+            // We add +1 to the size to ensure the null-terminator ('\0') is included.
+            ImGui::SetDragDropPayload("CONTENT_BROWSER_ITEM", itemPath.c_str(), itemPath.size() + 1);
+            
+            // Display a tooltip right next to the mouse cursor while dragging
+            ImGui::Text("%s Drop %s", icon.c_str(), filename.c_str());
+            
+            ImGui::EndDragDropSource();
+        }
+    }
+}
+
+// =========================================================================
+// TREE VIEW (Recursive)
+// =========================================================================
+void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedObject, const fs::path& path, std::string& currentScenePath) {
     // If the directory does not exist, stop right here
     if (!fs::exists(path)) return;
 
@@ -21,22 +140,21 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
         std::string extension = entry.path().extension().string();
 
         // Filter exclusions
-
         // Ignore Python cache directories
         if (entry.is_directory() && filename == "__pycache__") continue;
-
         // Ignore compiled python files
         if (!entry.is_directory() && extension == ".pyc") continue;
-
         // Ignore hidden files/folders (starting with a dot, like .git or .vscode)
         if (!filename.empty() && filename[0] == '.') continue;
 
         if (entry.is_directory()) {
             // It's a FOLDER
+            std::string folderName = ICON_FA_FOLDER " " + filename;
+            
             // Create a collapsible tree node
-            if (ImGui::TreeNodeEx(filename.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
+            if (ImGui::TreeNodeEx(folderName.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
                 // Recursive call to read the contents of this subfolder
-                DrawDirectoryNode(activeScene, selectedObject, entry.path()); 
+                DrawDirectoryNode(activeScene, selectedObject, entry.path(), currentScenePath); 
                 ImGui::TreePop(); // Close the node
             }
         } else {
@@ -45,13 +163,13 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
             ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
             
             // Add a small visual icon prefix based on the file type (optional but looks nice)
-            std::string displayName = "  " + filename;
+            std::string icon = ICON_FA_FILE;
+            if (extension == ".scene") icon = ICON_FA_CUBES;
+            else if (extension == ".prefab") icon = ICON_FA_BOX;
+            else if (extension == ".py") icon = ICON_FA_FILE_CODE;
+            else if (extension == ".png") icon = ICON_FA_IMAGE;
 
-            if (extension == ".scene") displayName = "[Scene] " + filename;
-            else if (extension == ".prefab") displayName = "[Prefab] " + filename;
-            else if (extension == ".py") displayName = "[Script] " + filename;
-            else if (extension == ".png") displayName = "[Image] " + filename;
-
+            std::string displayName = icon + "  " + filename;
             ImGui::TreeNodeEx(displayName.c_str(), flags);
             
             // Drag and drop source
@@ -66,7 +184,7 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
                 ImGui::SetDragDropPayload("CONTENT_BROWSER_ITEM", itemPath.c_str(), itemPath.size() + 1);
                 
                 // Display a tooltip right next to the mouse cursor while dragging
-                ImGui::Text("Drop %s", filename.c_str());
+                ImGui::Text("%s Drop %s", icon.c_str(), filename.c_str());
                 
                 ImGui::EndDragDropSource();
             }
@@ -82,9 +200,10 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
                         
                         // Safety: Clear the editor selection before changing the scene
                         selectedObject = nullptr; 
+                        currentScenePath = entry.path().string();
                         
                         // Load the new scene
-                        activeScene.LoadFromFile(entry.path().string());
+                        activeScene.LoadFromFile(currentScenePath);
                     }
                 }
             }

@@ -192,7 +192,7 @@ void Engine::Render() {
             m_hierarchyPanel.Draw(m_activeScene, m_selectedObject);
             m_console.Draw("Console");
             m_inspectorPanel.Draw(m_selectedObject);
-            m_projectPanel.Draw(m_activeScene, m_selectedObject, m_assetsPath);
+            m_projectPanel.Draw(m_activeScene, m_selectedObject, m_assetsPath, m_currentScenePath);
 
         rlImGuiEnd();
     EndDrawing();
