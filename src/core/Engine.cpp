@@ -13,6 +13,7 @@
 #include <graphics/Animator2d.hpp>
 #include "world/ComponentRegistration.hpp"
 #include <world/ComponentRegistry.hpp>
+#include "extras/IconsFontAwesome6.h"
 
 namespace fs = std::filesystem;
 
@@ -61,8 +62,21 @@ Engine::Engine(int width, int height, const std::string& title)
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable; // Enable Docking Space!
 
     ImGuiIO& io = ImGui::GetIO();
-    ImFont* font = io.Fonts->AddFontFromFileTTF("assets/fonts/Roboto-Regular.ttf", 28.0f);
+
+    float baseFontSize = 28.0f;
+    ImFont* font = io.Fonts->AddFontFromFileTTF("assets/fonts/Roboto-Regular.ttf", baseFontSize);
     io.FontDefault = font;
+
+    float iconFontSize = baseFontSize * 0.8f;
+    
+    ImFontConfig config;
+    config.MergeMode = true;
+    config.PixelSnapH = true;
+    config.GlyphMinAdvanceX = iconFontSize;
+
+    static const ImWchar icon_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
+
+    io.Fonts->AddFontFromFileTTF("assets/fonts/fa-solid-900.ttf", iconFontSize, &config, icon_ranges);
 
     ApplyModernTheme();
 
