@@ -61,7 +61,7 @@
                     "properties": {
                         "speed": 400.0
                     },
-                    "scriptName": "main",
+                    "scriptName": "PlayerController",
                     "type": "ScriptComponent"
                 }
             ],
