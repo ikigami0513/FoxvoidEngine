@@ -20,6 +20,17 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
         const auto& filename = entry.path().filename().string();
         std::string extension = entry.path().extension().string();
 
+        // Filter exclusions
+
+        // Ignore Python cache directories
+        if (entry.is_directory() && filename == "__pycache__") continue;
+
+        // Ignore compiled python files
+        if (!entry.is_directory() && extension == ".pyc") continue;
+
+        // Ignore hidden files/folders (starting with a dot, like .git or .vscode)
+        if (!filename.empty() && filename[0] == '.') continue;
+
         if (entry.is_directory()) {
             // It's a FOLDER
             // Create a collapsible tree node
