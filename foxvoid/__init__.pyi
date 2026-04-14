@@ -326,3 +326,61 @@ class Animation2d(Component):
             loop: If True, the animation repeats indefinitely.
         """
         ...
+
+
+class RectCollider(Component):
+    """
+    Component that defines a 2D rectangular collision shape.
+    It does not apply physics forces by itself, it only defines the boundary.
+    """
+    
+    size: Vector2
+    """The width and height of the collision box (default is 50x50)."""
+    
+    offset: Vector2
+    """The local offset of the collider relative to the GameObject's center position."""
+    
+    is_trigger: bool
+    """
+    If true, this collider will not physically block or bounce off other objects.
+    It will only be used to detect overlapping areas (e.g., coins, checkpoints, damage zones).
+    """
+
+    def __init__(self, width: float = 50.0, height: float = 50.0) -> None:
+        """
+        Initializes a RectCollider.
+        :param width: The width of the collision bounding box.
+        :param height: The height of the collision bounding box.
+        """
+        ...
+
+
+class RigidBody2d(Component):
+    """
+    Component that puts the GameObject under the control of the physics engine.
+    It requires a Collider component on the same GameObject to actually hit things.
+    """
+    
+    velocity: Vector2
+    """The current linear speed and direction of the object."""
+    
+    mass: float
+    """The weight of the object. Heavier objects push lighter objects during collisions."""
+    
+    gravity_scale: float
+    """
+    Multiplier applied to the world's gravity. 
+    1.0 is normal gravity, 0.0 means the object floats, negative values make it fall upwards.
+    """
+    
+    is_kinematic: bool
+    """
+    If true, the physics engine will NOT apply forces, gravity, or push this object during collisions.
+    Useful for moving platforms or objects controlled entirely by animations/scripts.
+    """
+
+    def __init__(self) -> None:
+        """
+        Initializes a RigidBody2d with default values (mass=1.0, gravity=1.0, non-kinematic).
+        """
+        ...

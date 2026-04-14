@@ -2,13 +2,13 @@
 #include "editor/commands/CommandHistory.hpp"
 #include "editor/commands/ModifyComponentCommand.hpp"
 
-bool EditorUI::DragFloat2(const char* label, float v[2], float v_speed, Component* component) {
+bool EditorUI::DragFloat2(const char* label, float v[2], float v_speed, Component* component, float v_min, float v_max) {
     // Static variable to hold the JSON state before the user starts dragging
     static nlohmann::json initialState;
     bool valueChanged = false;
 
     // Draw the actual ImGui widget
-    if (ImGui::DragFloat2(label, v, v_speed)) {
+    if (ImGui::DragFloat2(label, v, v_speed, v_min, v_max)) {
         valueChanged = true;
     }
 
