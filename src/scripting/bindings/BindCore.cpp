@@ -11,10 +11,21 @@
 #include "../../graphics/Animation2d.hpp"
 #include <world/ComponentRegistry.hpp>
 
+class Debug {
+    public:
+        void static Log(const std::string& msg) {
+            std::cout << "[Python] " << msg << std::endl; 
+        }
+
+        void static Error(const std::string& msg) {
+            std::cerr << "[Python] " << msg << std::endl;
+        }
+};
+
 void BindCore(py::module_& m) {
-    m.def("log", [](const std::string& msg) {
-        std::cout << "[Python] " << msg << std::endl;
-    });
+    py::class_<Debug>(m, "Debug")
+        .def_static("log", &Debug::Log)
+        .def_static("error", &Debug::Error);
 
     py::class_<Component>(m, "Component")
         .def(py::init<>())

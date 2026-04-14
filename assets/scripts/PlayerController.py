@@ -12,7 +12,7 @@ class PlayerController(Component):
         self._transform: Optional[Transform2d] = None
 
     def start(self):
-        log("PlayerController start sequence!")
+        Debug.log("PlayerController start sequence!")
         self._transform = self.game_object.get_component(Transform2d)
         self._transform.scale = Vector2(4.0, 4.0)
         
@@ -29,7 +29,7 @@ class PlayerController(Component):
                 self._transform.position.y += self.speed * delta_time
 
             if Input.is_key_pressed(Keys.KEY_SPACE):
-                log("my friend")
+                Debug.log("my friend")
 
                 friend = GameObject.spawn("Friend")
 

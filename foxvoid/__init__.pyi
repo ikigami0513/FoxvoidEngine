@@ -9,12 +9,22 @@ from typing import TypeVar, Type, Optional, List
 T = TypeVar('T', bound='Component')
 
 
-def log(msg: str) -> None:
-    """
-    Prints a message directly to the C++ engine console.
-    Bypasses Python's standard stdout to prevent crashes with graphics libraries.
-    """
-    ...
+class Debug:
+    @staticmethod
+    def log(msg: str) -> None:
+        """
+        Prints a message directly to the C++ engine console.
+        Bypasses Python's standard stdout to prevent crashes with graphics libraries.
+        """
+        ...
+
+    @staticmethod
+    def error(msg: str) -> None:
+        """
+        Prints an error directly to the C++ engine console.
+        Bypasses Python's standard stdout to prevent crashes with graphics libraries.
+        """
+        ...
 
 
 def set_pixel_art_mode(enable: bool) -> None:
