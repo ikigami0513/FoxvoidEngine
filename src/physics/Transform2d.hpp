@@ -5,6 +5,7 @@
 #include <imgui.h>
 #include <editor/commands/CommandHistory.hpp>
 #include <editor/commands/ModifyComponentCommand.hpp>
+#include <editor/EditorUI.hpp>
 
 class Transform2d : public Component {
     public:
@@ -21,40 +22,9 @@ class Transform2d : public Component {
         }
 
         void OnInspector() override {
-            // Static variable to hold the JSON state before the user starts dragging a value
-            static nlohmann::json initialState;
-
-            // --- POSITION ---
-            ImGui::DragFloat2("Position", &position.x, 0.1f);
-            
-            if (ImGui::IsItemActivated()) {
-                // The user just clicked on the Position slider. Save the whole component state!
-                initialState = Serialize();
-            }
-            if (ImGui::IsItemDeactivatedAfterEdit()) {
-                // The user released the mouse. Push the command!
-                CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
-            }
-
-            // --- SCALE ---
-            ImGui::DragFloat2("Scale", &scale.x, 0.1f);
-            
-            if (ImGui::IsItemActivated()) {
-                initialState = Serialize();
-            }
-            if (ImGui::IsItemDeactivatedAfterEdit()) {
-                CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
-            }
-
-            // --- ROTATION ---
-            ImGui::DragFloat("Rotation", &rotation, 1.0f);
-            
-            if (ImGui::IsItemActivated()) {
-                initialState = Serialize();
-            }
-            if (ImGui::IsItemDeactivatedAfterEdit()) {
-                CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
-            }
+            EditorUI::DragFloat2("Position", &position.x, 0.1f, this);
+            EditorUI::DragFloat2("Scale", &scale.x, 0.1f, this);
+            EditorUI::DragFloat("Rotation", &rotation, 1.0f, this);
         }
 
         nlohmann::json Serialize() const override {

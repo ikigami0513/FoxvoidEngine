@@ -22,6 +22,7 @@ SpriteSheetRenderer::~SpriteSheetRenderer() {}
 void SpriteSheetRenderer::SetTexture(const std::string& path) {
     if (m_texture.id != 0) {
         UnloadTexture(m_texture);
+        m_texture.id = 0;
     }
     
     m_texturePath = path;
@@ -94,7 +95,7 @@ std::string SpriteSheetRenderer::GetName() const {
 }
 
 void SpriteSheetRenderer::OnInspector() {
-    // 1. Texture Path Input
+    // Texture Path Input
     char buffer[256];
     strncpy(buffer, m_texturePath.c_str(), sizeof(buffer));
     buffer[sizeof(buffer) - 1] = '\0';
@@ -102,36 +103,38 @@ void SpriteSheetRenderer::OnInspector() {
     if (ImGui::InputText("Texture Path", buffer, sizeof(buffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
         std::string newPath(buffer);
         if (newPath != m_texturePath) {
+            nlohmann::json initialState = Serialize();
             SetTexture(newPath);
+            CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
         }
     }
 
     // Drag and drop target
-    // Make the InputText act as a drop target for content browser items
     if (ImGui::BeginDragDropTarget()) {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
             
             std::string droppedPath = (const char*)payload->Data;
             std::filesystem::path fsPath(droppedPath);
             
-            // Extract the extension and convert it to lowercase for safe comparison
             std::string ext = fsPath.extension().string();
             std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
             
-            // Check against a list of Raylib-supported image formats
             if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga") {
+                nlohmann::json initialState = Serialize();
                 SetTexture(droppedPath);
+                CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
             }
         }
         ImGui::EndDragDropTarget();
     }
 
-    // 2. Grid Dimensions (Columns and Rows)
-    if (ImGui::DragInt("Columns", &m_columns, 0.1f, 1, 64)) {
-        // Reset frame if grid size changes to avoid out-of-bounds rendering
+    // Grid Dimensions (Columns and Rows)
+    // We use EditorUI to handle Undo/Redo automatically, and we can still use the 
+    // returned boolean to know if we need to reset the current frame!
+    if (EditorUI::DragInt("Columns", &m_columns, 0.1f, this, 1, 64)) {
         m_currentFrame = 0; 
     }
-    if (ImGui::DragInt("Rows", &m_rows, 0.1f, 1, 64)) {
+    if (EditorUI::DragInt("Rows", &m_rows, 0.1f, this, 1, 64)) {
         m_currentFrame = 0;
     }
 
@@ -154,7 +157,5 @@ void SpriteSheetRenderer::Deserialize(const nlohmann::json& j) {
     m_currentFrame = 0; // Always reset frame on load
 
     std::string path = j.value("texturePath", "");
-    if (!path.empty()) {
-        SetTexture(path);
-    }
+    SetTexture(path);
 }

@@ -5,6 +5,8 @@
 #include <iostream>
 #include <core/AssetManager.hpp>
 #include <filesystem>
+#include "editor/commands/CommandHistory.hpp"
+#include "editor/commands/ModifyComponentCommand.hpp"
 
 SpriteRenderer::SpriteRenderer(const std::string& texturePath) {
     // Load the image into GPU memory
@@ -22,6 +24,7 @@ void SpriteRenderer::SetTexture(const std::string& path) {
     // If a texture is already loaded, free its GPU memory first
     if (m_texture.id != 0) {
         UnloadTexture(m_texture);
+        m_texture.id = 0;
     }
 
     m_texturePath = path;
@@ -67,22 +70,28 @@ std::string SpriteRenderer::GetName() const {
 }
 
 void SpriteRenderer::OnInspector() {
-    // 1. Prepare a C-string buffer for ImGui text input
+    // Prepare a C-string buffer for ImGui text input
     char buffer[256];
     strncpy(buffer, m_texturePath.c_str(), sizeof(buffer));
     buffer[sizeof(buffer) - 1] = '\0';
 
-    // 2. Draw the InputText. 
-    // We use ImGuiInputTextFlags_EnterReturnsTrue so it only loads when the user presses Enter 
-    // (otherwise it would try to load incomplete paths on every keystroke!)
+    // Manual Path Entry
+    // We only trigger the logic when the user presses ENTER to avoid disk I/O spam
     if (ImGui::InputText("Texture Path", buffer, sizeof(buffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
         std::string newPath(buffer);
         if (newPath != m_texturePath) {
-            SetTexture(newPath); // This safely unloads the old and loads the new
+            // Capture the state BEFORE loading the new texture
+            nlohmann::json initialState = Serialize();
+            
+            // Perform the heavy action
+            SetTexture(newPath); 
+            
+            // Push the command to the history
+            CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
         }
     }
 
-    // Drag and drop target
+    // Drag and Drop Target
     // Make the InputText act as a drop target for content browser items
     if (ImGui::BeginDragDropTarget()) {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
@@ -90,13 +99,15 @@ void SpriteRenderer::OnInspector() {
             std::string droppedPath = (const char*)payload->Data;
             std::filesystem::path fsPath(droppedPath);
             
-            // Extract the extension and convert it to lowercase for safe comparison
             std::string ext = fsPath.extension().string();
             std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
             
-            // Check against a list of Raylib-supported image formats
             if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga") {
+                nlohmann::json initialState = Serialize();
+                
                 SetTexture(droppedPath);
+                
+                CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
             }
         }
         ImGui::EndDragDropTarget();
@@ -104,7 +115,7 @@ void SpriteRenderer::OnInspector() {
     
     ImGui::TextDisabled("Press ENTER to load new texture");
 
-    // 3. Show useful debug info
+    // Show useful debug info
     if (m_texture.id != 0) {
         ImGui::Text("Resolution: %d x %d", m_texture.width, m_texture.height);
     } else {
@@ -121,7 +132,5 @@ nlohmann::json SpriteRenderer::Serialize() const {
 
 void SpriteRenderer::Deserialize(const nlohmann::json& j) {
     std::string path = j.value("texturePath", "");
-    if (!path.empty()) {
-        SetTexture(path);
-    }
+    SetTexture(path);
 }

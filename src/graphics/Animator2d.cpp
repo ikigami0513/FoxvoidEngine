@@ -2,6 +2,8 @@
 #include "../world/GameObject.hpp"
 #include "SpriteSheetRenderer.hpp"
 #include <iostream>
+#include <editor/commands/CommandHistory.hpp>
+#include <editor/commands/ModifyComponentCommand.hpp>
 
 Animator2d::Animator2d() 
     : m_currentFrameIndex(0), 
@@ -99,6 +101,7 @@ std::string Animator2d::GetName() const {
 }
 
 void Animator2d::OnInspector() {
+    // Read-only properties do not need Undo/Redo tracking
     // Display current state
     ImGui::Text("Current Animation: %s", m_currentAnimation.empty() ? "None" : m_currentAnimation.c_str());
     ImGui::Text("Frame Index: %d", m_currentFrameIndex);
@@ -109,10 +112,18 @@ void Animator2d::OnInspector() {
     // Display a list of all registered animations
     if (ImGui::TreeNode("Registered Animations")) {
         for (const auto& pair : m_animations) {
+            
             // Create a selectable list item for each animation
-            // Clicking it will force the Animator to play this animation (great for debugging)
+            // Clicking it will force the Animator to play this animation
             if (ImGui::Selectable(pair.first.c_str(), m_currentAnimation == pair.first)) {
+                // Capture the state BEFORE changing the animation
+                nlohmann::json initialState = Serialize();
+                
+                // Apply the change
                 Play(pair.first);
+                
+                // Push the modification to the Undo/Redo stack immediately
+                CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
             }
             
             // Show a small tooltip with animation details when hovering

@@ -1,4 +1,7 @@
 #include "ScriptComponent.hpp"
+#include "editor/EditorUI.hpp"
+#include "editor/commands/CommandHistory.hpp"
+#include "editor/commands/ModifyComponentCommand.hpp"
 #include <iostream>
 #include <filesystem>
 #include <fstream>
@@ -73,11 +76,9 @@ std::string ScriptComponent::GetName() const {
 }
 
 void ScriptComponent::OnInspector() {
-    // Script configuration if not yet loaded ---
     if (!m_instance) {
         ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.2f, 1.0f), "No Python script loaded.");
         
-        // Buffers for the text input fields
         char modBuffer[256];
         char clsBuffer[256];
         strncpy(modBuffer, m_scriptName.c_str(), sizeof(modBuffer));
@@ -86,77 +87,72 @@ void ScriptComponent::OnInspector() {
         if (ImGui::InputText("Module (File)", modBuffer, sizeof(modBuffer))) m_scriptName = modBuffer;
         if (ImGui::InputText("Class", clsBuffer, sizeof(clsBuffer))) m_className = clsBuffer;
 
-        // Drag and drop target
-        // We create a drop target specifically covering the area of the input fields above.
+        // Drag and drop target for Python files
         if (ImGui::BeginDragDropTarget()) {
-            // Accept ONLY payloads with our specific identifier
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
                 
-                // Extract the string from the payload data
                 std::string droppedPath = (const char*)payload->Data;
                 std::filesystem::path fsPath(droppedPath);
                 
-                // Ensure the user dropped a Python script and not a PNG image
                 if (fsPath.extension() == ".py") {
-                    // 1. The module name is always the file name without extension
+                    nlohmann::json initialState = Serialize();
+
                     m_scriptName = fsPath.stem().string();
-                    
-                    // 2. Default fallback for the class name
                     m_className = m_scriptName; 
 
-                    // 3. SMART PARSING: Open the Python file and look for the actual class name!
                     std::ifstream file(fsPath);
                     if (file.is_open()) {
                         std::string line;
-                        // Read the file line by line
                         while (std::getline(file, line)) {
-                            // Look for the keyword "class "
                             size_t classPos = line.find("class ");
                             if (classPos != std::string::npos) {
-                                // Extract the class name (between "class " and either "(" or ":")
-                                size_t start = classPos + 6; // 6 is the length of "class "
+                                size_t start = classPos + 6;
                                 size_t end = line.find_first_of("(: \r\n", start);
-                                
                                 if (end != std::string::npos) {
-                                    // Successfully found the real class name!
                                     m_className = line.substr(start, end - start);
-                                    break; // Stop reading the file, we found what we needed
+                                    break; 
                                 }
                             }
                         }
                         file.close();
                     }
+
+                    // Push command after all assignments are done
+                    CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
                 }
             }
             ImGui::EndDragDropTarget();
         }
 
-        // Button to instantiate the Python script directly from the editor
+        // Button to load the script
         if (ImGui::Button("Load Script") && !m_scriptName.empty() && !m_className.empty()) {
+            nlohmann::json initialState = Serialize();
             try {
                 py::module_ mod = py::module_::import(m_scriptName.c_str());
                 py::object cls = mod.attr(m_className.c_str());
                 m_instance = cls();
                 
-                // Link the native C++ component pointer to the Python instance
                 Component* nativeComponent = m_instance.cast<Component*>();
                 if (nativeComponent) nativeComponent->owner = this->owner;
+
+                CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
             } catch (const py::error_already_set& e) {
                 std::cerr << "[ScriptComponent] Load Error:\n" << e.what() << std::endl;
             }
         }
-        return; // Stop rendering the inspector here as long as the script isn't loaded
+        return; 
     }
 
     try {
-        // Fetch the internal dictionary of the Python object containing all its attributes
         py::dict attributes = m_instance.attr("__dict__");
 
-        // Iterate through all variables defined in the Python script (e.g., self.speed = 400.0)
+        // Static variable shared across the loop for String text inputs.
+        // This is safe because ImGui only allows interacting with ONE widget at a time.
+        static nlohmann::json initialDynamicState;
+
         for (auto item : attributes) {
             std::string key = py::str(item.first);
             
-            // Skip private or internal Python variables (those starting with '_')
             if (key.rfind("_", 0) == 0) continue;
 
             py::object value = py::reinterpret_borrow<py::object>(item.second);
@@ -165,53 +161,59 @@ void ScriptComponent::OnInspector() {
                 continue;
             }
 
-            // --- TYPE CHECKING & IMGUI DRAWING ---
-
-            // 1. Handle Floats
+            // Handle Floats
             if (py::isinstance<py::float_>(value)) {
+                // Copy value from Python to C++
                 float v = value.cast<float>();
-                // If the user drags the float, push the new value back to Python
-                if (ImGui::DragFloat(key.c_str(), &v, 0.1f)) {
+                // EditorUI handles the Undo/Redo logic using our Component pointer!
+                if (EditorUI::DragFloat(key.c_str(), &v, 0.1f, this)) {
+                    // If true, the user is dragging. Push the value back to Python.
                     m_instance.attr(key.c_str()) = v;
                 }
             }
-            // 2. Handle Booleans (Must be checked BEFORE ints, as bool inherits from int in Python)
+            // Handle Booleans
             else if (py::isinstance<py::bool_>(value)) {
                 bool v = value.cast<bool>();
-                if (ImGui::Checkbox(key.c_str(), &v)) {
+                if (EditorUI::Checkbox(key.c_str(), &v, this)) {
                     m_instance.attr(key.c_str()) = v;
                 }
             }
-            // 3. Handle Integers
+            // Handle Integers
             else if (py::isinstance<py::int_>(value)) {
                 int v = value.cast<int>();
-                if (ImGui::DragInt(key.c_str(), &v, 1)) {
+                if (EditorUI::DragInt(key.c_str(), &v, 1.0f, this)) {
                     m_instance.attr(key.c_str()) = v;
                 }
             }
-            // 4. Handle Strings
+            // Handle Strings
             else if (py::isinstance<py::str>(value)) {
                 std::string v = value.cast<std::string>();
                 
-                // ImGui requires a fixed-size C-string buffer for text inputs
                 char buffer[256];
                 strncpy(buffer, v.c_str(), sizeof(buffer));
-                buffer[sizeof(buffer) - 1] = '\0'; // Ensure null-termination
+                buffer[sizeof(buffer) - 1] = '\0';
                 
-                if (ImGui::InputText(key.c_str(), buffer, sizeof(buffer))) {
+                // For strings, we do the manual lifecycle because EditorUI doesn't support InputText yet
+                ImGui::InputText(key.c_str(), buffer, sizeof(buffer));
+
+                if (ImGui::IsItemActivated()) {
+                    initialDynamicState = Serialize();
+                }
+                if (ImGui::IsItemActive()) {
                     m_instance.attr(key.c_str()) = std::string(buffer);
                 }
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialDynamicState, Serialize()));
+                }
             }
-            // 5. Handle unsupported or complex types (Lists, Vectors, Components)
+            // Unsupported types
             else {
-                // Just display the type name as read-only text so the user knows it's there
                 std::string typeName = py::str(value.get_type().attr("__name__"));
                 ImGui::TextDisabled("%s : [%s]", key.c_str(), typeName.c_str());
             }
         }
     } 
     catch (const py::error_already_set& e) {
-        // If anything goes wrong in Python, print it in red inside the Inspector
         ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Python Error:");
         ImGui::TextWrapped("%s", e.what());
     }
@@ -222,11 +224,11 @@ nlohmann::json ScriptComponent::Serialize() const {
     
     j["type"] = "ScriptComponent";
 
-    // 1. Save the core data needed to find and reload the script
+    // Save the core data needed to find and reload the script
     j["scriptName"] = m_scriptName;
     j["className"] = m_className;
 
-    // 2. Automatically save all valid Python variables
+    // Automatically save all valid Python variables
     nlohmann::json properties;
 
     if (m_instance) {
@@ -269,11 +271,11 @@ nlohmann::json ScriptComponent::Serialize() const {
 }
 
 void ScriptComponent::Deserialize(const nlohmann::json& j) {
-    // 1. Restore the script identifiers
+    // Restore the script identifiers
     if (j.contains("scriptName")) m_scriptName = j["scriptName"].get<std::string>();
     if (j.contains("className")) m_className = j["className"].get<std::string>();
 
-    // 2. If this component was created via deserialization (empty), we need to instantiate Python now
+    // If this component was created via deserialization (empty), we need to instantiate Python now
     if (!m_instance && !m_scriptName.empty() && !m_className.empty()) {
         try {
             py::module_ mod = py::module_::import(m_scriptName.c_str());
@@ -291,7 +293,7 @@ void ScriptComponent::Deserialize(const nlohmann::json& j) {
         }
     }
 
-    // 3. Automatically restore all saved variables into the Python instance
+    // Automatically restore all saved variables into the Python instance
     if (j.contains("properties") && m_instance) {
         auto props = j["properties"];
         

@@ -3,6 +3,9 @@
 #include "../world/GameObject.hpp"
 #include <iostream>
 #include <cstring>
+#include <editor/commands/CommandHistory.hpp>
+#include <editor/commands/ModifyComponentCommand.hpp>
+#include <editor/EditorUI.hpp>
 
 Animation2d::Animation2d(const std::vector<int>& frames, float speed, bool loop)
     : m_frames(frames), m_speed(speed), m_loop(loop), 
@@ -83,18 +86,39 @@ void Animation2d::ParseFramesFromString(const std::string& str) {
 }
 
 void Animation2d::OnInspector() {
-    ImGui::DragFloat("Speed (s)", &m_speed, 0.01f, 0.01f, 5.0f);
-    ImGui::Checkbox("Loop", &m_loop);
+    // Use EditorUI for standard properties
+    EditorUI::DragFloat("Speed (s)", &m_speed, 0.01f, this, 0.01f, 5.0f);
+    EditorUI::Checkbox("Loop", &m_loop, this);
 
-    // Frame sequence editor
+    // Frame sequence editor (Custom UI)
     std::string framesStr = GetFramesAsString();
     char buffer[256];
     strncpy(buffer, framesStr.c_str(), sizeof(buffer));
     buffer[sizeof(buffer) - 1] = '\0';
 
-    if (ImGui::InputText("Frames", buffer, sizeof(buffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
-        ParseFramesFromString(buffer);
+    // Static variable to track the state before the user starts typing
+    static nlohmann::json initialFramesState;
+
+    // We no longer use ImGuiInputTextFlags_EnterReturnsTrue because we rely on the Deactivated state
+    ImGui::InputText("Frames", buffer, sizeof(buffer));
+
+    // UI Lifecycle for Text Input
+    if (ImGui::IsItemActivated()) {
+        // User clicked inside the text box. Save the current state!
+        initialFramesState = Serialize();
     }
+
+    if (ImGui::IsItemDeactivatedAfterEdit()) {
+        // User pressed Enter or clicked away. 
+        // Apply the new text to the component's internal vector
+        ParseFramesFromString(buffer);
+        
+        // Push the modification to the Undo/Redo stack
+        CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialFramesState, Serialize()));
+    }
+    // Note: If the user presses Escape, ImGui::IsItemDeactivatedAfterEdit() is false.
+    // The next frame, 'buffer' will simply be repopulated with the old valid data from GetFramesAsString(). Magic!
+
     ImGui::TextDisabled("Ex: 0, 1, 2, 3");
     
     // Read-only debug info

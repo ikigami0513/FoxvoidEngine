@@ -45,26 +45,10 @@ class ShapeRenderer : public Component {
         }
 
         void OnInspector() override {
-            ImGui::DragFloat("Width", &width, 1.0f, 0.0f, 10000.0f);
-            ImGui::DragFloat("Height", &height, 1.0f, 0.0f, 10000.0f);
+            EditorUI::DragFloat("Width", &width, 1.0f, this, 0.0f, 10000.0f);
+            EditorUI::DragFloat("Height", &height, 1.0f, this, 0.0f, 10000.0f);
 
-            // ImGui expects colors as float[4] (0.0f to 1.0f)
-            // Raylib stores them as unsigned char (0 to 255)
-            float c[4] = { 
-                color.r / 255.0f, 
-                color.g / 255.0f, 
-                color.b / 255.0f, 
-                color.a / 255.0f 
-            };
-
-            // ImGui::ColorEdit4 provides a nice color picker
-            if (ImGui::ColorEdit4("Color", c)) {
-                // Convert back to Raylib format if the user changed the color
-                color.r = static_cast<unsigned char>(c[0] * 255.0f);
-                color.g = static_cast<unsigned char>(c[1] * 255.0f);
-                color.b = static_cast<unsigned char>(c[2] * 255.0f);
-                color.a = static_cast<unsigned char>(c[3] * 255.0f);
-            }
+            EditorUI::ColorEdit4("Color", &color, this);
         }
 
         nlohmann::json Serialize() const override {
