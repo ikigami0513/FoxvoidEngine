@@ -163,6 +163,9 @@ void Engine::Render() {
 
             // Draw all entities. They will now be affected by zoom and pan!
             m_activeScene.Render();    
+
+            // Draw the collision outlines over the graphics
+            PhysicsEngine::RenderDebug(m_activeScene);
             
         // Deactivate the camera
         m_editorCamera->End();

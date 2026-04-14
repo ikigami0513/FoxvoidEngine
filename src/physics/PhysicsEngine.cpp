@@ -63,19 +63,23 @@ void PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB) {
     // If both are solid/kinematic, they can't push each other anyway
     if (isKinematicA && isKinematicB) return;
 
-    // Define the actual world-space rectangles
+    // Define the actual world-space rectangles (centered around the transform)
+    float scaledWidthA = colA->size.x * tA->scale.x;
+    float scaledHeightA = colA->size.y * tA->scale.y;
     Rectangle recA = {
-        tA->position.x + colA->offset.x,
-        tA->position.y + colA->offset.y,
-        colA->size.x * tA->scale.x,
-        colA->size.y * tA->scale.y
+        (tA->position.x + colA->offset.x) - (scaledWidthA / 2.0f),
+        (tA->position.y + colA->offset.y) - (scaledHeightA / 2.0f),
+        scaledWidthA,
+        scaledHeightA
     };
 
+    float scaledWidthB = colB->size.x * tB->scale.x;
+    float scaledHeightB = colB->size.y * tB->scale.y;
     Rectangle recB = {
-        tB->position.x + colB->offset.x,
-        tB->position.y + colB->offset.y,
-        colB->size.x * tB->scale.x,
-        colB->size.y * tB->scale.y
+        (tB->position.x + colB->offset.x) - (scaledWidthB / 2.0f),
+        (tB->position.y + colB->offset.y) - (scaledHeightB / 2.0f),
+        scaledWidthB,
+        scaledHeightB
     };
 
     // Check if they overlap using Raylib
@@ -135,6 +139,40 @@ void PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB) {
                     if (rbB) rbB->velocity.y = 0;
                 }
             }
+        }
+    }
+}
+
+void PhysicsEngine::RenderDebug(Scene& scene) {
+    const auto& gameObjects = scene.GetGameObjects();
+
+    for (const auto& go : gameObjects) {
+        auto col = go->GetComponent<RectCollider>();
+        auto transform = go->GetComponent<Transform2d>();
+
+        if (col && transform) {
+            // Calculate the exact AABB centered around the transform position
+            float scaledWidth = col->size.x * transform->scale.x;
+            float scaledHeight = col->size.y * transform->scale.y;
+
+            // Shift the top-left corner back by half the width and height
+            Rectangle rec = {
+                (transform->position.x + col->offset.x) - (scaledWidth / 2.0f),
+                (transform->position.y + col->offset.y) - (scaledHeight / 2.0f),
+                scaledWidth,
+                scaledHeight
+            };
+
+            // Choose color: Yellow for triggers, Green for solid physical colliders
+            Color debugColor = col->isTrigger ? YELLOW : GREEN;
+
+            // Draw the outline of the collider
+            DrawRectangleLinesEx(rec, 2.0f, debugColor);
+
+            // Draw a tiny crosshair at the actual position of the GameObject 
+            // This is super helpful to visualize how the 'offset' is moving the collider
+            DrawLine(transform->position.x - 5, transform->position.y, transform->position.x + 5, transform->position.y, RED);
+            DrawLine(transform->position.x, transform->position.y - 5, transform->position.x, transform->position.y + 5, RED);
         }
     }
 }

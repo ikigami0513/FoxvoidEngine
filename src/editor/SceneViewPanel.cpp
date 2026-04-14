@@ -5,6 +5,7 @@
 #include "extras/IconsFontAwesome6.h"
 #include "commands/CommandHistory.hpp"
 #include "commands/Transform2dCommand.hpp"
+#include "graphics/ShapeRenderer.hpp"
 
 void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject) {
     // Remove inner margins (padding) so the render texture touches the window borders
@@ -65,6 +66,50 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
 
         // We must capture if the image is hovered right here before drawing anything else on top of it 
         bool isImageHovered = ImGui::IsItemHovered();
+
+        if (selectedObject) {
+            auto transform = selectedObject->GetComponent<Transform2d>();
+            if (transform) {
+                // Calculate world bounds (fallback size 50x50)
+                float width = 50.0f * std::abs(transform->scale.x);
+                float height = 50.0f * std::abs(transform->scale.y);
+
+                if (auto sprite = selectedObject->GetComponent<SpriteRenderer>(); sprite && sprite->GetTexture().id != 0) {
+                    width = sprite->GetTexture().width * std::abs(transform->scale.x);
+                    height = sprite->GetTexture().height * std::abs(transform->scale.y);
+                }
+                else if (auto spriteSheet = selectedObject->GetComponent<SpriteSheetRenderer>(); spriteSheet && spriteSheet->GetTexture().id != 0) {
+                    width = spriteSheet->GetSourceRec().width * std::abs(transform->scale.x);
+                    height = spriteSheet->GetSourceRec().height * std::abs(transform->scale.y);
+                }
+                else if (auto shape = selectedObject->GetComponent<ShapeRenderer>()) {
+                    width = shape->width * std::abs(transform->scale.x);
+                    height = shape->height * std::abs(transform->scale.y);
+                }
+
+                // Define corners in World Space (assuming origin is center)
+                Vector2 topLeftWorld = { transform->position.x - (width / 2.0f), transform->position.y - (height / 2.0f) };
+                Vector2 bottomRightWorld = { transform->position.x + (width / 2.0f), transform->position.y + (height / 2.0f) };
+
+                // Convert from World Space to Render Texture Space
+                Camera2D cam2d = camera.GetCamera();
+                Vector2 topLeftTex = GetWorldToScreen2D(topLeftWorld, cam2d);
+                Vector2 bottomRightTex = GetWorldToScreen2D(bottomRightWorld, cam2d);
+
+                // Convert to ImGui Absolute Screen Space
+                ImVec2 p_min = ImVec2(
+                    imagePosAbsolute.x + (topLeftTex.x / texWidth) * drawSize.x,
+                    imagePosAbsolute.y + (topLeftTex.y / texHeight) * drawSize.y
+                );
+                ImVec2 p_max = ImVec2(
+                    imagePosAbsolute.x + (bottomRightTex.x / texWidth) * drawSize.x,
+                    imagePosAbsolute.y + (bottomRightTex.y / texHeight) * drawSize.y
+                );
+
+                // Draw the rectangle
+                ImGui::GetWindowDrawList()->AddRect(p_min, p_max, IM_COL32(255, 255, 255, 255), 0.0f, 0, 2.0f); 
+            }
+        }
 
         // Floating gizmo toolbar
         // Save cursor position to draw the toolbar at the top left of the scene view
@@ -204,9 +249,9 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
         // Mouse picking logic
         // Only pick if we hover the image and click the Left Mouse Button
         if (!ImGuizmo::IsOver() && isImageHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-            // Get Mouse position exactly relative to the drawn image's top-left corner
+            
+            // Get Mouse position
             ImVec2 mousePosAbsolute = ImGui::GetMousePos();
-            ImVec2 imagePosAbsolute = ImGui::GetItemRectMin(); 
             
             Vector2 mousePosRel = {
                 mousePosAbsolute.x - imagePosAbsolute.x,
@@ -225,7 +270,7 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
             // Raycast in the scene to find the object
             GameObject* pickedObject = activeScene.PickObject(worldPos);
             
-            // Update the selection (will be nullptr if clicking on empty space, which is great for deselection)
+            // Update the selection
             selectedObject = pickedObject;
         }
     }

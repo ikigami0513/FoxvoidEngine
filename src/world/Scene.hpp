@@ -218,8 +218,15 @@ class Scene {
                 auto spriteSheet = go->GetComponent<SpriteSheetRenderer>();
                 if (spriteSheet && spriteSheet->GetTexture().id != 0) {
                     Rectangle sourceRec = spriteSheet->GetSourceRec();
-                    float width = sourceRec.width * transform->scale.x;
-                    float height = sourceRec.height * transform->scale.y;
+                    float width = sourceRec.width * std::abs(transform->scale.x);
+                    float height = sourceRec.height * std::abs(transform->scale.y);
+                    bounds = { transform->position.x - (width / 2.0f), transform->position.y - (height / 2.0f), width, height };
+                }
+
+                auto shape = go->GetComponent<ShapeRenderer>();
+                if (shape) {
+                    float width = shape->width * std::abs(transform->scale.x);
+                    float height = shape->height * std::abs(transform->scale.y);
                     bounds = { transform->position.x - (width / 2.0f), transform->position.y - (height / 2.0f), width, height };
                 }
 
