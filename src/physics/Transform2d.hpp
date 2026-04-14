@@ -3,6 +3,8 @@
 #include "world/Component.hpp"
 #include <raylib.h>
 #include <imgui.h>
+#include <editor/commands/CommandHistory.hpp>
+#include <editor/commands/ModifyComponentCommand.hpp>
 
 class Transform2d : public Component {
     public:
@@ -19,13 +21,40 @@ class Transform2d : public Component {
         }
 
         void OnInspector() override {
-            // ImGui::DragFloat2 allows modifying an X/Y struct easily
-            // The 0.1f is the speed at which the value changes when dragging
-            ImGui::DragFloat2("Position", &position.x, 0.1f);
-            ImGui::DragFloat2("Scale", &scale.x, 0.1f);
+            // Static variable to hold the JSON state before the user starts dragging a value
+            static nlohmann::json initialState;
 
-            // ImGui::DragFloat is for single values
+            // --- POSITION ---
+            ImGui::DragFloat2("Position", &position.x, 0.1f);
+            
+            if (ImGui::IsItemActivated()) {
+                // The user just clicked on the Position slider. Save the whole component state!
+                initialState = Serialize();
+            }
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                // The user released the mouse. Push the command!
+                CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
+            }
+
+            // --- SCALE ---
+            ImGui::DragFloat2("Scale", &scale.x, 0.1f);
+            
+            if (ImGui::IsItemActivated()) {
+                initialState = Serialize();
+            }
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
+            }
+
+            // --- ROTATION ---
             ImGui::DragFloat("Rotation", &rotation, 1.0f);
+            
+            if (ImGui::IsItemActivated()) {
+                initialState = Serialize();
+            }
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
+            }
         }
 
         nlohmann::json Serialize() const override {
