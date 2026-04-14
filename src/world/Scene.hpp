@@ -15,6 +15,7 @@
 #include "../graphics/Animator2d.hpp"
 #include <scripting/ScriptBindings.hpp>
 #include "ComponentRegistry.hpp"
+#include "physics/PhysicsEngine.hpp"
 
 class Scene {
     public:
@@ -52,6 +53,9 @@ class Scene {
             for (auto& go : m_gameObjects) {
                 go->Update(deltaTime);
             }
+
+            // Run the physics engine
+            PhysicsEngine::Update(*this, deltaTime);
         }
 
         // Memory management separated from game logic

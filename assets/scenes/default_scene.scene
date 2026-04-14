@@ -63,9 +63,57 @@
                     },
                     "scriptName": "PlayerController",
                     "type": "ScriptComponent"
+                },
+                {
+                    "height": 16.0,
+                    "isTrigger": false,
+                    "offsetX": 0.0,
+                    "offsetY": 0.0,
+                    "type": "RectCollider",
+                    "width": 16.0
+                },
+                {
+                    "gravityScale": 1.0,
+                    "isKinematic": false,
+                    "mass": 1.0,
+                    "type": "RigidBody2d",
+                    "velocityX": 0.0,
+                    "velocityY": 0.0
                 }
             ],
             "name": "Player"
+        },
+        {
+            "components": [
+                {
+                    "rotation": 0.0,
+                    "scaleX": 1.0,
+                    "scaleY": 1.0,
+                    "type": "Transform2d",
+                    "x": 404.03558349609375,
+                    "y": 525.9227294921875
+                },
+                {
+                    "color": [
+                        68,
+                        221,
+                        106,
+                        255
+                    ],
+                    "height": 50.0,
+                    "type": "ShapeRenderer",
+                    "width": 1000.0
+                },
+                {
+                    "height": 50.0,
+                    "isTrigger": false,
+                    "offsetX": 0.0,
+                    "offsetY": 0.0,
+                    "type": "RectCollider",
+                    "width": 1000.0
+                }
+            ],
+            "name": "Ground"
         }
     ]
 }
