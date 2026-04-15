@@ -11,9 +11,10 @@ struct TileLayer {
     std::string name;
     std::vector<int> data; // 1D array representing a 2D grid. -1 means empty tile.
     bool isVisible;
+    bool isSolid;
 
     TileLayer(const std::string& n, int width, int height)
-        : name(n), isVisible(true)
+        : name(n), isVisible(true), isSolid(false)
     {
         // Initialize the grid with -1 (empty)
         data.resize(width * height, -1);
@@ -62,6 +63,9 @@ class TileMap : public Component {
         // Allows commands to save and restore full layer states
         std::vector<int> GetLayerData(int layerIndex) const;
         void SetLayerData(int layerIndex, const std::vector<int>& data);
+
+        // Generates a list of bounding boxes for all solid tiles in world space
+        std::vector<Rectangle> GetCollisionRects() const;
 
     private:
         std::string m_tilesetPath;

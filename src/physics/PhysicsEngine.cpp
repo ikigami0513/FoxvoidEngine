@@ -2,6 +2,7 @@
 #include "physics/Transform2d.hpp"
 #include "physics/RigidBody2d.hpp"
 #include "physics/RectCollider.hpp"
+#include "graphics/TileMap.hpp"
 #include "world/Scene.hpp"
 #include <raymath.h>
 #include <cmath>
@@ -30,8 +31,24 @@ void PhysicsEngine::Update(Scene& scene, float deltaTime) {
         }
     }
 
-    // Step 2: Collision resolution (O(N²) checks)
+    // Step 2: Collect all solid TileMap geometry
+    std::vector<Rectangle> solidTiles;
+    for (const auto& go : gameObjects) {
+        if (auto tileMap = go->GetComponent<TileMap>()) {
+            auto rects = tileMap->GetCollisionRects();
+            solidTiles.insert(solidTiles.end(), rects.begin(), rects.end());
+        }
+    }
+
+    // Step 3: Collision resolution (O(N²) checks)
     for (size_t i = 0; i < gameObjects.size(); ++i) {
+        // Dynamic Objects vs Static TileMap
+        // We only test objects that have a collider against the solid tiles
+        for (const Rectangle& tileRect : solidTiles) {
+            ResolveTileCollision(gameObjects[i].get(), tileRect);
+        }
+
+        // Object vs Object (O(N²) checks)
         for (size_t j = i + 1; j < gameObjects.size(); ++j) {
             ResolveCollision(gameObjects[i].get(), gameObjects[j].get());
         }
@@ -143,6 +160,53 @@ void PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB) {
     }
 }
 
+void PhysicsEngine::ResolveTileCollision(GameObject* obj, const Rectangle& tileRect) {
+    auto col = obj->GetComponent<RectCollider>();
+    auto t = obj->GetComponent<Transform2d>();
+    auto rb = obj->GetComponent<RigidBody2d>();
+
+    // We only resolve if the object has a physical presence
+    if (!col || !t || col->isTrigger) return;
+    
+    // We don't push static/kinematic objects out of the environment
+    if (!rb || rb->isKinematic) return;
+
+    // Define the dynamic object's world-space rectangle
+    float scaledWidth = col->size.x * t->scale.x;
+    float scaledHeight = col->size.y * t->scale.y;
+    Rectangle rec = {
+        (t->position.x + col->offset.x) - (scaledWidth / 2.0f),
+        (t->position.y + col->offset.y) - (scaledHeight / 2.0f),
+        scaledWidth,
+        scaledHeight
+    };
+
+    // Check overlap
+    if (CheckCollisionRecs(rec, tileRect)) {
+        float center_x = rec.x + rec.width / 2.0f;
+        float center_y = rec.y + rec.height / 2.0f;
+        float tileCenter_x = tileRect.x + tileRect.width / 2.0f;
+        float tileCenter_y = tileRect.y + tileRect.height / 2.0f;
+
+        float overlapX = (rec.width / 2.0f + tileRect.width / 2.0f) - std::abs(center_x - tileCenter_x);
+        float overlapY = (rec.height / 2.0f + tileRect.height / 2.0f) - std::abs(center_y - tileCenter_y);
+
+        if (overlapX > 0 && overlapY > 0) {
+            if (overlapX < overlapY) {
+                // Horizontal collision (Hit a wall)
+                float sign = (center_x < tileCenter_x) ? -1.0f : 1.0f;
+                t->position.x += overlapX * sign;
+                rb->velocity.x = 0; 
+            } else {
+                // Vertical collision (Hit the floor or ceiling)
+                float sign = (center_y < tileCenter_y) ? -1.0f : 1.0f;
+                t->position.y += overlapY * sign;
+                rb->velocity.y = 0;
+            }
+        }
+    }
+}
+
 void PhysicsEngine::RenderDebug(Scene& scene) {
     const auto& gameObjects = scene.GetGameObjects();
 
@@ -173,6 +237,15 @@ void PhysicsEngine::RenderDebug(Scene& scene) {
             // This is super helpful to visualize how the 'offset' is moving the collider
             DrawLine(transform->position.x - 5, transform->position.y, transform->position.x + 5, transform->position.y, RED);
             DrawLine(transform->position.x, transform->position.y - 5, transform->position.x, transform->position.y + 5, RED);
+        }
+
+        // Draw TileMap Solid Layers Geometry
+        if (auto tileMap = go->GetComponent<TileMap>()) {
+            std::vector<Rectangle> solidTiles = tileMap->GetCollisionRects();
+            for (const auto& tileRect : solidTiles) {
+                // Use a distinctive color (e.g. SKYBLUE) for level geometry
+                DrawRectangleLinesEx(tileRect, 1.5f, SKYBLUE);
+            }
         }
     }
 }

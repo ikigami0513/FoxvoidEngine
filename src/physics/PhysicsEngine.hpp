@@ -19,4 +19,7 @@ class PhysicsEngine {
     private:
         // Helper function to calculate AABB overlap and push objects apart
         static void ResolveCollision(GameObject* objA, GameObject* objB);
+
+        // Helper function to resolve collision against static TileMap geometry
+        static void ResolveTileCollision(GameObject* obj, const Rectangle& tileRect);
 };

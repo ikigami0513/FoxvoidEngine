@@ -47,6 +47,9 @@ void TileMap::Render() {
     int stepX = (int)tileSize.x + tileSpacing;
     int stepY = (int)tileSize.y + tileSpacing;
 
+    // Safety check: Prevent division by zero
+    if (stepX <= 0 || stepY <= 0) return;
+
     // Calculate how many columns the tileset texture has
     // +tileSpacing handles the edge case where the right/bottom edge of the image doesn't have a final padding
     int tilesetCols = (m_tilesetTexture.width + tileSpacing) / stepX;
@@ -59,7 +62,11 @@ void TileMap::Render() {
         // Loop through the grid
         for (int y = 0; y < gridHeight; ++y) {
             for (int x = 0; x < gridWidth; ++x) {
-                int tileID = layer.data[y * gridWidth + x];
+                int index = y * gridWidth + x;
+
+                if (index >= layer.data.size()) continue;
+                
+                int tileID = layer.data[index];
                 if (tileID < 0) continue; // -1 represents an empty (transparent) tile
 
                 // Calculate where to read the tile from the texture (Source Rectangle) using the step sizes
@@ -117,7 +124,12 @@ void TileMap::OnInspector() {
 
         for (size_t i = 0; i < m_layers.size(); ++i) {
             ImGui::PushID(i);
-            ImGui::Checkbox("##vis", &m_layers[i].isVisible);
+
+            // UI layout for Layer controls
+            ImGui::Checkbox("Vis", &m_layers[i].isVisible);
+            ImGui::SameLine();
+
+            ImGui::Checkbox("Solid", &m_layers[i].isSolid);
             ImGui::SameLine();
             
             // Allow renaming the layer
@@ -185,6 +197,7 @@ nlohmann::json TileMap::Serialize() const {
         layersArray.push_back({
             {"name", layer.name},
             {"isVisible", layer.isVisible},
+            {"isSolid", layer.isSolid},
             {"data", layer.data}
         });
     }
@@ -220,6 +233,7 @@ void TileMap::Deserialize(const nlohmann::json& j) {
         for (const auto& layerJson : j["layers"]) {
             TileLayer layer(layerJson.value("name", "Layer"), gridWidth, gridHeight);
             layer.isVisible = layerJson.value("isVisible", true);
+            layer.isSolid = layerJson.value("isSolid", false);
             
             // Safely copy the JSON array into the vector
             if (layerJson.contains("data") && layerJson["data"].is_array()) {
@@ -241,4 +255,39 @@ void TileMap::SetLayerData(int layerIndex, const std::vector<int>& data) {
     if (layerIndex >= 0 && layerIndex < m_layers.size()) {
         m_layers[layerIndex].data = data;
     }
+}
+
+std::vector<Rectangle> TileMap::GetCollisionRects() const {
+    std::vector<Rectangle> rects;
+
+    if (!owner) return rects;
+    auto transform = owner->GetComponent<Transform2d>();
+    if (!transform) return rects;
+
+    for (const auto& layer : m_layers) {
+        // Skip layers that don't have physics enabled
+        if (!layer.isSolid) continue;
+
+        for (int y = 0; y < gridHeight; ++y) {
+            for (int x = 0; x < gridWidth; ++x) {
+                int index = y * gridWidth + x;
+
+                // Safety check: Prevent Buffer Overrun
+                if (index >= layer.data.size()) continue;
+
+                int tileID = layer.data[index];
+                if (tileID < 0) continue; // Skip empty tiles
+
+                // Calculate the world-space bounding box of this specific tile
+                float dstX = transform->position.x + (x * tileSize.x * transform->scale.x);
+                float dstY = transform->position.y + (y * tileSize.y * transform->scale.y);
+                float dstWidth = tileSize.x * transform->scale.x;
+                float dstHeight = tileSize.y * transform->scale.y;
+
+                rects.push_back({ dstX, dstY, dstWidth, dstHeight });
+            }
+        }
+    }
+
+    return rects;
 }
