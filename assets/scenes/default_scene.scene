@@ -7,8 +7,8 @@
                     "scaleX": 4.0,
                     "scaleY": 4.0,
                     "type": "Transform2d",
-                    "x": 400.0,
-                    "y": 300.0
+                    "x": 399.3562316894531,
+                    "y": 372.74676513671875
                 },
                 {
                     "columns": 9,
@@ -26,32 +26,23 @@
                 },
                 {
                     "animations": {
-                        "idle_down": {
+                        "idle": {
                             "frameDuration": 0.10000000149011612,
                             "frames": [
-                                0,
-                                1,
-                                2,
-                                3,
-                                4,
-                                5
+                                0
                             ],
                             "loop": true
                         },
-                        "idle_right": {
+                        "walk": {
                             "frameDuration": 0.10000000149011612,
                             "frames": [
-                                9,
-                                10,
-                                11,
-                                12,
-                                13,
-                                14
+                                0,
+                                1
                             ],
                             "loop": true
                         }
                     },
-                    "currentAnimation": "idle_down",
+                    "currentAnimation": "walk",
                     "currentFrameIndex": 0,
                     "timer": 0.0,
                     "type": "Animator2d"
@@ -59,18 +50,19 @@
                 {
                     "className": "PlayerController",
                     "properties": {
+                        "jump_force": -500.0,
                         "speed": 400.0
                     },
                     "scriptName": "PlayerController",
                     "type": "ScriptComponent"
                 },
                 {
-                    "height": 16.0,
+                    "height": 24.0,
                     "isTrigger": false,
                     "offsetX": 0.0,
                     "offsetY": 0.0,
                     "type": "RectCollider",
-                    "width": 16.0
+                    "width": 22.0
                 },
                 {
                     "gravityScale": 1.0,

@@ -27,8 +27,14 @@ class ScriptComponent : public Component {
         void Deserialize(const nlohmann::json& j) override;
 
     private:
+        // Executes the reload via Python's importlib
+        void HotReload();
+
         std::string m_scriptName;
         std::string m_className;
 
         py::object m_instance; 
+
+        std::string m_scriptFilePath;
+        std::filesystem::file_time_type m_lastWriteTime;
 };

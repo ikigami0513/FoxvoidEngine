@@ -15,8 +15,13 @@ ScriptComponent::ScriptComponent(const std::string& moduleName, const std::strin
         
         py::object cls = mod.attr(className.c_str());
         
-        m_instance = cls(); 
-        
+        m_instance = cls();
+
+        m_scriptFilePath = "assets/scripts/" + moduleName + ".py";
+        if (std::filesystem::exists(m_scriptFilePath)) {
+            m_lastWriteTime = std::filesystem::last_write_time(m_scriptFilePath);
+        }
+
     } catch (const py::error_already_set& e) {
         std::cerr << "[ScriptComponent] Constructor Error:\n" << e.what() << std::endl;
     }
@@ -59,14 +64,89 @@ void ScriptComponent::Start() {
 }
 
 void ScriptComponent::Update(float deltaTime) {
-    if (!m_instance) return;
-
+    // Hot reloading check
     try {
-        if (py::hasattr(m_instance, "update")) {
+        // Ensure the path is not empty before checking the filesystem
+        if (!m_scriptFilePath.empty() && std::filesystem::exists(m_scriptFilePath)) {
+            auto currentWriteTime = std::filesystem::last_write_time(m_scriptFilePath);
+            
+            // If the file on disk is newer than our cached version
+            if (currentWriteTime > m_lastWriteTime) {
+                m_lastWriteTime = currentWriteTime;
+                HotReload();
+            }
+        }
+    } catch (const std::filesystem::filesystem_error& e) {
+        std::cerr << "[ScriptComponent] File system error: " << e.what() << std::endl;
+    }
+
+    // Standard update execution
+    try {
+        if (m_instance && py::hasattr(m_instance, "update")) {
             m_instance.attr("update")(deltaTime);
         }
     } catch (const py::error_already_set& e) {
         std::cerr << "[ScriptComponent] Update Error:\n" << e.what() << std::endl;
+    }
+}
+
+void ScriptComponent::HotReload() {
+    std::cout << "[ScriptEngine] File changed. Hot reloading: " << m_scriptName << "..." << std::endl;
+
+    try {
+        // Import Python's built-in importlib module
+        py::module_ importlib = py::module_::import("importlib");
+        py::module_ sys = py::module_::import("sys");
+        py::dict modules = sys.attr("modules");
+
+        // Check if our module is actually loaded in Python's cache
+        if (modules.contains(m_scriptName)) {
+            py::object currentModule = modules[m_scriptName.c_str()];
+            
+            // Force Python to re-read and re-compile the .py file
+            importlib.attr("reload")(currentModule);
+            
+            // Fetch the newly compiled class
+            py::object newClass = currentModule.attr(m_className.c_str());
+            
+            // We dynamically swap the class of our existing Python instance.
+            // This replaces the methods (like update) but keeps all existing variables 
+            // (like speed, health, transform references) perfectly intact!
+            m_instance.attr("__class__") = newClass;
+
+            // Changing the class doesn't re-run __init__. If the user added 'self.new_var = 10', 
+            // it won't exist in m_instance. We create a temporary dummy instance to find new variables.
+            py::object dummyInstance = newClass();
+            py::dict dummyDict = dummyInstance.attr("__dict__");
+            py::dict currentDict = m_instance.attr("__dict__");
+
+            for (auto item : dummyDict) {
+                // If the dummy has a variable that our running instance does NOT have, inject it!
+                if (!currentDict.contains(item.first)) {
+                    currentDict[item.first] = item.second;
+                }
+            }
+
+            // Collect keys to remove to avoid iterator invalidation
+            std::vector<py::object> keysToRemove;
+            for (auto item : currentDict) {
+                if (!dummyDict.contains(item.first)) {
+                    keysToRemove.push_back(py::reinterpret_borrow<py::object>(item.first));
+                }
+            }
+
+            // Safely remove deprecated variables
+            for (const auto& key : keysToRemove) {
+                currentDict.attr("pop")(key);
+            }
+            
+            std::cout << "[ScriptEngine] Hot reload successful!" << std::endl;
+        }
+    } catch (const py::error_already_set& e) {
+        // If you make a syntax error in your Python script and save it, 
+        // the engine will catch it here without crashing, print the error, 
+        // and keep running the old version of the script until you fix the typo!
+        std::cerr << "[ScriptEngine] Failed to hot reload (Syntax Error?):\n" << e.what() << std::endl;
     }
 }
 
@@ -135,12 +215,33 @@ void ScriptComponent::OnInspector() {
                 Component* nativeComponent = m_instance.cast<Component*>();
                 if (nativeComponent) nativeComponent->owner = this->owner;
 
+                // Initialize hot reload paths when loading from UI
+                m_scriptFilePath = "assets/scripts/" + m_scriptName + ".py";
+                if (std::filesystem::exists(m_scriptFilePath)) {
+                    m_lastWriteTime = std::filesystem::last_write_time(m_scriptFilePath);
+                }
+
                 CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
             } catch (const py::error_already_set& e) {
                 std::cerr << "[ScriptComponent] Load Error:\n" << e.what() << std::endl;
             }
         }
         return; 
+    }
+
+    // Hot Reload Check for Editor Mode
+    // Because Update() doesn't run when the game is paused in the Editor,
+    // we also check for script modifications right before drawing the Inspector!
+    try {
+        if (!m_scriptFilePath.empty() && std::filesystem::exists(m_scriptFilePath)) {
+            auto currentWriteTime = std::filesystem::last_write_time(m_scriptFilePath);
+            if (currentWriteTime > m_lastWriteTime) {
+                m_lastWriteTime = currentWriteTime;
+                HotReload();
+            }
+        }
+    } catch (const std::filesystem::filesystem_error& e) {
+        std::cerr << "[ScriptComponent] Inspector File system error: " << e.what() << std::endl;
     }
 
     try {
@@ -286,6 +387,12 @@ void ScriptComponent::Deserialize(const nlohmann::json& j) {
             Component* nativeComponent = m_instance.cast<Component*>();
             if (nativeComponent) {
                 nativeComponent->owner = this->owner;
+            }
+
+            // Initialize hot reload paths when loading a scene
+            m_scriptFilePath = "assets/scripts/" + m_scriptName + ".py";
+            if (std::filesystem::exists(m_scriptFilePath)) {
+                m_lastWriteTime = std::filesystem::last_write_time(m_scriptFilePath);
             }
         } catch (const py::error_already_set& e) {
             std::cerr << "[ScriptComponent] Deserialize Instantiation Error:\n" << e.what() << std::endl;
