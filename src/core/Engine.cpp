@@ -14,6 +14,7 @@
 #include "world/ComponentRegistration.hpp"
 #include <world/ComponentRegistry.hpp>
 #include "extras/IconsFontAwesome6.h"
+#include "InputManager.hpp"
 
 namespace fs = std::filesystem;
 
@@ -48,6 +49,9 @@ Engine::Engine(int width, int height, const std::string& title)
 
     // One single call to register everything needed for the Scene loading
     EngineSetup::RegisterNativeComponents();
+
+    // Load default input bindings if they exist
+    InputManager::Load("assets/settings/inputs.json");
 
     // Create both render textures
     // We give it the base resolution of the game
@@ -185,7 +189,10 @@ void Engine::Render() {
             // Enable global docking over the entire application viewport
             ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport()); 
 
-            m_mainMenuBar.Draw(m_activeScene, m_currentScenePath, m_isRunning, m_selectedObject);
+            m_mainMenuBar.Draw(m_activeScene, m_currentScenePath, m_isRunning, m_selectedObject, m_inputSettingsPanel);
+
+            // Draw the Input Settings (it will only draw if m_isOpen is true)
+            m_inputSettingsPanel.Draw();
 
             // Draw all the isolated editor panels
             m_toolbarPanel.Draw(m_activeScene, m_selectedObject, m_isPlaying, m_sceneBackup, m_focusGameWindow);

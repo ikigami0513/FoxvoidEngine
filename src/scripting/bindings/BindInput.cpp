@@ -1,5 +1,6 @@
 #include "../ScriptBindings.hpp"
 #include <raylib.h>
+#include <core/InputManager.hpp>
 
 void BindInput(py::module_& m) {
     // Create a submodule for Keys. This will act like a namespace/enum in Python.
@@ -126,6 +127,17 @@ void BindInput(py::module_& m) {
     keys.attr("KEY_VOLUME_DOWN") = (int)KEY_VOLUME_DOWN;
 
     py::module_ input = m.def_submodule("Input", "Engine Input API");
+
+    // Direct key mapping
     input.def("is_key_down", [](int key) { return IsKeyDown(key); });
     input.def("is_key_pressed", [](int key) { return IsKeyPressed(key); });
+
+    // Action-based mapping
+    input.def("is_action_down", [](const std::string& action) {
+        return InputManager::IsActionDown(action);
+    });
+
+    input.def("is_action_pressed", [](const std::string& action) {
+        return InputManager::IsActionPressed(action);
+    });
 }

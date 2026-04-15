@@ -279,6 +279,22 @@ class Input:
         """
         ...
 
+    @staticmethod
+    def is_action_down(action: str) -> bool:
+        """
+        Checks if ANY of the keys bound to this named action are currently held down.
+        Useful for continuous movement (e.g., Input.is_action_down("MoveRight")).
+        """
+        ...
+
+    @staticmethod
+    def is_action_pressed(action: str) -> bool:
+        """
+        Checks if ANY of the keys bound to this named action were pressed this frame.
+        Useful for single actions like jumping or shooting (e.g., Input.is_action_pressed("Jump")).
+        """
+        ...
+
 
 class SpriteRenderer(Component):
     """Renders a 2D texture at the position defined by the entity's Transform2d."""

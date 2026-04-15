@@ -1,0 +1,26 @@
+#pragma once
+
+#include <string>
+
+class InputSettingsPanel {
+    public:
+        void Open() { m_openRequested = true; }
+
+        // Draw the ImGui window
+        void Draw();
+
+    private:
+        // Helper to format raw Raylib KEY_ integers into readable strings
+        std::string GetKeyName(int key) const;
+
+        bool m_isOpen = false;
+        bool m_openRequested = false;
+        
+        // State for the "Listen to key press" feature
+        bool m_isListening = false;
+        std::string m_listeningAction = "";
+        char m_newActionBuffer[64] = "";
+
+        // Tracks the state to trigger the ImGui::OpenPopup correctly
+        bool m_wasOpen = false;
+};

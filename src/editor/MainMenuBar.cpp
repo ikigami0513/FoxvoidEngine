@@ -4,7 +4,7 @@
 #include <filesystem>
 #include "commands/CommandHistory.hpp"
 
-void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& isRunning, GameObject*& selectedObject) {
+void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& isRunning, GameObject*& selectedObject, InputSettingsPanel& inputPanel) {
     // Global Shortcuts
     ImGuiIO& io = ImGui::GetIO();
 
@@ -74,6 +74,13 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
             }
             ImGui::EndDisabled();
 
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Settings")) {
+            if (ImGui::MenuItem("Input Settings")) {
+                inputPanel.Open();
+            }
             ImGui::EndMenu();
         }
 
