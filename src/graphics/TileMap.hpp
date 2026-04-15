@@ -28,6 +28,8 @@ class TileMap : public Component {
         int gridWidth; // Number of columns in the map
         int gridHeight; // Number of rows in the map
 
+        bool showGrid = true; // Toggle for the TileMap's specific grid
+
         TileMap();
         ~TileMap();
 
@@ -69,6 +71,9 @@ class TileMap : public Component {
 
         // Returns a read-only reference to the layers list for the UI
         const std::vector<TileLayer>& GetLayers() const { return m_layers; }
+
+        // Draw the grid in the editor
+        void RenderGrid() const;
 
     private:
         std::string m_tilesetPath;

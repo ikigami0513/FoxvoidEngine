@@ -97,6 +97,8 @@ void TileMap::Render() {
 void TileMap::OnInspector() {
     // Grid setup
     if (ImGui::CollapsingHeader("Map Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Checkbox("Show Tile Grid", &showGrid);
+        
         EditorUI::DragFloat2("Tile Size", &tileSize.x, 1.0f, this, 1.0f, 256.0f);
         EditorUI::DragInt("Tile Spacing", &tileSpacing, 1, this, 0, 64);
 
@@ -191,6 +193,7 @@ nlohmann::json TileMap::Serialize() const {
     j["tileSpacing"] = tileSpacing;
     j["gridWidth"] = gridWidth;
     j["gridHeight"] = gridHeight;
+    j["showGrid"] = showGrid;
 
     nlohmann::json layersArray = nlohmann::json::array();
     for (const auto& layer : m_layers) {
@@ -222,6 +225,8 @@ void TileMap::Deserialize(const nlohmann::json& j) {
     // Extract standard values using correct default fallbacks
     gridWidth = j.value("gridWidth", 10);
     gridHeight = j.value("gridHeight", 10);
+
+    showGrid = j.value("showGrid", true);
     
     std::string path = j.value("tilesetPath", "");
     if (!path.empty()) {
@@ -290,4 +295,47 @@ std::vector<Rectangle> TileMap::GetCollisionRects() const {
     }
 
     return rects;
+}
+
+void TileMap::RenderGrid() const {
+    if (!showGrid || !owner) return;
+
+    auto transform = owner->GetComponent<Transform2d>();
+    if (!transform) return;
+
+    // Calculate dimensions taking scale into account
+    float scaledWidth = tileSize.x * transform->scale.x;
+    float scaledHeight = tileSize.y * transform->scale.y;
+    float totalWidth = gridWidth * scaledWidth;
+    float totalHeight = gridHeight * scaledHeight;
+
+    // A nice semi-transparent white for the internal grid
+    Color gridColor = { 255, 255, 255, 90 };
+
+    // Draw vertical lines
+    for (int x = 0; x <= gridWidth; ++x) {
+        float posX = transform->position.x + (x * scaledWidth);
+        DrawLineV(
+            { posX, transform->position.y },
+            { posX, transform->position.y + totalHeight },
+            gridColor
+        );
+    }
+
+    // Draw horizontal lines
+    for (int y = 0; y <= gridHeight; ++y) {
+        float posY = transform->position.y + (y * scaledHeight);
+        DrawLineV(
+            { transform->position.x, posY },
+            { transform->position.x + totalWidth, posY },
+            gridColor
+        );
+    }
+
+    // Draw a thicker white border to clearly show the bounds of the TileMap
+    DrawRectangleLinesEx(
+        { transform->position.x, transform->position.y, totalWidth, totalHeight },
+        2.0f, 
+        WHITE
+    );
 }

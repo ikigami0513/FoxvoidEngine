@@ -165,14 +165,22 @@ void Engine::Render() {
         // Activate the 2D Camera
         m_editorCamera->Begin();
             
-            // Draw the background grid (100 lines, spaced by 50 pixels)
-            m_editorCamera->DrawGrid(100, 50.0f);
+            // Draw the background grid only if the toggle is true (100 lines, spaced by 50 pixels)
+            if (m_showGlobalGrid) {
+                m_editorCamera->DrawGrid(100, 50.0f);
+            }
 
             // Draw all entities. They will now be affected by zoom and pan!
             m_activeScene.Render();    
 
             // Draw the collision outlines over the graphics
             PhysicsEngine::RenderDebug(m_activeScene);
+
+            if (m_selectedObject) {
+                if (auto tilemap = m_selectedObject->GetComponent<TileMap>()) {
+                    tilemap->RenderGrid();
+                }
+            }
             
         // Deactivate the camera
         m_editorCamera->End();
@@ -190,7 +198,7 @@ void Engine::Render() {
             // Enable global docking over the entire application viewport
             ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport()); 
 
-            m_mainMenuBar.Draw(m_activeScene, m_currentScenePath, m_isRunning, m_selectedObject, m_inputSettingsPanel);
+            m_mainMenuBar.Draw(m_activeScene, m_currentScenePath, m_isRunning, m_selectedObject, m_inputSettingsPanel, m_showGlobalGrid);
 
             // Draw the Input Settings (it will only draw if m_isOpen is true)
             m_inputSettingsPanel.Draw();

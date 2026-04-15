@@ -102,6 +102,9 @@ class Engine {
         // Flag to trigger tab switching
         bool m_focusGameWindow = false;
 
+        // Flag to toggle the global editor background grid
+        bool m_showGlobalGrid = true;
+
         std::string m_currentScenePath = "";
 
         // Static pointer holding the unique Engine instance

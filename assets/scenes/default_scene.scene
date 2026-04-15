@@ -319,6 +319,7 @@
                             "name": "Platforms"
                         }
                     ],
+                    "showGrid": true,
                     "tileSize": [
                         18.0,
                         18.0
