@@ -59,6 +59,10 @@ class TileMap : public Component {
         // Returns the active texture
         Texture2D GetTexture() const { return m_tilesetTexture; }
 
+        // Allows commands to save and restore full layer states
+        std::vector<int> GetLayerData(int layerIndex) const;
+        void SetLayerData(int layerIndex, const std::vector<int>& data);
+
     private:
         std::string m_tilesetPath;
         Texture2D m_tilesetTexture;

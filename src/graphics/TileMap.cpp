@@ -229,3 +229,16 @@ void TileMap::Deserialize(const nlohmann::json& j) {
         }
     }
 }
+
+std::vector<int> TileMap::GetLayerData(int layerIndex) const {
+    if (layerIndex >= 0 && layerIndex < m_layers.size()) {
+        return m_layers[layerIndex].data;
+    }
+    return {};
+}
+
+void TileMap::SetLayerData(int layerIndex, const std::vector<int>& data) {
+    if (layerIndex >= 0 && layerIndex < m_layers.size()) {
+        m_layers[layerIndex].data = data;
+    }
+}

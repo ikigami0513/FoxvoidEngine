@@ -7,6 +7,7 @@
 #include "commands/Transform2dCommand.hpp"
 #include "graphics/ShapeRenderer.hpp"
 #include <graphics/TileMap.hpp>
+#include "commands/TileMapPaintCommand.hpp"
 
 void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject, int selectedTileID) {
     // Remove inner margins (padding) so the render texture touches the window borders
@@ -247,6 +248,10 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
             }
         }
 
+        static bool isPainting = false;
+        static std::vector<int> initialLayerData;
+        static TileMap* activePaintMap = nullptr;
+
         // Mouse picking logic
         if (!ImGuizmo::IsOver() && isImageHovered) {
             // Calculate World Position of the mouse (same as before)
@@ -270,6 +275,13 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                     if (transform) {
                         handledAsPaint = true; // Block standard object picking
 
+                        // The stroke starts, save the initial state
+                        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                            isPainting = true;
+                            activePaintMap = tileMap;
+                            initialLayerData = tileMap->GetLayerData(0);
+                        }
+                        
                         // Use IsMouseDown (not IsMouseClicked) to allow click-and-drag painting!
                         if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
                             
@@ -301,6 +313,22 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                 GameObject* pickedObject = activeScene.PickObject(worldPos);
                 selectedObject = pickedObject;
             }
+        }
+
+        // We check this globally so that if the user drags their mouse outside the Scene Window
+        // and releases the click, we still capture the command!
+        if (isPainting && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+            isPainting = false;
+            
+            if (activePaintMap) {
+                std::vector<int> currentData = activePaintMap->GetLayerData(0);
+                
+                // Only add a command if the user actually modified at least one tile
+                if (initialLayerData != currentData) {
+                    CommandHistory::AddCommand(std::make_unique<TileMapPaintCommand>(activePaintMap, 0, initialLayerData, currentData));
+                }
+            }
+            activePaintMap = nullptr;
         }
     }
     
