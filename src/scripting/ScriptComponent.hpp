@@ -7,7 +7,7 @@
 
 namespace py = pybind11;
 
-class ScriptComponent : public Component {
+class [[gnu::visibility("default")]] ScriptComponent : public Component {
     public:
         ScriptComponent() = default;
 
