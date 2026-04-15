@@ -75,6 +75,10 @@ class TileMap : public Component {
         // Draw the grid in the editor
         void RenderGrid() const;
 
+        // Retrieves a mutable pointer to a layer by its index or name
+        TileLayer* GetLayer(int index);
+        TileLayer* GetLayer(const std::string& name);
+
     private:
         std::string m_tilesetPath;
         Texture2D m_tilesetTexture;

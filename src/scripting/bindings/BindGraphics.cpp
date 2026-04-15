@@ -9,6 +9,7 @@
 #include "../../graphics/Animator2d.hpp"
 #include "graphics/Camera2d.hpp"
 #include <world/ComponentRegistry.hpp>
+#include "graphics/TileMap.hpp"
 
 void BindGraphics(py::module_& m) {
     m.def("set_pixel_art_mode", [](bool enable) {
@@ -110,6 +111,35 @@ void BindGraphics(py::module_& m) {
         [](GameObject& go, py::args args) -> py::object {
             auto* cam = go.AddComponent<Camera2d>();
             return py::cast(cam, py::return_value_policy::reference);
+        }
+    );
+
+    py::class_<TileLayer>(m, "TileLayer")
+        .def_readwrite("name", &TileLayer::name)
+        .def_readwrite("is_visible", &TileLayer::isVisible)
+        .def_readwrite("is_solid", &TileLayer::isSolid);
+
+    py::class_<TileMap, Component>(m, "TileMap")
+        .def(py::init<>())
+        // Expose public properties
+        .def_readwrite("grid_width", &TileMap::gridWidth)
+        .def_readwrite("grid_height", &TileMap::gridHeight)
+        .def_readwrite("tile_spacing", &TileMap::tileSpacing)
+        // Expose public methods
+        .def("load_tileset", &TileMap::LoadTileset)
+        .def("resize", &TileMap::ResizeMap)
+        .def("add_layer", &TileMap::AddLayer)
+        .def("get_tile", &TileMap::GetTile)
+        .def("set_tile", &TileMap::SetTile)
+        // Overloaded methods to get a layer by index or by name
+        .def("get_layer", py::overload_cast<int>(&TileMap::GetLayer), py::return_value_policy::reference_internal)
+        .def("get_layer", py::overload_cast<const std::string&>(&TileMap::GetLayer), py::return_value_policy::reference_internal);
+
+    ComponentRegistry::Register<TileMap>("TileMap", 
+        [](GameObject& go, py::args args) -> py::object {
+            // TileMap does not require constructor arguments
+            auto* tileMap = go.AddComponent<TileMap>();
+            return py::cast(tileMap, py::return_value_policy::reference);
         }
     );
 }

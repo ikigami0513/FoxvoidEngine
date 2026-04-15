@@ -12,8 +12,8 @@
                 },
                 {
                     "columns": 9,
-                    "rows": 56,
-                    "texturePath": "assets/textures/player_base.png",
+                    "rows": 3,
+                    "texturePath": "assets/textures/tilemap_characters.png",
                     "type": "SpriteSheetRenderer"
                 },
                 {

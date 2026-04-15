@@ -339,3 +339,19 @@ void TileMap::RenderGrid() const {
         WHITE
     );
 }
+
+TileLayer* TileMap::GetLayer(int index) {
+    if (index >= 0 && index < m_layers.size()) {
+        return &m_layers[index];
+    }
+    return nullptr;
+}
+
+TileLayer* TileMap::GetLayer(const std::string& name) {
+    for (auto& layer : m_layers) {
+        if (layer.name == name) {
+            return &layer;
+        }
+    }
+    return nullptr;
+}

@@ -2,8 +2,10 @@
 #include "../world/GameObject.hpp"
 #include "SpriteSheetRenderer.hpp"
 #include <iostream>
+#include <sstream>
 #include <editor/commands/CommandHistory.hpp>
 #include <editor/commands/ModifyComponentCommand.hpp>
+#include <extras/IconsFontAwesome6.h>
 
 Animator2d::Animator2d() 
     : m_currentFrameIndex(0), 
@@ -111,16 +113,22 @@ void Animator2d::OnInspector() {
 
     // Display a list of all registered animations
     if (ImGui::TreeNode("Registered Animations")) {
-        for (const auto& pair : m_animations) {
+        // We use an iterator to safely erase elements while looping through the map
+        for (auto it = m_animations.begin(); it != m_animations.end(); ) {
+            const std::string& animName = it->first;
+            bool isCurrent = (m_currentAnimation == animName);
             
+            // Push the ID for this specific animation row
+            ImGui::PushID(animName.c_str());
+
             // Create a selectable list item for each animation
             // Clicking it will force the Animator to play this animation
-            if (ImGui::Selectable(pair.first.c_str(), m_currentAnimation == pair.first)) {
+            if (ImGui::Selectable(animName.c_str(), isCurrent, 0, ImVec2(ImGui::GetContentRegionAvail().x - 30, 0))) {
                 // Capture the state BEFORE changing the animation
                 nlohmann::json initialState = Serialize();
                 
                 // Apply the change
-                Play(pair.first);
+                Play(animName);
                 
                 // Push the modification to the Undo/Redo stack immediately
                 CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
@@ -129,9 +137,99 @@ void Animator2d::OnInspector() {
             // Show a small tooltip with animation details when hovering
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip("Frames: %zu | Duration: %.2fs | Loop: %s", 
-                                  pair.second.frames.size(), 
-                                  pair.second.frameDuration, 
-                                  pair.second.loop ? "Yes" : "No");
+                                  it->second.frames.size(), 
+                                  it->second.frameDuration, 
+                                  it->second.loop ? "Yes" : "No");
+            }
+
+            // Deletion: Trash icon button at the end of the line
+            ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f)); // Red tint
+
+            if (ImGui::Button(ICON_FA_TRASH)) {
+                nlohmann::json initialState = Serialize();
+
+                // If the deleted animation was the one playing, we reset the state
+                if (isCurrent) {
+                    m_currentAnimation = "";
+                    m_currentFrameIndex = 0;
+                    m_timer = 0.0f;
+                }
+
+                // Erase from map and update iterator
+                it = m_animations.erase(it);
+
+                // Commit the change to Undo/Redo history
+                CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
+                
+                ImGui::PopStyleColor();
+                ImGui::PopID();
+                continue; // Skip the rest and go to next iteration
+            }
+            ImGui::PopStyleColor();
+
+            ImGui::PopID();
+            ++it;
+        }
+        ImGui::TreePop();
+    }
+
+    ImGui::Separator();
+
+    // Form to add a new animation
+    if (ImGui::TreeNode("Add New Animation")) {
+        // Static variables hold the temporary state of the form inputs
+        static char nameBuffer[64] = "";
+        static char framesBuffer[256] = "";
+        static float duration = 0.1f;
+        static bool loop = true;
+
+        ImGui::InputText("Name", nameBuffer, IM_ARRAYSIZE(nameBuffer));
+        
+        // Tooltip to explain the expected format
+        ImGui::InputText("Frames", framesBuffer, IM_ARRAYSIZE(framesBuffer));
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Enter frame indices separated by commas (e.g., 0, 1, 2, 3)");
+        }
+
+        ImGui::DragFloat("Duration", &duration, 0.01f, 0.01f, 5.0f, "%.2f sec");
+        ImGui::Checkbox("Loop", &loop);
+
+        if (ImGui::Button("Create Animation", ImVec2(-1, 0))) {
+            std::string animName(nameBuffer);
+            
+            if (!animName.empty()) {
+                std::vector<int> parsedFrames;
+                std::stringstream ss(framesBuffer);
+                std::string item;
+
+                // Parse the comma-separated string into integers
+                while (std::getline(ss, item, ',')) {
+                    try {
+                        // std::stoi converts string to integer, ignoring surrounding whitespaces
+                        parsedFrames.push_back(std::stoi(item));
+                    } catch (...) {
+                        // Ignore any invalid inputs (like letters or extra commas)
+                        std::cerr << "[Animator] Invalid frame skipped: " << item << std::endl;
+                    }
+                }
+
+                // Only create the animation if at least one valid frame was provided
+                if (!parsedFrames.empty()) {
+                    nlohmann::json initialState = Serialize();
+                    
+                    AddAnimation(animName, parsedFrames, duration, loop);
+                    
+                    CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
+
+                    // Reset the form buffers for the next entry
+                    nameBuffer[0] = '\0';
+                    framesBuffer[0] = '\0';
+                    duration = 0.1f;
+                    loop = true;
+                } else {
+                    std::cerr << "[Animator] Cannot create animation without frames." << std::endl;
+                }
             }
         }
         ImGui::TreePop();

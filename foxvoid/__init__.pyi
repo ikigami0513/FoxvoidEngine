@@ -3,7 +3,7 @@
 # implementation is handled natively in C++.
 
 from enum import Enum
-from typing import TypeVar, Type, Optional, List
+from typing import TypeVar, Type, Optional, List, overload
 
 # Type variable for smart autocompletion in the get_component method.
 # It ensures that getting a Transform2d actually returns a Transform2d type in the IDE.
@@ -453,5 +453,86 @@ class Camera2d(Component):
         """
         Initializes a Camera2d component with default values 
         (zoom=1.0, offset=(0,0), anchor=CameraAnchor.Center, is_main=True).
+        """
+        ...
+
+
+class TileLayer:
+    """Represents a single layer of tiles within a TileMap."""
+    
+    name: str
+    """The display name of the layer."""
+    
+    is_visible: bool
+    """Determines if the layer is currently rendered on screen."""
+    
+    is_solid: bool
+    """Determines if the layer generates collision boxes for the physics engine."""
+
+
+class TileMap(Component):
+    """
+    Manages a grid-based tile map with multiple layers and physics collision support.
+    Useful for level design and procedural generation.
+    """
+    
+    grid_width: int
+    """The number of columns in the grid."""
+    
+    grid_height: int
+    """The number of rows in the grid."""
+    
+    tile_spacing: int
+    """The gap in pixels between each tile in the source texture."""
+
+    def __init__(self) -> None:
+        """Initializes a new TileMap with a default 'Background' layer."""
+        ...
+
+    def load_tileset(self, path: str) -> None:
+        """
+        Loads a tileset texture from the specified file path.
+        """
+        ...
+        
+    def resize(self, new_width: int, new_height: int) -> None:
+        """
+        Resizes the map grid while safely preserving existing tile data.
+        """
+        ...
+
+    def add_layer(self, name: str) -> None:
+        """
+        Adds a new empty layer on top of the existing ones.
+        """
+        ...
+
+    def get_tile(self, layer_index: int, x: int, y: int) -> int:
+        """
+        Returns the tile ID at the given grid coordinates.
+        Returns -1 if the tile is empty or if the coordinates are out of bounds.
+        """
+        ...
+
+    def set_tile(self, layer_index: int, x: int, y: int, tile_id: int) -> None:
+        """
+        Sets the tile ID at the given grid coordinates on a specific layer.
+        Use -1 as the tile_id to erase a tile.
+        """
+        ...
+
+    @overload
+    def get_layer(self, index: int) -> Optional[TileLayer]:
+        """
+        Retrieves a layer by its numerical index (0 is the bottom layer).
+        Returns None if the index is out of bounds.
+        """
+        ...
+
+    @overload
+    def get_layer(self, name: str) -> Optional[TileLayer]:
+        """
+        Retrieves a layer by its assigned name.
+        Returns None if no layer with this name exists.
         """
         ...
