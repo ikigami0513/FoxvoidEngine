@@ -11,6 +11,7 @@
 #include "physics/RectCollider.hpp"
 #include "physics/RigidBody2d.hpp"
 #include "graphics/Camera2d.hpp"
+#include "graphics/TileMap.hpp"
 
 namespace EngineSetup {
     void RegisterNativeComponents() {
@@ -25,6 +26,7 @@ namespace EngineSetup {
         ComponentRegistry::RegisterCPP<Animation2d>("Animation2d");
         ComponentRegistry::RegisterCPP<Animator2d>("Animator2d");
         ComponentRegistry::RegisterCPP<Camera2d>("Camera2d");
+        ComponentRegistry::RegisterCPP<TileMap>("TileMap");
 
         ComponentRegistry::RegisterCPP<ScriptComponent>("ScriptComponent");
     }
