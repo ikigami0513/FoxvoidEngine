@@ -79,6 +79,13 @@
                     "type": "RigidBody2d",
                     "velocityX": 0.0,
                     "velocityY": 0.0
+                },
+                {
+                    "isMain": true,
+                    "offsetX": 0.0,
+                    "offsetY": 0.0,
+                    "type": "Camera2d",
+                    "zoom": 1.0
                 }
             ],
             "name": "Player"

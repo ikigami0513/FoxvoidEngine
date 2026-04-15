@@ -10,6 +10,7 @@
 #include "scripting/ScriptComponent.hpp"
 #include "physics/RectCollider.hpp"
 #include "physics/RigidBody2d.hpp"
+#include "graphics/Camera2d.hpp"
 
 namespace EngineSetup {
     void RegisterNativeComponents() {
@@ -23,6 +24,7 @@ namespace EngineSetup {
         ComponentRegistry::RegisterCPP<SpriteSheetRenderer>("SpriteSheetRenderer");
         ComponentRegistry::RegisterCPP<Animation2d>("Animation2d");
         ComponentRegistry::RegisterCPP<Animator2d>("Animator2d");
+        ComponentRegistry::RegisterCPP<Camera2d>("Camera2d");
 
         ComponentRegistry::RegisterCPP<ScriptComponent>("ScriptComponent");
     }

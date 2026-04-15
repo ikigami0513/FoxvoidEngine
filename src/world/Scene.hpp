@@ -16,6 +16,7 @@
 #include <scripting/ScriptBindings.hpp>
 #include "ComponentRegistry.hpp"
 #include "physics/PhysicsEngine.hpp"
+#include "graphics/Camera2d.hpp"
 
 class Scene {
     public:
@@ -264,6 +265,24 @@ class Scene {
                 // Put the object back into the scene
                 m_gameObjects.push_back(std::move(object));
             }
+        }
+
+        // Finds the primary Camera2d in the scene and returns its Raylib equivalent
+        Camera2D GetMainCamera(float screenWidth, float screenHeight) const {
+            for (const auto& go : m_gameObjects) {
+                auto cam = go->GetComponent<Camera2d>();
+                if (cam and cam->isMain) {
+                    return cam->GetCamera(screenWidth, screenHeight);
+                }
+            }
+
+            // Fallback: If no camera exists in the scene, return a static default camera
+            // so the game doesn't crash or render as a black screen.
+            Camera2D defaultCam = { 0 };
+            defaultCam.zoom = 1.0f;
+            defaultCam.offset.x = screenWidth / 2.0f;
+            defaultCam.offset.y = screenHeight / 2.0f;
+            return defaultCam;
         }
 
     private:

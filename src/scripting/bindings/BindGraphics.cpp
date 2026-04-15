@@ -7,6 +7,7 @@
 #include "../../graphics/SpriteSheetRenderer.hpp"
 #include "../../graphics/Animation2d.hpp"
 #include "../../graphics/Animator2d.hpp"
+#include "graphics/Camera2d.hpp"
 #include <world/ComponentRegistry.hpp>
 
 void BindGraphics(py::module_& m) {
@@ -90,6 +91,19 @@ void BindGraphics(py::module_& m) {
             
             // Return the reference to Python
             return py::cast(animator, py::return_value_policy::reference);
+        }
+    );
+
+    py::class_<Camera2d, Component>(m, "Camera2d")
+        .def(py::init<>())
+        .def_readwrite("zoom", &Camera2d::zoom)
+        .def_readwrite("offset", &Camera2d::offset)
+        .def_readwrite("is_main", &Camera2d::isMain);
+
+    ComponentRegistry::Register<Camera2d>("Camera2d",
+        [](GameObject& go, py::args args) -> py::object {
+            auto* cam = go.AddComponent<Camera2d>();
+            return py::cast(cam, py::return_value_policy::reference);
         }
     );
 }

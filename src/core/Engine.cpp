@@ -146,8 +146,10 @@ void Engine::Render() {
     BeginTextureMode(m_gameTexture);
         ClearBackground(RAYWHITE);
 
-        // Draw all entities normally
-        m_activeScene.Render();
+        BeginMode2D(m_activeScene.GetMainCamera((float)m_windowWidth, (float)m_windowHeight));
+            // Draw all entities normally
+            m_activeScene.Render();
+        EndMode2D();
     EndTextureMode();
 
     // Pass 2: Editor Rendering
