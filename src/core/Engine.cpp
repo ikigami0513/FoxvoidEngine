@@ -15,6 +15,7 @@
 #include <world/ComponentRegistry.hpp>
 #include "extras/IconsFontAwesome6.h"
 #include "InputManager.hpp"
+#include "graphics/TileMap.hpp"
 
 namespace fs = std::filesystem;
 
@@ -194,11 +195,25 @@ void Engine::Render() {
             // Draw the Input Settings (it will only draw if m_isOpen is true)
             m_inputSettingsPanel.Draw();
 
+            Texture2D currentTileset = {0};
+            Vector2 tileSize = { 32.0f, 32.0f };
+            int tileSpacing = 0;
+
+            if (m_selectedObject) {
+                if (auto tileMap = m_selectedObject->GetComponent<TileMap>()) {
+                    currentTileset = tileMap->GetTexture();
+                    tileSize = tileMap->tileSize;
+                    tileSpacing = tileMap->tileSpacing;
+                }
+            }
+
+            m_tilePalettePanel.Draw(m_selectedTileID, currentTileset, tileSize, tileSpacing);
+
             // Draw all the isolated editor panels
             m_toolbarPanel.Draw(m_activeScene, m_selectedObject, m_isPlaying, m_sceneBackup, m_focusGameWindow);
             
             // Draw both panels, feeding them their respective textures
-            m_sceneViewPanel.Draw(m_sceneTexture, *m_editorCamera, m_activeScene, m_selectedObject);
+            m_sceneViewPanel.Draw(m_sceneTexture, *m_editorCamera, m_activeScene, m_selectedObject, m_selectedTileID);
             m_gameViewPanel.Draw(m_gameTexture, m_focusGameWindow);
 
             m_hierarchyPanel.Draw(m_activeScene, m_selectedObject);

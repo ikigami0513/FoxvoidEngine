@@ -129,7 +129,7 @@
                     "scaleX": 4.0,
                     "scaleY": 4.0,
                     "type": "Transform2d",
-                    "x": 5.773681640625,
+                    "x": 13.499008178710938,
                     "y": 288.5204772949219
                 },
                 {
@@ -140,8 +140,8 @@
                             "data": [
                                 0,
                                 0,
-                                -1,
-                                -1,
+                                0,
+                                0,
                                 -1,
                                 -1,
                                 -1,
@@ -244,9 +244,10 @@
                         }
                     ],
                     "tileSize": [
-                        16.0,
-                        16.0
+                        18.0,
+                        18.0
                     ],
+                    "tileSpacing": 1,
                     "tilesetPath": "assets/textures/tilemap.png",
                     "type": "TileMap"
                 }

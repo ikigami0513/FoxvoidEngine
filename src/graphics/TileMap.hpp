@@ -23,6 +23,7 @@ struct TileLayer {
 class TileMap : public Component {
     public:
         Vector2 tileSize; // Size of a single tile in pixels (e.g., 16x16, 32x32)
+        int tileSpacing; // Spacing in pixels between tiles
         int gridWidth; // Number of columns in the map
         int gridHeight; // Number of rows in the map
 

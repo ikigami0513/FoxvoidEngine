@@ -7,7 +7,7 @@
 #include <imgui.h>
 
 TileMap::TileMap()
-    : tileSize { 32.0f, 32.0f }, gridWidth(10), gridHeight(10), m_tilesetTexture{0}
+    : tileSize { 32.0f, 32.0f }, tileSpacing(0), gridWidth(10), gridHeight(10), m_tilesetTexture{0}
 {
     // By default, create a single base layer
     AddLayer("Background");
@@ -44,8 +44,12 @@ void TileMap::Render() {
     auto transform = owner->GetComponent<Transform2d>();
     if (!transform) return;
 
+    int stepX = (int)tileSize.x + tileSpacing;
+    int stepY = (int)tileSize.y + tileSpacing;
+
     // Calculate how many columns the tileset texture has
-    int tilesetCols = m_tilesetTexture.width / (int)tileSize.x;
+    // +tileSpacing handles the edge case where the right/bottom edge of the image doesn't have a final padding
+    int tilesetCols = (m_tilesetTexture.width + tileSpacing) / stepX;
     if (tilesetCols == 0) return; // Prevent division by zero if texture is too small
 
     // Loop through all layers from bottom to top
@@ -58,9 +62,10 @@ void TileMap::Render() {
                 int tileID = layer.data[y * gridWidth + x];
                 if (tileID < 0) continue; // -1 represents an empty (transparent) tile
 
-                // Calculate where to read the tile from the texture (Source Rectangle)
-                float srcX = (tileID % tilesetCols) * tileSize.x;
-                float srcY = (tileID / tilesetCols) * tileSize.y;
+                // Calculate where to read the tile from the texture (Source Rectangle) using the step sizes
+                float srcX = (float)((tileID % tilesetCols) * stepX);
+                float srcY = (float)((tileID / tilesetCols) * stepY);
+
                 Rectangle srcRec = { srcX, srcY, tileSize.x, tileSize.y };
 
                 // Calculate where to draw the tile in the world (Destination Rectangle)
@@ -86,7 +91,8 @@ void TileMap::OnInspector() {
     // Grid setup
     if (ImGui::CollapsingHeader("Map Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
         EditorUI::DragFloat2("Tile Size", &tileSize.x, 1.0f, this, 1.0f, 256.0f);
-        
+        EditorUI::DragInt("Tile Spacing", &tileSpacing, 1, this, 0, 64);
+
         int newWidth = gridWidth;
         int newHeight = gridHeight;
         
@@ -170,6 +176,7 @@ nlohmann::json TileMap::Serialize() const {
     j["type"] = "TileMap";
     j["tilesetPath"] = m_tilesetPath;
     j["tileSize"] = { tileSize.x, tileSize.y };
+    j["tileSpacing"] = tileSpacing;
     j["gridWidth"] = gridWidth;
     j["gridHeight"] = gridHeight;
 
@@ -196,6 +203,8 @@ void TileMap::Deserialize(const nlohmann::json& j) {
         tileSize.x = 32.0f;
         tileSize.y = 32.0f;
     }
+
+    tileSpacing = j.value("tileSpacing", 0);
 
     // Extract standard values using correct default fallbacks
     gridWidth = j.value("gridWidth", 10);

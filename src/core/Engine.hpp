@@ -14,6 +14,7 @@
 #include "editor/ToolbarPanel.hpp"
 #include <editor/MainMenuBar.hpp>
 #include "editor/InputSettingsPanel.hpp"
+#include "editor/TilePalettePanel.hpp"
 
 // The Engine class encapsulates the core loop and window management.
 class Engine {
@@ -85,6 +86,10 @@ class Engine {
         InputSettingsPanel m_inputSettingsPanel;
 
         MainMenuBar m_mainMenuBar;
+
+        int m_selectedTileID = -1;
+
+        TilePalettePanel m_tilePalettePanel;
 
         // The camera used to navigate the scene in the editor
         std::unique_ptr<EditorCamera> m_editorCamera;

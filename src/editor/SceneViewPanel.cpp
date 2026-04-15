@@ -6,8 +6,9 @@
 #include "commands/CommandHistory.hpp"
 #include "commands/Transform2dCommand.hpp"
 #include "graphics/ShapeRenderer.hpp"
+#include <graphics/TileMap.hpp>
 
-void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject) {
+void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject, int selectedTileID) {
     // Remove inner margins (padding) so the render texture touches the window borders
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::Begin("Scene View");
@@ -247,31 +248,59 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
         }
 
         // Mouse picking logic
-        // Only pick if we hover the image and click the Left Mouse Button
-        if (!ImGuizmo::IsOver() && isImageHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-            
-            // Get Mouse position
+        if (!ImGuizmo::IsOver() && isImageHovered) {
+            // Calculate World Position of the mouse (same as before)
             ImVec2 mousePosAbsolute = ImGui::GetMousePos();
-            
             Vector2 mousePosRel = {
                 mousePosAbsolute.x - imagePosAbsolute.x,
                 mousePosAbsolute.y - imagePosAbsolute.y
             };
-
-            // Convert from UI size to RenderTexture size
             Vector2 renderTexturePos = {
                 (mousePosRel.x / drawSize.x) * texWidth,
                 (mousePosRel.y / drawSize.y) * texHeight
             };
-
-            // Convert from RenderTexture space to World Space (applying Camera Zoom/Pan)
             Vector2 worldPos = GetScreenToWorld2D(renderTexturePos, camera.GetCamera());
 
-            // Raycast in the scene to find the object
-            GameObject* pickedObject = activeScene.PickObject(worldPos);
-            
-            // Update the selection
-            selectedObject = pickedObject;
+            bool handledAsPaint = false;
+
+            // Paint mode logic
+            if (selectedObject) {
+                if (auto tileMap = selectedObject->GetComponent<TileMap>()) {
+                    auto transform = selectedObject->GetComponent<Transform2d>();
+                    if (transform) {
+                        handledAsPaint = true; // Block standard object picking
+
+                        // Use IsMouseDown (not IsMouseClicked) to allow click-and-drag painting!
+                        if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+                            
+                            // Calculate local position relative to the TileMap's origin
+                            float localX = worldPos.x - transform->position.x;
+                            float localY = worldPos.y - transform->position.y;
+                            
+                            // Account for the object's scale
+                            float scaledTileWidth = tileMap->tileSize.x * transform->scale.x;
+                            float scaledTileHeight = tileMap->tileSize.y * transform->scale.y;
+                            
+                            // Prevent negative index wrapping if mouse is above/left of the map
+                            if (localX >= 0 && localY >= 0) {
+                                int gridX = (int)(localX / scaledTileWidth);
+                                int gridY = (int)(localY / scaledTileHeight);
+                                
+                                // Set the tile on Layer 0 (Base Layer). 
+                                // The -1 fallback handles the "eraser" if you clicked outside the palette.
+                                tileMap->SetTile(0, gridX, gridY, selectedTileID);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Object picking logic
+            // Only trigger if we are NOT painting a TileMap, and we just clicked once
+            if (!handledAsPaint && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                GameObject* pickedObject = activeScene.PickObject(worldPos);
+                selectedObject = pickedObject;
+            }
         }
     }
     
