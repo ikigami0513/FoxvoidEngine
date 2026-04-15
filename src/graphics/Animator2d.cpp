@@ -99,7 +99,7 @@ void Animator2d::UpdateSprite() {
 
 // Returns the name of the component for the engine's reflection/UI systems
 std::string Animator2d::GetName() const {
-    return "Animator";
+    return "Animator 2d";
 }
 
 void Animator2d::OnInspector() {
