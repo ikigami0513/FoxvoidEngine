@@ -61,7 +61,7 @@ void InputSettingsPanel::Draw() {
 
             // Calculate dynamic height based on content
             // Base height (header + add button + padding) is roughly 85 pixels
-            // Each bound key adds about 28 pixels of height
+            // Each bound key adds about 50 pixels of height
             float dynamicHeight = 85.0f + (keys.size() * 50.0f);
 
             // Draw a slightly darker background for each action block
