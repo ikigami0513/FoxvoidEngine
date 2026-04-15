@@ -94,10 +94,16 @@ void BindGraphics(py::module_& m) {
         }
     );
 
+    py::enum_<Camera2dAnchor>(m, "Camera2dAnchor")
+        .value("TopLeft", Camera2dAnchor::TopLeft)
+        .value("Center", Camera2dAnchor::Center)
+        .export_values();
+
     py::class_<Camera2d, Component>(m, "Camera2d")
         .def(py::init<>())
         .def_readwrite("zoom", &Camera2d::zoom)
         .def_readwrite("offset", &Camera2d::offset)
+        .def_readwrite("anchor", &Camera2d::anchor)
         .def_readwrite("is_main", &Camera2d::isMain);
 
     ComponentRegistry::Register<Camera2d>("Camera2d",

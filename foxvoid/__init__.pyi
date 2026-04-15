@@ -2,6 +2,7 @@
 # and autocompletion. The "..." (Ellipsis) indicate to Python that the actual 
 # implementation is handled natively in C++.
 
+from enum import Enum
 from typing import TypeVar, Type, Optional, List
 
 # Type variable for smart autocompletion in the get_component method.
@@ -392,5 +393,49 @@ class RigidBody2d(Component):
     def __init__(self) -> None:
         """
         Initializes a RigidBody2d with default values (mass=1.0, gravity=1.0, non-kinematic).
+        """
+        ...
+
+
+class Camera2dAnchor(Enum):
+    """
+    Defines the base screen position that the camera uses as its focal point.
+    """
+
+    TopLeft = 0
+    """Anchors the camera to the top-left corner of the screen (0, 0)."""
+    
+    Center = 1
+    """Anchors the camera to the exact center of the screen."""
+
+
+class Camera2d(Component):
+    """
+    Component that controls the viewport for rendering the game world.
+    The camera automatically looks at the Transform2d of the GameObject it is attached to.
+    """
+    
+    zoom: float
+    """The zoom level of the camera. 1.0 is default, > 1.0 zooms in, < 1.0 zooms out."""
+    
+    offset: Vector2
+    """
+    Custom pixel offset applied ON TOP of the anchor point.
+    Useful for shifting the camera view (e.g., aiming slightly higher or looking ahead).
+    """
+    
+    anchor: Camera2dAnchor
+    """The base screen alignment (default is CameraAnchor.Center)."""
+    
+    is_main: bool
+    """
+    If True, the Engine will use this camera to render the final Game View.
+    Make sure only one active camera is marked as main at a time.
+    """
+
+    def __init__(self) -> None:
+        """
+        Initializes a Camera2d component with default values 
+        (zoom=1.0, offset=(0,0), anchor=CameraAnchor.Center, is_main=True).
         """
         ...
