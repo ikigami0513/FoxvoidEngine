@@ -2,6 +2,7 @@
 #include <imgui.h>
 #include <rlImGui.h>
 #include <algorithm>
+#include "extras/IconsFontAwesome6.h"
 
 TilePalettePanel::TilePalettePanel() : m_zoom(2.0f) {}
 
@@ -16,7 +17,32 @@ void TilePalettePanel::Draw(int& selectedTileID, Texture2D currentTileset, Vecto
         }
 
         // Controls
+        // Reduce the slider width to make room for the eraser button on the same line
+        ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - 200);
         ImGui::SliderFloat("Zoom", &m_zoom, 1.0f, 5.0f);
+        ImGui::PopItemWidth();
+
+        ImGui::SameLine();
+
+        // Eraser Button
+        bool isEraserActive = (selectedTileID == -1);
+
+        if (isEraserActive) {
+            // If the eraser is active, tint the button red to provide clear visual feedback
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f)); 
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.3f, 0.3f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+        }
+
+        if (ImGui::Button(ICON_FA_ERASER " Eraser")) {
+            selectedTileID = -1; // -1 represents an empty tile (eraser tool)
+        }
+
+        if (isEraserActive) {
+            // Restore the default button colors
+            ImGui::PopStyleColor(3);
+        }
+
         ImGui::Separator();
 
         // Palette display
