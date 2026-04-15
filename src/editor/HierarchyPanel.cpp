@@ -18,6 +18,11 @@ void HierarchyPanel::Draw(Scene& activeScene, GameObject*& selectedObject) {
 
     ImGui::Separator();
 
+    // Deferred deletion pointer
+    // We store the object to delete here, so we don't modify the vector
+    // while we are actively iterating through it.
+    GameObject* objectToDelete = nullptr;
+
     // Iterate through all alive objects in the active scene
     for (const auto& go : activeScene.GetGameObjects()) {
         bool isSelected = (selectedObject == go.get());
@@ -54,9 +59,8 @@ void HierarchyPanel::Draw(Scene& activeScene, GameObject*& selectedObject) {
             }
 
             if (ImGui::Selectable("Delete Game Object")) {
-                // We do not call go->Destroy();
-                // We let the command handle the extraction
-                CommandHistory::AddCommand(std::make_unique<DeleteObjectCommand>(activeScene, go.get()));
+                // Flag the object for deletion instead of executing the command immediately
+                objectToDelete = go.get();
 
                 // Safety: Clear selection if the deleted object was selected
                 if (isSelected) selectedObject = nullptr;
@@ -118,6 +122,11 @@ void HierarchyPanel::Draw(Scene& activeScene, GameObject*& selectedObject) {
             }
             ImGui::EndDragDropTarget();
         }
+    }
+
+    // Execute the deletion safely outside the loop
+    if (objectToDelete) {
+        CommandHistory::AddCommand(std::make_unique<DeleteObjectCommand>(activeScene, objectToDelete));
     }
 
     ImGui::End();

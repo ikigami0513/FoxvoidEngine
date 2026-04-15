@@ -67,6 +67,9 @@ class TileMap : public Component {
         // Generates a list of bounding boxes for all solid tiles in world space
         std::vector<Rectangle> GetCollisionRects() const;
 
+        // Returns a read-only reference to the layers list for the UI
+        const std::vector<TileLayer>& GetLayers() const { return m_layers; }
+
     private:
         std::string m_tilesetPath;
         Texture2D m_tilesetTexture;

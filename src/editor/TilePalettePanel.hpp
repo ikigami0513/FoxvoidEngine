@@ -8,10 +8,7 @@ class TilePalettePanel {
         TilePalettePanel();
 
         // Draws the Tile Palette window
-        // selectedTileID: Reference to the globally selected tile ID in the editor
-        // currentTileset: The texture currently used by the selected TileMap
-        // tileSize: The size of tiles (usually from the TileMap component)
-        void Draw(int& selectedTileID, Texture2D currentTileset, Vector2 tileSize, int tileSpacing);
+        void Draw(int& selectedTileID, int& selectedLayer, class TileMap* activeTileMap);
 
         bool isOpen = true;
 

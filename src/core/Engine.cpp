@@ -207,13 +207,17 @@ void Engine::Render() {
                 }
             }
 
-            m_tilePalettePanel.Draw(m_selectedTileID, currentTileset, tileSize, tileSpacing);
+            TileMap* activeTileMap = nullptr;
+            if (m_selectedObject) {
+                activeTileMap = m_selectedObject->GetComponent<TileMap>();
+            }
+            m_tilePalettePanel.Draw(m_selectedTileID, m_selectedLayer, activeTileMap);
 
             // Draw all the isolated editor panels
             m_toolbarPanel.Draw(m_activeScene, m_selectedObject, m_isPlaying, m_sceneBackup, m_focusGameWindow);
             
             // Draw both panels, feeding them their respective textures
-            m_sceneViewPanel.Draw(m_sceneTexture, *m_editorCamera, m_activeScene, m_selectedObject, m_selectedTileID);
+            m_sceneViewPanel.Draw(m_sceneTexture, *m_editorCamera, m_activeScene, m_selectedObject, m_selectedTileID, m_selectedLayer);
             m_gameViewPanel.Draw(m_gameTexture, m_focusGameWindow);
 
             m_hierarchyPanel.Draw(m_activeScene, m_selectedObject);

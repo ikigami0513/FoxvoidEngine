@@ -8,5 +8,5 @@
 // Panel to display the rendered game texture
 class SceneViewPanel {
     public:
-        void Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject, int selectedTileID);
+        void Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject, int selectedTileID, int selectedLayer);
 };

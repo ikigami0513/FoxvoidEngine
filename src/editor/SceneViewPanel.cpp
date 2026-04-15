@@ -9,7 +9,7 @@
 #include <graphics/TileMap.hpp>
 #include "commands/TileMapPaintCommand.hpp"
 
-void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject, int selectedTileID) {
+void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject, int selectedTileID, int selectedLayer) {
     // Remove inner margins (padding) so the render texture touches the window borders
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::Begin("Scene View");
@@ -251,6 +251,7 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
         static bool isPainting = false;
         static std::vector<int> initialLayerData;
         static TileMap* activePaintMap = nullptr;
+        static int activePaintLayer = 0;
 
         // Mouse picking logic
         if (!ImGuizmo::IsOver() && isImageHovered) {
@@ -279,6 +280,7 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                         if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                             isPainting = true;
                             activePaintMap = tileMap;
+                            activePaintLayer = selectedLayer;
                             initialLayerData = tileMap->GetLayerData(0);
                         }
                         
@@ -300,7 +302,7 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                                 
                                 // Set the tile on Layer 0 (Base Layer). 
                                 // The -1 fallback handles the "eraser" if you clicked outside the palette.
-                                tileMap->SetTile(0, gridX, gridY, selectedTileID);
+                                tileMap->SetTile(activePaintLayer, gridX, gridY, selectedTileID);
                             }
                         }
                     }
@@ -325,7 +327,7 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                 
                 // Only add a command if the user actually modified at least one tile
                 if (initialLayerData != currentData) {
-                    CommandHistory::AddCommand(std::make_unique<TileMapPaintCommand>(activePaintMap, 0, initialLayerData, currentData));
+                    CommandHistory::AddCommand(std::make_unique<TileMapPaintCommand>(activePaintMap, activePaintLayer, initialLayerData, currentData));
                 }
             }
             activePaintMap = nullptr;

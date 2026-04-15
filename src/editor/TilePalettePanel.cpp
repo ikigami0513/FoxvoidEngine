@@ -3,18 +3,43 @@
 #include <rlImGui.h>
 #include <algorithm>
 #include "extras/IconsFontAwesome6.h"
+#include "graphics/TileMap.hpp"
 
 TilePalettePanel::TilePalettePanel() : m_zoom(2.0f) {}
 
-void TilePalettePanel::Draw(int& selectedTileID, Texture2D currentTileset, Vector2 tileSize, int tileSpacing) {
+void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileMap* activeTileMap) {
     if (!isOpen) return;
 
     if (ImGui::Begin("Tile Palette", &isOpen)) {
-        if (currentTileset.id == 0) {
+        // If no TileMap is selected, or it has no texture, stop drawing the palette
+        if (!activeTileMap || activeTileMap->GetTexture().id == 0) {
             ImGui::TextDisabled("No tileset texture loaded.");
             ImGui::End();
             return;
         }
+
+        const auto& layers = activeTileMap->GetLayers();
+
+        // Safety clamp just in case a layer was deleted
+        if (selectedLayer >= layers.size()) selectedLayer = 0;
+
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        if (ImGui::BeginCombo("##LayerCombo", layers.empty() ? "No Layers" : layers[selectedLayer].name.c_str())) {
+            for (int i = 0; i < layers.size(); i++) {
+                bool isSelected = (selectedLayer == i);
+                if (ImGui::Selectable(layers[i].name.c_str(), isSelected)) {
+                    selectedLayer = i; // Mettre à jour l'index quand l'utilisateur clique
+                }
+                if (isSelected) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::Separator();
+
+        // Extract properties from the active TileMap for the rest of the drawing
+        Texture2D currentTileset = activeTileMap->GetTexture();
+        Vector2 tileSize = activeTileMap->tileSize;
+        int tileSpacing = activeTileMap->tileSpacing;
 
         // Controls
         // Reduce the slider width to make room for the eraser button on the same line

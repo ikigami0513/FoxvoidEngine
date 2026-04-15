@@ -88,6 +88,7 @@ class Engine {
         MainMenuBar m_mainMenuBar;
 
         int m_selectedTileID = -1;
+        int m_selectedLayer = 0;
 
         TilePalettePanel m_tilePalettePanel;
 
