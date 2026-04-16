@@ -6,6 +6,7 @@
 #include "graphics/TileMap.hpp"
 #include "physics/PhysicsEngine.hpp"
 #include <iostream>
+#include <core/ProjectSettings.hpp>
 
 Editor::Editor(int windowWidth, int windowHeight) {
     // Initialize Console Redirects
@@ -43,6 +44,17 @@ Editor::~Editor() {
 }
 
 void Editor::Draw(Scene& activeScene, RenderTexture2D& gameTexture, bool& isRunning, bool& isPlaying, std::string& currentScenePath, nlohmann::json& sceneBackup) {
+    // Hub interception
+    // If no project is loaded, only draw the Hub. Stop the rest of the editor rendering.
+    if (!m_isProjectLoaded) {
+        rlImGuiBegin();
+            if (m_projectHub.Draw()) {
+                OnProjectLoaded();
+            }
+        rlImGuiEnd();
+        return;
+    }
+    
     // Pass 1: Render the Scene View (what the editor sees)
     BeginTextureMode(m_sceneTexture);
         ClearBackground(Color{ 40, 40, 40, 255 });
@@ -86,6 +98,17 @@ void Editor::Draw(Scene& activeScene, RenderTexture2D& gameTexture, bool& isRunn
         m_projectPanel.Draw(activeScene, m_selectedObject, m_assetsPath, currentScenePath);
 
     rlImGuiEnd();
+}
+
+void Editor::OnProjectLoaded() {
+    m_isProjectLoaded = true;
+
+    // Update the Raylib window title to match the project name
+    std::string title = ProjectSettings::GetProjectName() + " - Foxvoid Engine";
+    SetWindowTitle(title.c_str());
+
+    // Pass the correct assets path to the ProjectPanel
+    m_assetsPath = ProjectSettings::GetAssetsPath();
 }
 
 void Editor::ApplyModernTheme() {

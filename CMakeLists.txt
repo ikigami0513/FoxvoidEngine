@@ -70,6 +70,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(pybind11)
 
+# Fetch Portable File Dialogs (Lightweight, single-header native OS dialogs)
+FetchContent_Declare(
+    pfd
+    GIT_REPOSITORY https://github.com/samhocevar/portable-file-dialogs.git
+    GIT_TAG        main
+)
+FetchContent_MakeAvailable(pfd)
+
 # Find all .cpp files inside the src/ directory and its subdirectories
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "src/*.cpp")
 
@@ -100,4 +108,5 @@ target_include_directories(FoxvoidEngine PRIVATE
     ${imgui_SOURCE_DIR}
     ${rlimgui_SOURCE_DIR}
     ${imguizmo_SOURCE_DIR}
+    ${pfd_SOURCE_DIR}
 )

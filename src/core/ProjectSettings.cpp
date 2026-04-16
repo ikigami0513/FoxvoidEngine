@@ -1,0 +1,104 @@
+#include "ProjectSettings.hpp"
+#include <fstream>
+#include <iostream>
+
+namespace fs = std::filesystem;
+
+// Initialize static members
+nlohmann::json ProjectSettings::s_config;
+fs::path ProjectSettings::s_projectRoot;
+
+bool ProjectSettings::Load(const fs::path& projectFilePath) {
+    if (!fs::exists(projectFilePath)) {
+        std::cerr << "[ProjectSettings] Error: File not found at " << projectFilePath << std::endl;
+        return false;
+    }
+
+    std::ifstream file(projectFilePath);
+    if (!file.is_open()) return false;
+
+    try {
+        // Parse the JSON file into our static config object
+        file >> s_config;
+        
+        // Store the directory containing the project.json file
+        s_projectRoot = projectFilePath.parent_path();
+        std::cout << "[ProjectSettings] Successfully loaded project: " << GetProjectName() << std::endl;
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "[ProjectSettings] JSON Parse Error: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+bool ProjectSettings::CreateNewProject(const fs::path& rootDirectory, const std::string& projectName) {
+    try {
+        // Define the main folder for the new project
+        fs::path projectFolder = rootDirectory / projectName;
+
+        // Generate the standard directory structure
+        fs::create_directories(projectFolder / "assets" / "scenes");
+        fs::create_directories(projectFolder / "assets" / "scripts");
+        fs::create_directories(projectFolder / "assets" / "textures");
+        fs::create_directories(projectFolder / "assets" / "audio");
+        fs::create_directories(projectFolder / "assets" / "settings");
+
+        // Create the default project.json configuration
+        nlohmann::json newConfig = {
+            {"project", {
+                {"name", projectName},
+                {"version", "1.0.0"}
+            }},
+            {"display", {
+                {"width", 1280},
+                {"height", 720}
+            }}
+        };
+
+        fs::path jsonPath = projectFolder / "project.json";
+        std::ofstream file(jsonPath);
+
+        if (file.is_open()) {
+            // Write the JSON to disk with a 4-space indentation for readability
+            file << newConfig.dump(4);
+            file.close();
+
+            // Immediately load the newly created project into memory
+            return Load(jsonPath);
+        }
+    }
+    catch (const std::exception& e) {
+        std::cerr << "[ProjectSettings] Error creating project " << e.what() << std::endl;
+    }
+
+    return false;
+}
+
+std::string ProjectSettings::GetProjectName() {
+    if (s_config.contains("project") && s_config["project"].contains("name")) {
+        return s_config["project"]["name"];
+    }
+    return "New Foxvoid Game";
+}
+
+int ProjectSettings::GetWindowWidth() {
+    if (s_config.contains("display") && s_config["display"].contains("width")) {
+        return s_config["display"]["width"];
+    }
+    return 1280; // Default fallback width
+}
+
+int ProjectSettings::GetWindowHeight() {
+    if (s_config.contains("display") && s_config["display"].contains("height")) {
+        return s_config["display"]["height"];
+    }
+    return 720; // Default fallback height
+}
+
+fs::path ProjectSettings::GetProjectRoot() { 
+    return s_projectRoot; 
+}
+
+fs::path ProjectSettings::GetAssetsPath() { 
+    return s_projectRoot / "assets"; 
+}

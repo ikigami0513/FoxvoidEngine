@@ -19,6 +19,7 @@
 #include "editor/InputSettingsPanel.hpp"
 #include "editor/TilePalettePanel.hpp"
 #include "editor/GameStatePanel.hpp"
+#include "ProjectHubPanel.hpp"
 
 class Editor {
     public:
@@ -30,6 +31,11 @@ class Editor {
 
     private:
         void ApplyModernTheme();
+
+        bool m_isProjectLoaded = false;
+        ProjectHubPanel m_projectHub;
+
+        void OnProjectLoaded();
 
         // Editor State
         GameObject* m_selectedObject = nullptr;
