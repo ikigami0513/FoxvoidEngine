@@ -7,6 +7,8 @@
 #include "physics/RectCollider.hpp"
 #include "physics/RigidBody2d.hpp"
 #include "physics/Collision2D.hpp"
+#include <physics/PhysicsEngine.hpp>
+#include <core/Engine.hpp>
 
 void BindMathAndPhysics(py::module_& m) {
     py::class_<Vector2>(m, "Vector2")
@@ -74,4 +76,19 @@ void BindMathAndPhysics(py::module_& m) {
             return py::cast(t, py::return_value_policy::reference);
         }
     );
+
+    py::class_<RaycastHit>(m, "RaycastHit")
+        .def_readonly("hit", &RaycastHit::hit)
+        .def_readonly("collider", &RaycastHit::collider) // Returns the GameObject
+        .def_property_readonly("point", [](const RaycastHit& r) { return py::make_tuple(r.point.x, r.point.y); })
+        .def_readonly("distance", &RaycastHit::distance);
+
+    py::class_<PhysicsEngine>(m, "Physics")
+        // Use a lambda to inject the active scene from the Engine
+        .def_static("raycast", [](py::tuple origin, py::tuple direction, float distance) {
+            Vector2 o = { origin[0].cast<float>(), origin[1].cast<float>() };
+            Vector2 d = { direction[0].cast<float>(), direction[1].cast<float>() };
+            Scene& activeScene = Engine::Get()->GetActiveScene();
+            return PhysicsEngine::Raycast(activeScene, o, d, distance);
+        });
 }

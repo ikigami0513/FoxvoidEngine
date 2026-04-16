@@ -6,6 +6,7 @@
 #include "world/Scene.hpp"
 #include <raymath.h>
 #include <cmath>
+#include <limits>
 
 // Initialize global gravity (981 pixels/sec² pointing down)
 Vector2 PhysicsEngine::GlobalGravity = { 0.0f, 981.0f };
@@ -304,4 +305,118 @@ void PhysicsEngine::RenderDebug(Scene& scene) {
             }
         }
     }
+}
+
+// A simple implementation of Line-vs-AABB using Raylib maths
+bool PhysicsEngine::CheckLineBoxIntersection(Vector2 p1, Vector2 p2, Rectangle box, Vector2& hitPoint, Vector2& hitNormal) {
+    // We use Raylib's internal CheckCollisionLines to test the ray against the 4 edges of the box.
+    // We keep the intersection that is closest to p1.
+    
+    Vector2 boxCorners[4] = {
+        { box.x, box.y },                           // Top-Left
+        { box.x + box.width, box.y },               // Top-Right
+        { box.x + box.width, box.y + box.height },  // Bottom-Right
+        { box.x, box.y + box.height }               // Bottom-Left
+    };
+    
+    Vector2 boxNormals[4] = {
+        { 0, -1 }, // Top edge normal
+        { 1, 0 },  // Right edge normal
+        { 0, 1 },  // Bottom edge normal
+        { -1, 0 }  // Left edge normal
+    };
+
+    bool hitSomething = false;
+    float closestDist = std::numeric_limits<float>::infinity();
+
+    for (int i = 0; i < 4; i++) {
+        Vector2 edgeStart = boxCorners[i];
+        Vector2 edgeEnd = boxCorners[(i + 1) % 4];
+        Vector2 currentHitPoint;
+
+        // CheckCollisionLines returns true if the two line segments cross
+        if (CheckCollisionLines(p1, p2, edgeStart, edgeEnd, &currentHitPoint)) {
+            float dist = Vector2Distance(p1, currentHitPoint);
+            if (dist < closestDist) {
+                closestDist = dist;
+                hitPoint = currentHitPoint;
+                hitNormal = boxNormals[i];
+                hitSomething = true;
+            }
+        }
+    }
+    return hitSomething;
+}
+
+RaycastHit PhysicsEngine::Raycast(Scene& scene, Vector2 origin, Vector2 direction, float maxDistance) {
+    RaycastHit result = { false, nullptr, {0,0}, {0,0}, maxDistance };
+    
+    // Normalize direction to be safe
+    direction = Vector2Normalize(direction);
+    Vector2 destination = { origin.x + direction.x * maxDistance, origin.y + direction.y * maxDistance };
+
+    float closestHitDist = maxDistance;
+
+    // Check GameObjects (RectColliders)
+    for (const auto& go : scene.GetGameObjects()) {
+        auto col = go->GetComponent<RectCollider>();
+        auto t = go->GetComponent<Transform2d>();
+        
+        // Skip triggers if you want, or add a parameter to the function to include them!
+        if (!col || !t || col->isTrigger) continue;
+
+        float scaledWidth = col->size.x * t->scale.x;
+        float scaledHeight = col->size.y * t->scale.y;
+        Rectangle rec = {
+            (t->position.x + col->offset.x) - (scaledWidth / 2.0f),
+            (t->position.y + col->offset.y) - (scaledHeight / 2.0f),
+            scaledWidth,
+            scaledHeight
+        };
+
+        Vector2 hitPoint, hitNormal;
+        if (CheckLineBoxIntersection(origin, destination, rec, hitPoint, hitNormal)) {
+            float dist = Vector2Distance(origin, hitPoint);
+            if (dist < closestHitDist) {
+                closestHitDist = dist;
+                result.hit = true;
+                result.collider = go.get();
+                result.point = hitPoint;
+                result.normal = hitNormal;
+                result.distance = dist;
+            }
+        }
+    }
+
+    // Check TileMaps
+    for (const auto& go : scene.GetGameObjects()) {
+        if (auto tileMap = go->GetComponent<TileMap>()) {
+            
+            // Get all solid blocks from this specific TileMap
+            std::vector<Rectangle> solidTiles = tileMap->GetCollisionRects();
+            
+            for (const Rectangle& tileRect : solidTiles) {
+                Vector2 hitPoint, hitNormal;
+                
+                // Test the ray against this specific tile
+                if (CheckLineBoxIntersection(origin, destination, tileRect, hitPoint, hitNormal)) {
+                    float dist = Vector2Distance(origin, hitPoint);
+                    
+                    // Same logic: keep it if it's the closest thing hit so far
+                    if (dist < closestHitDist) {
+                        closestHitDist = dist;
+                        result.hit = true;
+                        
+                        // We associate the hit with the GameObject that owns the TileMap
+                        result.collider = go.get(); 
+                        result.point = hitPoint;
+                        result.normal = hitNormal;
+                        result.distance = dist;
+                    }
+                }
+            }
+        }
+    }
+
+    return result;
 }

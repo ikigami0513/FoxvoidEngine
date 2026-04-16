@@ -3,7 +3,7 @@
 # implementation is handled natively in C++.
 
 from enum import Enum
-from typing import TypeVar, Type, Optional, List, overload
+from typing import TypeVar, Type, Optional, List, overload, Tuple
 
 # Type variable for smart autocompletion in the get_component method.
 # It ensures that getting a Transform2d actually returns a Transform2d type in the IDE.
@@ -654,3 +654,32 @@ class AudioSource(Component):
     def play_music(self) -> None: ...
     def stop_music(self) -> None: ...
     def set_music_volume(self, volume: float) -> None: ...
+
+
+class RaycastHit:
+    """Contains information about a raycast impact."""
+    
+    hit: bool
+    """True if the ray hit a solid object or a TileMap."""
+    
+    collider: Optional[GameObject]
+    """The object hit by the ray (can be None if nothing was hit)."""
+    
+    point: Tuple[float, float]
+    """The exact (x, y) world coordinates of the impact point."""
+    
+    distance: float
+    """The distance between the ray's origin and the impact point."""
+
+
+class Physics:
+    """Global physics engine."""
+    
+    @staticmethod
+    def raycast(origin: Tuple[float, float], direction: Tuple[float, float], distance: float) -> RaycastHit:
+        """
+        Casts an invisible ray into the scene to detect collisions.
+        
+        Example: Physics.raycast((x, y), (0, 1), 100.0) casts a ray downwards.
+        """
+        ...
