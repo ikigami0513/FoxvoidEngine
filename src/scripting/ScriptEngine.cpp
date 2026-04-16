@@ -43,6 +43,17 @@ void ScriptEngine::Shutdown() {
     }
 }
 
+void ScriptEngine::AddScriptPath(const std::filesystem::path& path) {
+    try {
+        py::module_ sys = py::module_::import("sys");
+        // Append the absolute path as a string to Python's path list
+        sys.attr("path").attr("append")(path.string());
+        std::cout << "[ScriptEngine] Added to Python path: " << path.string() << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "[ScriptEngine] Failed to add script path: " << e.what() << std::endl;
+    }
+}
+
 void ScriptEngine::LoadModule(const std::string& moduleName) {
     try {
         // Dynamically import the python module

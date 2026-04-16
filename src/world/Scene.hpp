@@ -133,7 +133,7 @@ class Scene {
                 nlohmann::json j;
                 try {
                     file >> j;
-                    Deserialize(j);
+                    Deserialize(j, false);
                     std::cout << "[Scene] Successfully loaded from: " << filepath << std::endl;
                 } catch (const nlohmann::json::parse_error& e) {
                     std::cerr << "[Scene] JSON parsing error in " << filepath << ":\n" << e.what() << std::endl;

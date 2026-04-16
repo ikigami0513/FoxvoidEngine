@@ -47,10 +47,6 @@ Engine::Engine(int width, int height, const std::string& title)
     // One single call to register everything needed for the Scene loading
     EngineSetup::RegisterNativeComponents();
 
-    // Load default input bindings if they exist
-    InputManager::Load("assets/settings/inputs.json");
-    GameStateManager::Load("assets/settings/globals.json");
-
     // Create render texture
     m_gameTexture = LoadRenderTexture(m_windowWidth, m_windowHeight);
 

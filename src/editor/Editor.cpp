@@ -7,6 +7,9 @@
 #include "physics/PhysicsEngine.hpp"
 #include <iostream>
 #include <core/ProjectSettings.hpp>
+#include <scripting/ScriptEngine.hpp>
+#include <core/InputManager.hpp>
+#include <core/GameStateManager.hpp>
 
 Editor::Editor(int windowWidth, int windowHeight) {
     // Initialize Console Redirects
@@ -109,6 +112,25 @@ void Editor::OnProjectLoaded() {
 
     // Pass the correct assets path to the ProjectPanel
     m_assetsPath = ProjectSettings::GetAssetsPath();
+
+    // Change the OS Current Working Directory
+    // This forces Raylib to look for "assets/..." inside the project folder,
+    // rather than the engine's build folder.
+    std::filesystem::current_path(ProjectSettings::GetProjectRoot());
+    std::cout << "[Editor] Working directory changed to: " << std::filesystem::current_path().string() << std::endl;
+
+    // Register the project's script folder in Python
+    // This allows Pybind11 to find and import the user's Python components
+    ScriptEngine::AddScriptPath(ProjectSettings::GetAssetsPath() / "scripts");
+
+    // Load Project-Specific Settings
+    // We construct the absolute paths using our ProjectSettings manager
+    std::filesystem::path settingsPath = ProjectSettings::GetAssetsPath() / "settings";
+
+    InputManager::Load((settingsPath / "inputs.json").string());
+    GameStateManager::Load((settingsPath / "globals.json").string());
+
+    std::cout << "[Editor] Project settings loaded." << std::endl;
 }
 
 void Editor::ApplyModernTheme() {
