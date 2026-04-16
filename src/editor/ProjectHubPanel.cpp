@@ -10,6 +10,26 @@
 bool ProjectHubPanel::Draw() {
     bool projectLoaded = false;
 
+#ifndef STANDALONE_MODE
+    // Async PFD Handlers
+    // Check if the folder creation dialog is ready
+    if (m_folderDialog && m_folderDialog->ready()) {
+        auto dir = m_folderDialog->result();
+        if (!dir.empty()) {
+            strncpy(m_newProjectPath, dir.c_str(), sizeof(m_newProjectPath) - 1);
+        }
+        m_folderDialog.reset(); // Destroy the dialog object to free memory
+    }
+
+    // Check if the open project dialog is ready
+    if (m_fileDialog && m_fileDialog->ready()) {
+        auto file = m_fileDialog->result();
+        if (!file.empty()) {
+            strncpy(m_existingProjectPath, file[0].c_str(), sizeof(m_existingProjectPath) - 1);
+        }
+        m_fileDialog.reset(); // Destroy the dialog object
+    }
+
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     // Use WorkPos/WorkSize to respect OS taskbars
     ImGui::SetNextWindowPos(viewport->WorkPos);
@@ -17,13 +37,10 @@ bool ProjectHubPanel::Draw() {
     ImGui::SetNextWindowViewport(viewport->ID);
     
     // Remove global margins & borders
-    // This guarantees a true fullscreen background without the 8px default ImGui gap
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 
-    // Add NoDocking Flag
-    // Critical when using ImGui docking branch to prevent layout conflicts
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | 
                              ImGuiWindowFlags_NoDocking | 
                              ImGuiWindowFlags_NoMove | 
@@ -31,8 +48,6 @@ bool ProjectHubPanel::Draw() {
                              ImGuiWindowFlags_NoBringToFrontOnFocus;
 
     ImGui::Begin("Project Hub", nullptr, flags);
-    
-    // Pop the 3 style vars immediately after Begin() so it doesn't affect child windows
     ImGui::PopStyleVar(3); 
 
     // Centered Hub Content
@@ -41,7 +56,6 @@ bool ProjectHubPanel::Draw() {
     float boxHeight = windowSize.y;
     ImGui::SetCursorPos(ImVec2((windowSize.x - boxWidth) * 0.5f, (windowSize.y - boxHeight) * 0.35f));
 
-    // Restore inner padding for the content box
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(30.0f, 30.0f));
     ImGui::BeginChild("HubContent", ImVec2(boxWidth, boxHeight), true, ImGuiWindowFlags_NoScrollbar);
     ImGui::PopStyleVar();
@@ -67,15 +81,20 @@ bool ProjectHubPanel::Draw() {
     ImGui::Spacing();
 
     ImGui::TextUnformatted("Directory");
-    // Stretch to max width minus the size of the "Browse" button and the spacing between them
     ImGui::SetNextItemWidth(inputWithButtonWidth);
     ImGui::InputText("##Directory", m_newProjectPath, sizeof(m_newProjectPath));
     
     ImGui::SameLine();
-    if (ImGui::Button(ICON_FA_FOLDER " Browse...##Create", ImVec2(browseButtonWidth, 0))) {
-        auto dir = pfd::select_folder("Choose where to save your new project").result();
-        if (!dir.empty()) {
-            strncpy(m_newProjectPath, dir.c_str(), sizeof(m_newProjectPath) - 1);
+    
+    // Async Folder Browse Button
+    if (m_folderDialog) {
+        ImGui::BeginDisabled();
+        ImGui::Button(ICON_FA_SPINNER " Browsing...", ImVec2(browseButtonWidth, 0));
+        ImGui::EndDisabled();
+    } else {
+        if (ImGui::Button(ICON_FA_FOLDER " Browse...##Create", ImVec2(browseButtonWidth, 0))) {
+            // Instantiate the dialog but DO NOT call .result() yet
+            m_folderDialog = std::make_shared<pfd::select_folder>("Choose where to save your new project");
         }
     }
 
@@ -110,10 +129,17 @@ bool ProjectHubPanel::Draw() {
     ImGui::InputText("##ProjectFile", m_existingProjectPath, sizeof(m_existingProjectPath));
     
     ImGui::SameLine();
-    if (ImGui::Button(ICON_FA_FOLDER " Browse...##Open", ImVec2(browseButtonWidth, 0))) {
-        auto file = pfd::open_file("Select a project.json", ".", {"Foxvoid Project", "project.json"}).result();
-        if (!file.empty()) {
-            strncpy(m_existingProjectPath, file[0].c_str(), sizeof(m_existingProjectPath) - 1);
+    
+    // Async File Browse Button
+    if (m_fileDialog) {
+        ImGui::BeginDisabled();
+        ImGui::Button(ICON_FA_SPINNER " Browsing...", ImVec2(browseButtonWidth, 0));
+        ImGui::EndDisabled();
+    } else {
+        if (ImGui::Button(ICON_FA_FOLDER " Browse...##Open", ImVec2(browseButtonWidth, 0))) {
+            // Provide the expected file filters
+            std::vector<std::string> filters = {"Foxvoid Project", "project.json"};
+            m_fileDialog = std::make_shared<pfd::open_file>("Select a project.json", ".", filters);
         }
     }
 
@@ -144,6 +170,7 @@ bool ProjectHubPanel::Draw() {
 
     ImGui::EndChild();
     ImGui::End();
+#endif
 
     return projectLoaded;
 }
