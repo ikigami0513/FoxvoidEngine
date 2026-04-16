@@ -21,6 +21,6 @@ class ProjectPanel {
 
         void DrawExplorerView(Scene& activeScene, GameObject*& selectedObject, std::string& currentScenePath);
 
-        bool m_isTreeView = false; // Start in Explorer view by default
+        bool m_isTreeView = true; // Start in Tree view by default
         fs::path m_currentDirectory = "";
 };
