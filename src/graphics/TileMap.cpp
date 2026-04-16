@@ -79,11 +79,14 @@ void TileMap::Render() {
                 Rectangle srcRec = { srcX, srcY, tileSize.x, tileSize.y };
 
                 // Calculate where to draw the tile in the world (Destination Rectangle)
-                // We anchor the TileMap to the Top-Left of the Transform's position
-                float dstX = transform->position.x + (x * tileSize.x * transform->scale.x);
-                float dstY = transform->position.y + (y * tileSize.y * transform->scale.y);
-                float dstWidth = tileSize.x * transform->scale.x;
-                float dstHeight = tileSize.y * transform->scale.y;
+                // We round the coordinates to avoid sub-pixel positioning
+                float dstX = std::round(transform->position.x + (x * tileSize.x * transform->scale.x));
+                float dstY = std::round(transform->position.y + (y * tileSize.y * transform->scale.y));
+                
+                // We use ceil to slightly force the width/height to the upper pixel
+                // This completely eliminates floating-point hairline cracks between tiles
+                float dstWidth = std::ceil(tileSize.x * transform->scale.x);
+                float dstHeight = std::ceil(tileSize.y * transform->scale.y);
                 
                 Rectangle dstRec = { dstX, dstY, dstWidth, dstHeight };
 
