@@ -5,17 +5,7 @@
 #include <memory>
 #include <raylib.h>
 #include "world/Scene.hpp"
-#include "editor/EditorConsole.hpp"
-#include "editor/HierarchyPanel.hpp"
-#include "editor/InspectorPanel.hpp"
-#include "editor/ProjectPanel.hpp"
-#include "editor/SceneViewPanel.hpp"
-#include "editor/GameViewPanel.hpp"
-#include "editor/ToolbarPanel.hpp"
-#include <editor/MainMenuBar.hpp>
-#include "editor/InputSettingsPanel.hpp"
-#include "editor/TilePalettePanel.hpp"
-#include "editor/GameStatePanel.hpp"
+#include <editor/Editor.hpp>
 
 // The Engine class encapsulates the core loop and window management.
 class Engine {
@@ -49,12 +39,6 @@ class Engine {
         void Update(float deltaTime);
         void Render();
 
-        // Applies a modern, profesionnal look to the ImGui interface
-        void ApplyModernTheme();
-
-        // The root path of the project assets
-        std::filesystem::path m_assetsPath = "assets";
-
         // Engine state
         bool m_isRunning;
 
@@ -69,51 +53,15 @@ class Engine {
         Scene m_activeScene;
         nlohmann::json m_sceneBackup;
 
-        // Render textures
-        RenderTexture2D m_sceneTexture; // What the Editor sees
+        // Render texture
         RenderTexture2D m_gameTexture; // What the Player sees
-
-        // Keeps track of the currently selected entity in the Hierarchy
-        GameObject* m_selectedObject = nullptr;
-
-        // Editor UI Panels
-        EditorConsole m_console;
-        ToolbarPanel m_toolbarPanel;
-
-        SceneViewPanel m_sceneViewPanel;
-        GameViewPanel m_gameViewPanel;
-
-        HierarchyPanel m_hierarchyPanel;
-        InspectorPanel m_inspectorPanel;
-        ProjectPanel m_projectPanel;
-
-        InputSettingsPanel m_inputSettingsPanel;
-        GameStatePanel m_gameStatePanel;
-
-        MainMenuBar m_mainMenuBar;
-
-        int m_selectedTileID = -1;
-        int m_selectedLayer = 0;
-
-        TilePalettePanel m_tilePalettePanel;
-
-        // The camera used to navigate the scene in the editor
-        std::unique_ptr<EditorCamera> m_editorCamera;
-
-        // Pointers for the stream redirectors
-        std::unique_ptr<ConsoleSink> m_coutRedirect;
-        std::unique_ptr<ConsoleSink> m_cerrRedirect;
-
-        // Flag to trigger tab switching
-        bool m_focusGameWindow = false;
-
-        // Flag to toggle the global editor background grid
-        bool m_showGlobalGrid = true;
 
         std::string m_currentScenePath = "";
 
         // Stores the path of the scene waiting to be loaded
         std::string m_pendingScenePath = "";
+
+        std::unique_ptr<Editor> m_editor;
 
         // Static pointer holding the unique Engine instance
         static Engine* s_instance;

@@ -1,0 +1,153 @@
+#include "Editor.hpp"
+#include <imgui.h>
+#include <rlImGui.h>
+#include "ImGuizmo.h"
+#include "extras/IconsFontAwesome6.h"
+#include "graphics/TileMap.hpp"
+#include "physics/PhysicsEngine.hpp"
+#include <iostream>
+
+Editor::Editor(int windowWidth, int windowHeight) {
+    // Initialize Console Redirects
+    m_coutRedirect = std::make_unique<ConsoleSink>(std::cout, LogLevel::Info, m_console);
+    m_cerrRedirect = std::make_unique<ConsoleSink>(std::cerr, LogLevel::Error, m_console);
+
+    // Initialize ImGui
+    rlImGuiSetup(true); 
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+    // Load Fonts
+    ImGuiIO& io = ImGui::GetIO();
+    float baseFontSize = 28.0f;
+    ImFont* font = io.Fonts->AddFontFromFileTTF("assets/fonts/Roboto-Regular.ttf", baseFontSize);
+    io.FontDefault = font;
+
+    float iconFontSize = baseFontSize * 0.8f;
+    ImFontConfig config;
+    config.MergeMode = true;
+    config.PixelSnapH = true;
+    config.GlyphMinAdvanceX = iconFontSize;
+    static const ImWchar icon_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
+    io.Fonts->AddFontFromFileTTF("assets/fonts/fa-solid-900.ttf", iconFontSize, &config, icon_ranges);
+
+    ApplyModernTheme();
+
+    // Create Editor Resources
+    m_sceneTexture = LoadRenderTexture(windowWidth, windowHeight);
+    m_editorCamera = std::make_unique<EditorCamera>((float)windowWidth, (float)windowHeight);
+}
+
+Editor::~Editor() {
+    rlImGuiShutdown();
+    UnloadRenderTexture(m_sceneTexture);
+}
+
+void Editor::Draw(Scene& activeScene, RenderTexture2D& gameTexture, bool& isRunning, bool& isPlaying, std::string& currentScenePath, nlohmann::json& sceneBackup) {
+    // Pass 1: Render the Scene View (what the editor sees)
+    BeginTextureMode(m_sceneTexture);
+        ClearBackground(Color{ 40, 40, 40, 255 });
+        
+        m_editorCamera->Begin();
+            if (m_showGlobalGrid) m_editorCamera->DrawGrid(100, 50.0f);
+
+            activeScene.Render();    
+            PhysicsEngine::RenderDebug(activeScene);
+
+            if (m_selectedObject) {
+                if (auto tilemap = m_selectedObject->GetComponent<TileMap>()) {
+                    tilemap->RenderGrid();
+                }
+            }
+        m_editorCamera->End();
+        activeScene.RenderHUD();
+    EndTextureMode();
+
+    // Pass 2: Render the ImGui Interface
+    rlImGuiBegin();
+        ImGuizmo::BeginFrame();
+        ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport()); 
+
+        m_mainMenuBar.Draw(activeScene, currentScenePath, isRunning, m_selectedObject, m_inputSettingsPanel, m_gameStatePanel, m_showGlobalGrid);
+
+        m_inputSettingsPanel.Draw();
+        m_gameStatePanel.Draw();
+
+        TileMap* activeTileMap = m_selectedObject ? m_selectedObject->GetComponent<TileMap>() : nullptr;
+        m_tilePalettePanel.Draw(m_selectedTileID, m_selectedLayer, activeTileMap);
+
+        m_toolbarPanel.Draw(activeScene, m_selectedObject, isPlaying, sceneBackup, m_focusGameWindow);
+        
+        m_sceneViewPanel.Draw(m_sceneTexture, *m_editorCamera, activeScene, m_selectedObject, m_selectedTileID, m_selectedLayer);
+        m_gameViewPanel.Draw(gameTexture, m_focusGameWindow);
+
+        m_hierarchyPanel.Draw(activeScene, m_selectedObject);
+        m_console.Draw("Console");
+        m_inspectorPanel.Draw(m_selectedObject);
+        m_projectPanel.Draw(activeScene, m_selectedObject, m_assetsPath, currentScenePath);
+
+    rlImGuiEnd();
+}
+
+void Editor::ApplyModernTheme() {
+    // Get the global ImGui style instance
+    ImGuiStyle& style = ImGui::GetStyle();
+    ImVec4* colors = style.Colors;
+
+    // =========================================================
+    // 1. GEOMETRY (Rounding & Borders)
+    // =========================================================
+    // Soften all corners to remove the blocky 90s look
+    style.WindowRounding    = 6.0f;
+    style.ChildRounding     = 4.0f;
+    style.FrameRounding     = 4.0f;
+    style.PopupRounding     = 4.0f;
+    style.ScrollbarRounding = 4.0f;
+    style.GrabRounding      = 3.0f;
+    style.TabRounding       = 4.0f;
+
+    // Remove harsh borders to make the UI look flat and modern
+    style.WindowBorderSize  = 0.0f;
+    style.FrameBorderSize   = 0.0f;
+    style.PopupBorderSize   = 1.0f; // Keep a small border for popups so they don't blend in
+
+    // =========================================================
+    // 2. COLORS (Sleek Dark Theme with Orange Accent)
+    // =========================================================
+    // Backgrounds (Dark gradients)
+    colors[ImGuiCol_WindowBg]           = ImVec4(0.12f, 0.12f, 0.12f, 1.0f);
+    colors[ImGuiCol_ChildBg]            = ImVec4(0.15f, 0.15f, 0.15f, 1.0f);
+    colors[ImGuiCol_PopupBg]            = ImVec4(0.08f, 0.08f, 0.08f, 0.94f);
+    
+    // Inputs and Frames (Buttons, Text boxes)
+    colors[ImGuiCol_FrameBg]            = ImVec4(0.20f, 0.20f, 0.20f, 1.0f);
+    colors[ImGuiCol_FrameBgHovered]     = ImVec4(0.30f, 0.30f, 0.30f, 1.0f);
+    colors[ImGuiCol_FrameBgActive]      = ImVec4(0.40f, 0.40f, 0.40f, 1.0f);
+    
+    // Window Headers (Title bars)
+    colors[ImGuiCol_TitleBg]            = ImVec4(0.09f, 0.09f, 0.09f, 1.0f);
+    colors[ImGuiCol_TitleBgActive]      = ImVec4(0.15f, 0.15f, 0.15f, 1.0f);
+    
+    // Tabs (Docking space)
+    colors[ImGuiCol_Tab]                = ImVec4(0.15f, 0.15f, 0.15f, 1.0f);
+    colors[ImGuiCol_TabHovered]         = ImVec4(0.30f, 0.30f, 0.30f, 1.0f);
+    colors[ImGuiCol_TabActive]          = ImVec4(0.25f, 0.25f, 0.25f, 1.0f);
+    colors[ImGuiCol_TabUnfocused]       = ImVec4(0.10f, 0.10f, 0.10f, 1.0f);
+    colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.15f, 0.15f, 0.15f, 1.0f);
+    
+    // Standard Buttons
+    colors[ImGuiCol_Button]             = ImVec4(0.25f, 0.25f, 0.25f, 1.0f);
+    colors[ImGuiCol_ButtonHovered]      = ImVec4(0.35f, 0.35f, 0.35f, 1.0f);
+    colors[ImGuiCol_ButtonActive]       = ImVec4(0.45f, 0.45f, 0.45f, 1.0f);
+    
+    // --- ACCENT COLOR (Foxvoid Orange) ---
+    // This color is used for Checkboxes, Sliders, and active elements
+    ImVec4 accentColor          = ImVec4(0.90f, 0.45f, 0.10f, 1.0f); 
+    ImVec4 accentHovered        = ImVec4(1.00f, 0.55f, 0.20f, 1.0f);
+    
+    colors[ImGuiCol_CheckMark]          = accentColor;
+    colors[ImGuiCol_SliderGrab]         = accentColor;
+    colors[ImGuiCol_SliderGrabActive]   = accentHovered;
+    colors[ImGuiCol_Header]             = ImVec4(0.30f, 0.30f, 0.30f, 1.0f); // Used for CollapsingHeaders
+    colors[ImGuiCol_HeaderHovered]      = ImVec4(0.40f, 0.40f, 0.40f, 1.0f);
+    colors[ImGuiCol_HeaderActive]       = ImVec4(0.45f, 0.45f, 0.45f, 1.0f);
+}
