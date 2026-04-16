@@ -1,6 +1,9 @@
 #pragma once
 
+#ifndef STANDALONE_MODE
 #include <imgui.h>
+#endif
+
 #include "../world/GameObject.hpp"
 #include "../world/ComponentRegistry.hpp"
 

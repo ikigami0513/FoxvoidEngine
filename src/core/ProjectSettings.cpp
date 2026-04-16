@@ -8,6 +8,7 @@ namespace fs = std::filesystem;
 // Initialize static members
 nlohmann::json ProjectSettings::s_config;
 fs::path ProjectSettings::s_projectRoot;
+fs::path ProjectSettings::s_engineRoot;
 
 bool ProjectSettings::Load(const fs::path& projectFilePath) {
     if (!fs::exists(projectFilePath)) {
@@ -103,6 +104,53 @@ int ProjectSettings::GetWindowHeight() {
         return s_config["display"]["height"];
     }
     return 720; // Default fallback height
+}
+
+std::string ProjectSettings::GetStartScenePath() {
+    if (s_config.contains("build") && s_config["build"].contains("start_scene")) {
+        return s_config["build"]["start_scene"];
+    }
+    return "";
+}
+
+void ProjectSettings::SetStartScenePath(const std::string& path) {
+    // If the "build" object doesn't exist yet, we create it
+    if (!s_config.contains("build")) {
+        s_config["build"] = nlohmann::json::object();
+    }
+    
+    // Update the value in memory
+    s_config["build"]["start_scene"] = path;
+}
+
+fs::path ProjectSettings::GetEngineRoot() { 
+    return s_engineRoot; 
+}
+
+void ProjectSettings::SetEngineRoot(const fs::path& path) { 
+    s_engineRoot = path; 
+}
+
+bool ProjectSettings::Save() {
+    // Safety check to ensure a project is actually loaded
+    if (s_projectRoot.empty()) {
+        std::cerr << "[ProjectSettings] Cannot save: No project is currently loaded." << std::endl;
+        return false;
+    }
+
+    fs::path jsonPath = s_projectRoot / "project.json";
+    std::ofstream file(jsonPath);
+
+    if (file.is_open()) {
+        // Write the JSON back to the file with a 4-space indent
+        file << s_config.dump(4);
+        file.close();
+        std::cout << "[ProjectSettings] Successfully saved project.json" << std::endl;
+        return true;
+    }
+
+    std::cerr << "[ProjectSettings] Failed to open project.json for writing." << std::endl;
+    return false;
 }
 
 fs::path ProjectSettings::GetProjectRoot() { 

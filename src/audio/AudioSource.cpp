@@ -1,9 +1,12 @@
 #include "AudioSource.hpp"
+#include <iostream>
+#include <filesystem>
+
+#ifndef STANDALONE_MODE
 #include "editor/EditorUI.hpp"
 #include "editor/commands/CommandHistory.hpp"
 #include "editor/commands/ModifyComponentCommand.hpp"
-#include <iostream>
-#include <filesystem>
+#endif
 
 AudioSource::AudioSource() : m_isMusicLoaded(false), m_musicVolume(1.0f), playOnStart(true) {
     m_currentMusic = {0};
@@ -100,6 +103,7 @@ std::string AudioSource::GetName() const {
     return "Audio Source";
 }
 
+#ifndef STANDALONE_MODE
 void AudioSource::OnInspector() {
     ImGui::TextDisabled("Background Music");
     
@@ -224,6 +228,7 @@ void AudioSource::OnInspector() {
         }
     }
 }
+#endif
 
 nlohmann::json AudioSource::Serialize() const {
     return {

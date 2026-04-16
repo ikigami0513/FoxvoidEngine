@@ -2,14 +2,15 @@
 cmake_minimum_required(VERSION 3.20)
 
 # Project name and the languages used (C and CXX for C++)
-# Removed ASM as it is no longer needed without AngelScript
 project(FoxvoidEngine VERSION 1.0.0 LANGUAGES C CXX)
 
 # Force modern C++ (C++20) for clean and modern syntax
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# =========================================================================
 # DEPENDENCY MANAGEMENT (FetchContent)
+# =========================================================================
 include(FetchContent)
 
 # Fetch Raylib directly from GitHub
@@ -59,7 +60,6 @@ FetchContent_MakeAvailable(imguizmo)
 # --- PYTHON & PYBIND11 SETUP ---
 
 # 1. Find the Python installation on the host system
-# 'Development' component is required to link against libpython
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 
 # 2. Fetch pybind11 directly from GitHub
@@ -70,6 +70,8 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(pybind11)
 
+# --- NATIVE FILE DIALOGS ---
+
 # Fetch Portable File Dialogs (Lightweight, single-header native OS dialogs)
 FetchContent_Declare(
     pfd
@@ -78,9 +80,29 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(pfd)
 
-# Find all .cpp files inside the src/ directory and its subdirectories
-file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "src/*.cpp")
+# =========================================================================
+# SOURCE FILES EXPLICIT GATHERING
+# =========================================================================
 
+# 1. Grab Core Engine files (Physics, Graphics, Scripting, Audio, World, etc.)
+# We explicitly list folders to avoid accidentally grabbing Editor code
+file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS 
+    "src/audio/*.cpp"
+    "src/core/*.cpp"
+    "src/graphics/*.cpp"
+    "src/gui/*.cpp"
+    "src/physics/*.cpp"
+    "src/scripting/*.cpp"
+    "src/world/*.cpp"
+    "src/main.cpp"
+)
+
+# 2. Grab Editor ONLY files
+file(GLOB_RECURSE EDITOR_SOURCES CONFIGURE_DEPENDS 
+    "src/editor/*.cpp"
+)
+
+# 3. Grab ImGui files
 set(IMGUI_SOURCES
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp
@@ -90,19 +112,21 @@ set(IMGUI_SOURCES
     ${imguizmo_SOURCE_DIR}/ImGuizmo.cpp
 )
 
-# Define the executable using the variable holding all the found files
-add_executable(FoxvoidEngine ${SOURCES} ${IMGUI_SOURCES})
+# =========================================================================
+# EDITOR BUILD TARGET (FoxvoidEngine)
+# =========================================================================
 
-# Link the downloaded libraries to the game
-# We use pybind11::embed because we are running Python INSIDE C++, 
-# not building a Python extension module.
+# The Editor includes EVERYTHING: Engine logic + Editor UI + ImGui source code
+add_executable(FoxvoidEngine ${ENGINE_SOURCES} ${EDITOR_SOURCES} ${IMGUI_SOURCES})
+
+# Link the downloaded libraries to the editor
 target_link_libraries(FoxvoidEngine PRIVATE 
     raylib 
     nlohmann_json::nlohmann_json 
     pybind11::embed
 )
 
-# Add the src/ folder to the include paths
+# Add the src/ folder to the include paths for the Editor
 target_include_directories(FoxvoidEngine PRIVATE 
     src
     ${imgui_SOURCE_DIR}
@@ -110,3 +134,24 @@ target_include_directories(FoxvoidEngine PRIVATE
     ${imguizmo_SOURCE_DIR}
     ${pfd_SOURCE_DIR}
 )
+
+# =========================================================================
+# STANDALONE BUILD TARGET (FoxvoidStandalone)
+# =========================================================================
+
+# The Standalone ONLY includes the core engine files (NO EDITOR, NO IMGUI)
+add_executable(FoxvoidStandalone ${ENGINE_SOURCES})
+
+# Link only the required libraries (No ImGui!)
+target_link_libraries(FoxvoidStandalone PRIVATE 
+    raylib 
+    nlohmann_json::nlohmann_json 
+    pybind11::embed
+)
+
+target_include_directories(FoxvoidStandalone PRIVATE 
+    src
+)
+
+# Define a macro so the C++ code knows it's running in Standalone mode
+target_compile_definitions(FoxvoidStandalone PRIVATE STANDALONE_MODE)

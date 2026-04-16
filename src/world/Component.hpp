@@ -1,9 +1,12 @@
 #pragma once
 
 #include <string>
-#include "imgui.h"
 #include <nlohmann/json.hpp>
 #include "physics/Collision2D.hpp"
+
+#ifndef STANDALONE_MODE
+#include "imgui.h"
+#endif
 
 // Forward declaration to avoid circular dependencies
 class GameObject; 
@@ -39,10 +42,12 @@ class Component {
         // Returns the name of the component for the Inspecteur header
         virtual std::string GetName() const { return "Component"; }
 
+#ifndef STANDALONE_MODE
         // Called by the Editor to draw ImGui controls for this specific component
         virtual void OnInspector() {
             ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "No exposed variables.");
         }
+#endif
 
         // Serializes the component's data into a JSON object
         virtual nlohmann::json Serialize() const {

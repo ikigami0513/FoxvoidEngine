@@ -4,7 +4,10 @@
 #include "world/GameObject.hpp"
 #include "physics/Transform2d.hpp"
 #include <raylib.h>
+
+#ifndef STANDALONE_MODE
 #include <imgui.h>
+#endif
 
 class ShapeRenderer : public Component {
     public:
@@ -44,12 +47,14 @@ class ShapeRenderer : public Component {
             return "Shape Renderer";
         }
 
+#ifndef STANDALONE_MODE
         void OnInspector() override {
             EditorUI::DragFloat("Width", &width, 1.0f, this, 0.0f, 10000.0f);
             EditorUI::DragFloat("Height", &height, 1.0f, this, 0.0f, 10000.0f);
 
             EditorUI::ColorEdit4("Color", &color, this);
         }
+#endif
 
         nlohmann::json Serialize() const override {
             return {

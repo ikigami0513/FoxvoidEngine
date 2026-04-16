@@ -1,11 +1,14 @@
 #include "ScriptComponent.hpp"
-#include "editor/EditorUI.hpp"
-#include "editor/commands/CommandHistory.hpp"
-#include "editor/commands/ModifyComponentCommand.hpp"
 #include <iostream>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+
+#ifndef STANDALONE_MODE
+#include "editor/EditorUI.hpp"
+#include "editor/commands/CommandHistory.hpp"
+#include "editor/commands/ModifyComponentCommand.hpp"
+#endif
 
 ScriptComponent::ScriptComponent(const std::string& moduleName, const std::string& className)
     : m_scriptName(moduleName), m_className(className)
@@ -169,6 +172,7 @@ std::string ScriptComponent::GetName() const {
     return m_className + " (Script)";
 }
 
+#ifndef STANDALONE_MODE
 void ScriptComponent::OnInspector() {
     if (!m_instance) {
         ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.2f, 1.0f), "No Python script loaded.");
@@ -333,6 +337,7 @@ void ScriptComponent::OnInspector() {
         ImGui::TextWrapped("%s", e.what());
     }
 }
+#endif
 
 nlohmann::json ScriptComponent::Serialize() const {
     nlohmann::json j;

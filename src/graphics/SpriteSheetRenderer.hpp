@@ -3,8 +3,11 @@
 #include "../world/Component.hpp"
 #include <string>
 #include <raylib.h>
-#include <imgui.h>
 #include <nlohmann/json.hpp>
+
+#ifndef STANDALONE_MODE
+#include <imgui.h>
+#endif
 
 class Transform2d; // Forward declaration
 
@@ -33,7 +36,10 @@ class SpriteSheetRenderer : public Component {
         int GetFrameCount() const { return m_columns * m_rows; }
 
         std::string GetName() const override;
+
+#ifndef STANDALONE_MODE
         void OnInspector() override;
+#endif
 
         nlohmann::json Serialize() const override;
         void Deserialize(const nlohmann::json& j) override;

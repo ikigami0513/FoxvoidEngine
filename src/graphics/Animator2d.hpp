@@ -32,7 +32,10 @@ class Animator2d : public Component {
         void Play(const std::string& name);
 
         std::string GetName() const override;
+
+#ifndef STANDALONE_MODE
         void OnInspector() override;
+#endif
 
         nlohmann::json Serialize() const override;
         void Deserialize(const nlohmann::json& j) override;

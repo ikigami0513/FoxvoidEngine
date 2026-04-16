@@ -5,7 +5,10 @@
 #include <memory>
 #include <raylib.h>
 #include "world/Scene.hpp"
-#include <editor/Editor.hpp>
+
+#ifndef STANDALONE_MODE
+class Editor;
+#endif
 
 // The Engine class encapsulates the core loop and window management.
 class Engine {
@@ -29,6 +32,9 @@ class Engine {
         
         // Returns a reference to the active scene to allow GameObject instantiation
         Scene& GetActiveScene() { return m_activeScene; }
+
+        // Allows updating the engine's internal resolution at runtime
+        void UpdateResolution(int width, int height);
 
         // Requests a scene change for the start of the next frame
         void LoadScene(const std::string& scenePath);
@@ -61,7 +67,9 @@ class Engine {
         // Stores the path of the scene waiting to be loaded
         std::string m_pendingScenePath = "";
 
+#ifndef STANDALONE_MODE
         std::unique_ptr<Editor> m_editor;
+#endif
 
         // Static pointer holding the unique Engine instance
         static Engine* s_instance;

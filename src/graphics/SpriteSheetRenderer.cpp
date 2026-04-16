@@ -101,6 +101,7 @@ std::string SpriteSheetRenderer::GetName() const {
     return "SpriteSheet Renderer";
 }
 
+#ifndef STANDALONE_MODE
 void SpriteSheetRenderer::OnInspector() {
     // Texture Path Input
     char buffer[256];
@@ -148,6 +149,7 @@ void SpriteSheetRenderer::OnInspector() {
     // 3. Debug frame viewer (Read Only in Editor)
     ImGui::Text("Current Frame: %d / %d", m_currentFrame, (m_columns * m_rows) - 1);
 }
+#endif
 
 nlohmann::json SpriteSheetRenderer::Serialize() const {
     return {

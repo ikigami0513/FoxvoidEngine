@@ -5,8 +5,11 @@
 #include <iostream>
 #include <core/AssetManager.hpp>
 #include <filesystem>
+
+#ifndef STANDALONE_MODE
 #include "editor/commands/CommandHistory.hpp"
 #include "editor/commands/ModifyComponentCommand.hpp"
+#endif
 
 SpriteRenderer::SpriteRenderer(const std::string& texturePath) {
     // Load the image into GPU memory
@@ -69,6 +72,7 @@ std::string SpriteRenderer::GetName() const {
     return "Sprite Renderer";
 }
 
+#ifndef STANDALONE_MODE
 void SpriteRenderer::OnInspector() {
     // Prepare a C-string buffer for ImGui text input
     char buffer[256];
@@ -122,6 +126,7 @@ void SpriteRenderer::OnInspector() {
         ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "No texture loaded!");
     }
 }
+#endif
 
 nlohmann::json SpriteRenderer::Serialize() const {
     return {

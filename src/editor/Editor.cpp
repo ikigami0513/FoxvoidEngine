@@ -1,7 +1,4 @@
 #include "Editor.hpp"
-#include <imgui.h>
-#include <rlImGui.h>
-#include "ImGuizmo.h"
 #include "extras/IconsFontAwesome6.h"
 #include "graphics/TileMap.hpp"
 #include "physics/PhysicsEngine.hpp"
@@ -10,6 +7,13 @@
 #include <scripting/ScriptEngine.hpp>
 #include <core/InputManager.hpp>
 #include <core/GameStateManager.hpp>
+#include "core/Engine.hpp"
+
+#ifndef STANDALONE_MODE
+#include <imgui.h>
+#include <rlImGui.h>
+#include "ImGuizmo.h"
+#endif
 
 Editor::Editor(int windowWidth, int windowHeight) {
     // Initialize Console Redirects
@@ -109,6 +113,14 @@ void Editor::OnProjectLoaded() {
     // Update the Raylib window title to match the project name
     std::string title = ProjectSettings::GetProjectName() + " - Foxvoid Engine";
     SetWindowTitle(title.c_str());
+
+    // Apply the project's resolution to the Engine
+    if (Engine::Get()) {
+        Engine::Get()->UpdateResolution(
+            ProjectSettings::GetWindowWidth(), 
+            ProjectSettings::GetWindowHeight()
+        );
+    }
 
     // Pass the correct assets path to the ProjectPanel
     m_assetsPath = ProjectSettings::GetAssetsPath();

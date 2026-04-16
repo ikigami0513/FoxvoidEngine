@@ -3,6 +3,9 @@
 #include <iostream>
 #include <filesystem>
 #include "commands/CommandHistory.hpp"
+#include "core/ProjectSettings.hpp"
+#include <portable-file-dialogs.h>
+#include <extras/IconsFontAwesome6.h>
 
 void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& isRunning, GameObject*& selectedObject, InputSettingsPanel& inputPanel, GameStatePanel& gameStatePanel, bool& showGlobalGrid) {
     // Global Shortcuts
@@ -94,6 +97,14 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
             ImGui::EndMenu();
         }
 
+        if (ImGui::BeginMenu("Build")) {
+            if (ImGui::MenuItem("Build Project...")) {
+                m_openBuildPopup = true;
+            }
+
+            ImGui::EndMenu();
+        }
+
         ImGui::EndMainMenuBar();
     }
 
@@ -124,6 +135,123 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
         if (ImGui::Button("Cancel", ImVec2(120, 0))) {
             ImGui::CloseCurrentPopup();
         }
+        ImGui::EndPopup();
+    }
+
+    // Trigger the build popup
+    if (m_openBuildPopup) {
+        ImGui::OpenPopup("Build Project");
+        m_openBuildPopup = false;
+    }
+
+    // Draw the Build Project modal window
+    if (ImGui::BeginPopupModal("Build Project", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextUnformatted("Configure Standalone Build");
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Select Start Scene
+        static char startSceneBuffer[256] = "";
+        
+        // Pre-fill the buffer with the existing setting if it's currently empty
+        if (strlen(startSceneBuffer) == 0) {
+            strncpy(startSceneBuffer, ProjectSettings::GetStartScenePath().c_str(), sizeof(startSceneBuffer) - 1);
+        }
+
+        ImGui::TextUnformatted("Start Scene (.scene)");
+        ImGui::SetNextItemWidth(300.0f);
+        ImGui::InputText("##StartScene", startSceneBuffer, sizeof(startSceneBuffer));
+        
+        ImGui::SameLine();
+        if (ImGui::Button(ICON_FA_FOLDER " Browse##Scene")) {
+            // Open native file dialog starting in the assets folder
+            auto file = pfd::open_file("Select starting scene", ProjectSettings::GetAssetsPath().string(), {"Scene Files", "*.scene"}).result();
+            if (!file.empty()) {
+                // Convert the absolute path to a relative path from the project root
+                std::filesystem::path fullPath(file[0]);
+                std::filesystem::path relativePath = std::filesystem::relative(fullPath, ProjectSettings::GetProjectRoot());
+                strncpy(startSceneBuffer, relativePath.string().c_str(), sizeof(startSceneBuffer) - 1);
+            }
+        }
+
+        ImGui::Spacing();
+
+        // Select Output Directory
+        static char outputDirBuffer[256] = "build_standalone";
+        ImGui::TextUnformatted("Output Directory Name");
+        ImGui::SetNextItemWidth(300.0f);
+        ImGui::InputText("##OutputDir", outputDirBuffer, sizeof(outputDirBuffer));
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        if (ImGui::Button("Build", ImVec2(120, 0))) {
+            std::string startSceneStr(startSceneBuffer);
+            std::string outputDirStr(outputDirBuffer);
+            
+            // Save the chosen start scene into the project configuration
+            ProjectSettings::SetStartScenePath(startSceneStr);
+            
+            if (ProjectSettings::Save()) {
+                std::cout << "[Editor] Triggering CMake build process..." << std::endl;
+                
+                // Define paths for the current project and the output build directory
+                std::filesystem::path projectRoot = ProjectSettings::GetProjectRoot();
+                std::filesystem::path buildDir = projectRoot / outputDirStr;
+                
+                // Ensure the build directory exists on the disk
+                std::filesystem::create_directories(buildDir);
+
+                // Construct the CMake system commands
+                // We retrieve the original Engine path to tell CMake exactly where the source is
+                std::string engineRoot = ProjectSettings::GetEngineRoot().string();
+                
+                // - Config: Sets the source directory to the Engine Root, and outputs to the project's build folder
+                std::string cmakeConfigCmd = "cmake -S \"" + engineRoot + "\" -B \"" + buildDir.string() + "\" -DCMAKE_BUILD_TYPE=Release";
+                std::string cmakeBuildCmd = "cmake --build \"" + buildDir.string() + "\" --target FoxvoidStandalone --config Release";
+
+                // Execute the commands 
+                // Note: std::system is blocking, so the Editor UI will freeze during compilation
+                std::cout << "[Build] Configuring: " << cmakeConfigCmd << std::endl;
+                int configResult = std::system(cmakeConfigCmd.c_str());
+
+                if (configResult == 0) {
+                    std::cout << "[Build] Compiling: " << cmakeBuildCmd << std::endl;
+                    int buildResult = std::system(cmakeBuildCmd.c_str());
+                    
+                    if (buildResult == 0) {
+                        std::cout << "[Build] SUCCESS! Game exported to: " << buildDir.string() << std::endl;
+                        
+                        // Copy the required runtime assets to the build folder
+                        // The standalone executable needs the 'assets' folder and 'project.json' to run properly
+                        try {
+                            std::filesystem::copy(projectRoot / "assets", buildDir / "assets", std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
+                            std::filesystem::copy_file(projectRoot / "project.json", buildDir / "project.json", std::filesystem::copy_options::overwrite_existing);
+                            std::cout << "[Build] Assets copied successfully." << std::endl;
+                        } catch(std::filesystem::filesystem_error& e) {
+                            std::cerr << "[Build] Error copying assets: " << e.what() << '\n';
+                        }
+                    } else {
+                        std::cerr << "[Build] FAILED during compilation." << std::endl;
+                    }
+                } else {
+                    std::cerr << "[Build] FAILED during CMake configuration." << std::endl;
+                }
+            } else {
+                std::cerr << "[Editor] Failed to save build configuration." << std::endl;
+            }
+            
+            // Close the modal whether the build succeeded or failed
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::SameLine();
+        
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+        
         ImGui::EndPopup();
     }
 }

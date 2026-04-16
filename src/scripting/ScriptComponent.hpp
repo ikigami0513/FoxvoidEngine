@@ -22,8 +22,10 @@ class [[gnu::visibility("default")]] ScriptComponent : public Component {
 
         std::string GetName() const override;
 
+#ifndef STANDALONE_MODE
         // Dynamically inspects the Python object and draws its variables
         void OnInspector() override;
+#endif
 
         nlohmann::json Serialize() const override;
         void Deserialize(const nlohmann::json& j) override;

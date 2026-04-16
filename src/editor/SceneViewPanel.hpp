@@ -1,9 +1,12 @@
 #pragma once
 
 #include <raylib.h>
-#include <imgui.h>
 #include "EditorCamera.hpp"
 #include <world/Scene.hpp>
+
+#ifndef STANDALONE_MODE
+#include <imgui.h>
+#endif
 
 // Panel to display the rendered game texture
 class SceneViewPanel {

@@ -1,9 +1,12 @@
 #include "TilePalettePanel.hpp"
+#include <algorithm>
+#include "graphics/TileMap.hpp"
+
+#ifndef STANDALONE_MODE
 #include <imgui.h>
 #include <rlImGui.h>
-#include <algorithm>
 #include "extras/IconsFontAwesome6.h"
-#include "graphics/TileMap.hpp"
+#endif
 
 TilePalettePanel::TilePalettePanel() : m_zoom(2.0f) {}
 

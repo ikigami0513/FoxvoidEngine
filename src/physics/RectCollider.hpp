@@ -1,8 +1,11 @@
 #pragma once
 
 #include "world/Component.hpp"
-#include "editor/EditorUI.hpp"
 #include <raylib.h>
+
+#ifndef STANDALONE_MODE
+#include "editor/EditorUI.hpp"
+#endif
 
 class RectCollider : public Component {
     public:
@@ -18,11 +21,13 @@ class RectCollider : public Component {
             return "Rect Collider";
         }
 
+#ifndef STANDALONE_MODE
         void OnInspector() override {
             EditorUI::DragFloat2("Size", &size.x, 1.0f, this, 0.0f, 10000.0f);
             EditorUI::DragFloat2("Offset", &offset.x, 1.0f, this);
             EditorUI::Checkbox("Is Trigger", &isTrigger, this);
         }
+#endif
 
         nlohmann::json Serialize() const override {
             return {

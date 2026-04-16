@@ -1,9 +1,12 @@
 #include "TextRenderer.hpp"
+#include "physics/Transform2d.hpp"
+#include "world/GameObject.hpp"
+
+#ifndef STANDALONE_MODE
 #include "editor/EditorUI.hpp"
 #include "editor/commands/CommandHistory.hpp"
 #include "editor/commands/ModifyComponentCommand.hpp"
-#include "physics/Transform2d.hpp"
-#include "world/GameObject.hpp"
+#endif
 
 TextRenderer::TextRenderer()
     : text("New Text"), fontSize(20.0f), spacing(1.0f), color(BLACK), isHUD(true),
@@ -72,6 +75,7 @@ std::string TextRenderer::GetName() const {
     return "Text Renderer";
 }
 
+#ifndef STANDALONE_MODE
 void TextRenderer::OnInspector() {
     // Text Input with Undo/Redo support
     char buffer[512];
@@ -139,6 +143,7 @@ void TextRenderer::OnInspector() {
         ImGui::SetTooltip("If checked, the text sticks to the screen. If unchecked, it exists in the world.");
     }
 }
+#endif
 
 nlohmann::json TextRenderer::Serialize() const {
     return {

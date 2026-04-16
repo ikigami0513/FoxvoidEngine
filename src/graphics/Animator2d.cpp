@@ -3,9 +3,12 @@
 #include "SpriteSheetRenderer.hpp"
 #include <iostream>
 #include <sstream>
+
+#ifndef STANDALONE_MODE
 #include <editor/commands/CommandHistory.hpp>
 #include <editor/commands/ModifyComponentCommand.hpp>
 #include <extras/IconsFontAwesome6.h>
+#endif
 
 Animator2d::Animator2d() 
     : m_currentFrameIndex(0), 
@@ -105,6 +108,7 @@ std::string Animator2d::GetName() const {
     return "Animator 2d";
 }
 
+#ifndef STANDALONE_MODE
 void Animator2d::OnInspector() {
     // Read-only properties do not need Undo/Redo tracking
     // Display current state
@@ -246,6 +250,7 @@ void Animator2d::OnInspector() {
         ImGui::TreePop();
     }
 }
+#endif
 
 // Converts the component's data into a JSON object for saving scenes
 nlohmann::json Animator2d::Serialize() const {

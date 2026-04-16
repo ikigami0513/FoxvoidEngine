@@ -2,10 +2,13 @@
 
 #include "world/Component.hpp"
 #include <raylib.h>
+
+#ifndef STANDALONE_MODE
 #include <imgui.h>
 #include <editor/commands/CommandHistory.hpp>
 #include <editor/commands/ModifyComponentCommand.hpp>
 #include <editor/EditorUI.hpp>
+#endif
 
 class Transform2d : public Component {
     public:
@@ -21,11 +24,13 @@ class Transform2d : public Component {
             return "Transform 2D";
         }
 
+#ifndef STANDALONE_MODE
         void OnInspector() override {
             EditorUI::DragFloat2("Position", &position.x, 0.1f, this);
             EditorUI::DragFloat2("Scale", &scale.x, 0.1f, this);
             EditorUI::DragFloat("Rotation", &rotation, 1.0f, this);
         }
+#endif
 
         nlohmann::json Serialize() const override {
             return {

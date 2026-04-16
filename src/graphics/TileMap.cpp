@@ -1,10 +1,13 @@
 #include "TileMap.hpp"
-#include "editor/EditorUI.hpp"
 #include "physics/Transform2d.hpp"
 #include "world/GameObject.hpp"
 #include "graphics/Graphics.hpp"
 #include <iostream>
+
+#ifndef STANDALONE_MODE
+#include "editor/EditorUI.hpp"
 #include <imgui.h>
+#endif
 
 TileMap::TileMap()
     : tileSize { 32.0f, 32.0f }, tileSpacing(0), gridWidth(10), gridHeight(10), m_tilesetTexture{0}
@@ -94,6 +97,7 @@ void TileMap::Render() {
     }
 }
 
+#ifndef STANDALONE_MODE
 void TileMap::OnInspector() {
     // Grid setup
     if (ImGui::CollapsingHeader("Map Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -144,6 +148,7 @@ void TileMap::OnInspector() {
         }
     }
 }
+#endif
 
 void TileMap::AddLayer(const std::string& name) {
     m_layers.emplace_back(name, gridWidth, gridHeight);

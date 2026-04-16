@@ -1,8 +1,11 @@
 #include "GameStatePanel.hpp"
 #include "core/GameStateManager.hpp"
+#include <string>
+
+#ifndef STANDALONE_MODE
 #include <imgui.h>
 #include <extras/IconsFontAwesome6.h>
-#include <string>
+#endif 
 
 void GameStatePanel::Draw() {
     // Trigger the opening of the popup

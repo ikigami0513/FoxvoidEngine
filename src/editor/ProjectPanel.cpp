@@ -1,7 +1,10 @@
 #include "ProjectPanel.hpp"
-#include <imgui.h>
 #include <iostream>
+
+#ifndef STANDALONE_MODE
+#include <imgui.h>
 #include <extras/IconsFontAwesome6.h>
+#endif
 
 // Helper to generate a default Python script template
 void CreatePythonScript(const fs::path& directory, const std::string& scriptName) {

@@ -1,6 +1,8 @@
 #pragma once
 
+#ifndef STANDALONE_MODE
 #include <imgui.h>
+#endif
 #include <raylib.h>
 #include "world/Component.hpp"
 

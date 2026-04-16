@@ -14,4 +14,7 @@ class MainMenuBar {
         void Draw(Scene& activeScene, std::string& currentScenePath, bool& isRunning, GameObject*& selectedObject, InputSettingsPanel& inputPanel, GameStatePanel& gameStatePanel, bool& showGlobalGrid);
     private:
         bool m_openSavePopup = false;
+
+        // Flag to control the build configuration modal
+        bool m_openBuildPopup = false;
 };

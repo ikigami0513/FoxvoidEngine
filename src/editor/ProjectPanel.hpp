@@ -1,6 +1,9 @@
 #pragma once
 
+#ifndef STANDALONE_MODE
 #include <imgui.h>
+#endif
+
 #include <filesystem>
 #include <iostream>
 #include "../world/Scene.hpp"

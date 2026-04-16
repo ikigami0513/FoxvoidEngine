@@ -94,6 +94,7 @@ void Animation2d::ParseFramesFromString(const std::string& str) {
     m_currentIndex = 0; // Reset animation to start
 }
 
+#ifndef STANDALONE_MODE
 void Animation2d::OnInspector() {
     // Use EditorUI for standard properties
     EditorUI::DragFloat("Speed (s)", &m_speed, 0.01f, this, 0.01f, 5.0f);
@@ -140,6 +141,7 @@ void Animation2d::OnInspector() {
         ImGui::Text("Current Frame: %d", m_frames[m_currentIndex]);
     }
 }
+#endif
 
 nlohmann::json Animation2d::Serialize() const {
     return {

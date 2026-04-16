@@ -4,19 +4,23 @@
 #include <graphics/ShapeRenderer.hpp>
 #include <scripting/ScriptEngine.hpp>
 #include <scripting/ScriptComponent.hpp>
-#include <imgui.h>
-#include <rlImGui.h>
-#include "ImGuizmo.h"
 #include <graphics/SpriteSheetRenderer.hpp>
 #include <graphics/Animation2d.hpp>
 #include "AssetManager.hpp"
 #include <graphics/Animator2d.hpp>
 #include "world/ComponentRegistration.hpp"
 #include <world/ComponentRegistry.hpp>
-#include "extras/IconsFontAwesome6.h"
 #include "InputManager.hpp"
 #include "graphics/TileMap.hpp"
 #include "GameStateManager.hpp"
+
+#ifndef STANDALONE_MODE
+#include "editor/Editor.hpp"
+#include <imgui.h>
+#include <rlImGui.h>
+#include "ImGuizmo.h"
+#include "extras/IconsFontAwesome6.h"
+#endif
 
 namespace fs = std::filesystem;
 
@@ -50,11 +54,18 @@ Engine::Engine(int width, int height, const std::string& title)
     // Create render texture
     m_gameTexture = LoadRenderTexture(m_windowWidth, m_windowHeight);
 
+#ifndef STANDALONE_MODE
     m_editor = std::make_unique<Editor>(m_windowWidth, m_windowHeight);
-    
+#endif
+
     // If the window was successfully created, mark the engine as running
     if (IsWindowReady()) {
         m_isRunning = true;
+
+#ifdef STANDALONE_MODE
+        m_isPlaying = true;
+#endif
+
         std::cout << "[Engine] Initialized successfully." << std::endl;
         ScriptEngine::Initialize();
     } else {
@@ -131,6 +142,21 @@ void Engine::Update(float deltaTime) {
     m_activeScene.Flush();
 }
 
+void Engine::UpdateResolution(int width, int height) {
+    m_windowWidth = width;
+    m_windowHeight = height;
+
+    // Unload the old game texture from VRAM to prevent memory leaks
+    if (m_gameTexture.id != 0) {
+        UnloadRenderTexture(m_gameTexture);
+    }
+
+    // Create the new render texture with the project's target resolution
+    m_gameTexture = LoadRenderTexture(m_windowWidth, m_windowHeight);
+
+    std::cout << "[Engine] Resolution updated to " << m_windowWidth << "x" << m_windowHeight << std::endl;
+}
+
 void Engine::Render() {
     // Pass 1: Game Rendering (What the player sees)
     BeginTextureMode(m_gameTexture);
@@ -144,6 +170,7 @@ void Engine::Render() {
         m_activeScene.RenderHUD();
     EndTextureMode();
 
+#ifndef STANDALONE_MODE
     // Pass 2: Editor Rendering (Handles its own passes and screen drawing)
     BeginDrawing();
         ClearBackground(DARKGRAY);
@@ -153,6 +180,19 @@ void Engine::Render() {
         }
 
     EndDrawing();
+#else
+    // In standalone, we just draw the game texture directly to the screen!
+    BeginDrawing();
+        ClearBackground(BLACK);
+        // Draw the game texture scaled to fit the window (handling potential letterboxing later)
+        DrawTextureRec(
+            m_gameTexture.texture, 
+            Rectangle{ 0, 0, (float)m_gameTexture.texture.width, (float)-m_gameTexture.texture.height }, 
+            Vector2{ 0, 0 }, 
+            WHITE
+        );
+    EndDrawing();
+#endif
 }
 
 void Engine::LoadScene(const std::string& scenePath) {

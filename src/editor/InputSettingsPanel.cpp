@@ -1,8 +1,11 @@
 #include "InputSettingsPanel.hpp"
-#include <imgui.h>
 #include <raylib.h>
 #include "core/InputManager.hpp"
+
+#ifndef STANDALONE_MODE
+#include <imgui.h>
 #include "extras/IconsFontAwesome6.h"
+#endif
 
 void InputSettingsPanel::Draw() {
     // Trigger the opening of the popup

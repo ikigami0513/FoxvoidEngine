@@ -1,11 +1,14 @@
 #include "Camera2d.hpp"
-#include "editor/EditorUI.hpp"
 #include "physics/Transform2d.hpp"
 #include "world/GameObject.hpp"
 #include <raymath.h>
 #include "core/Engine.hpp"
 #include "world/Scene.hpp"
 #include "graphics/TileMap.hpp"
+
+#ifndef STANDALONE_MODE
+#include "editor/EditorUI.hpp"
+#endif
 
 // Default constructor: 1.0x zoom, no offset, and marked as the main camera by default
 Camera2d::Camera2d() 
@@ -43,6 +46,7 @@ std::string Camera2d::GetName() const {
     return "Camera 2D";
 }
 
+#ifndef STANDALONE_MODE
 void Camera2d::OnInspector() {
     EditorUI::DragFloat("Zoom", &zoom, 0.01f, this, 0.1f, 10.0f);
     
@@ -123,6 +127,7 @@ void Camera2d::OnInspector() {
         }
     }
 }
+#endif
 
 nlohmann::json Camera2d::Serialize() const {
     return {

@@ -1,8 +1,11 @@
 #pragma once
 
 #include "world/Component.hpp"
-#include "editor/EditorUI.hpp"
 #include <raylib.h>
+
+#ifndef STANDALONE_MODE
+#include "editor/EditorUI.hpp"
+#endif
 
 class RigidBody2d : public Component {
     public:
@@ -19,6 +22,7 @@ class RigidBody2d : public Component {
             return "RigidBody 2D";
         }
 
+#ifndef STANDALONE_MODE
         void OnInspector() override {
             EditorUI::Checkbox("Is Kinematic", &isKinematic, this);
         
@@ -30,6 +34,7 @@ class RigidBody2d : public Component {
             
             EditorUI::DragFloat2("Velocity", &velocity.x, 0.1f, this);
         }
+#endif
 
         nlohmann::json Serialize() const override {
             return {

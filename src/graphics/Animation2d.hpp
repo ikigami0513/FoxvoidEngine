@@ -15,7 +15,10 @@ public:
     void Update(float deltaTime) override;
 
     std::string GetName() const override;
+
+#ifndef STANDALONE_MODE
     void OnInspector() override;
+#endif
 
     nlohmann::json Serialize() const override;
     void Deserialize(const nlohmann::json& j) override;

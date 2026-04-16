@@ -1,8 +1,11 @@
 #include "ProjectHubPanel.hpp"
 #include "core/ProjectSettings.hpp"
+
+#ifndef STANDALONE_MODE
 #include <imgui.h>
 #include <extras/IconsFontAwesome6.h>
 #include <portable-file-dialogs.h>
+#endif
 
 bool ProjectHubPanel::Draw() {
     bool projectLoaded = false;

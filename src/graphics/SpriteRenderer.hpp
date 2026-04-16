@@ -24,7 +24,10 @@ class SpriteRenderer : public Component {
 
         // Editor UI and Serialization
         std::string GetName() const override;
+
+#ifndef STANDALONE_MODE
         void OnInspector() override;
+#endif
 
         nlohmann::json Serialize() const override;
         void Deserialize(const nlohmann::json& j) override;
