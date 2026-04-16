@@ -39,6 +39,8 @@ Engine::Engine(int width, int height, const std::string& title)
     // Initialize the Raylib window
     InitWindow(m_windowWidth, m_windowHeight, m_windowTitle.c_str());
     
+    InitAudioDevice();
+
     // Initialize the stream redirectors
     // Everything sent to std::cout will be captured as Info (white text)
     m_coutRedirect = std::make_unique<ConsoleSink>(std::cout, LogLevel::Info, m_console);
@@ -111,6 +113,8 @@ Engine::~Engine() {
     // Safely unload the render textures from the GPU
     UnloadRenderTexture(m_sceneTexture);
     UnloadRenderTexture(m_gameTexture);
+
+    CloseAudioDevice();
 
     // Close the Raylib window and free graphics resources
     CloseWindow();

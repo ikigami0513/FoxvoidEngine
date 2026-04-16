@@ -14,6 +14,7 @@
 #include "graphics/TileMap.hpp"
 #include "gui/TextRenderer.hpp"
 #include "world/PersistentComponent.hpp"
+#include "audio/AudioSource.hpp"
 
 namespace EngineSetup {
     void RegisterNativeComponents() {
@@ -33,6 +34,8 @@ namespace EngineSetup {
         ComponentRegistry::RegisterCPP<TextRenderer>("TextRenderer");
 
         ComponentRegistry::RegisterCPP<PersistentComponent>("PersistentComponent");
+
+        ComponentRegistry::RegisterCPP<AudioSource>("AudioSource");
 
         ComponentRegistry::RegisterCPP<ScriptComponent>("ScriptComponent");
     }

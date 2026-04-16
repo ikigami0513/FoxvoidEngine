@@ -1,0 +1,41 @@
+#pragma once
+
+#include "world/Component.hpp"
+#include <raylib.h>
+#include <string>
+#include <unordered_map>
+#include <nlohmann/json.hpp>
+
+class AudioSource : public Component {
+    public:
+        AudioSource();
+        ~AudioSource() override;
+
+        void Update(float deltaTime) override;
+        std::string GetName() const override;
+        void OnInspector() override;
+
+        nlohmann::json Serialize() const override;
+        void Deserialize(const nlohmann::json& j) override;
+
+        // SFX API (short sounds)
+        void LoadSFX(const std::string& name, const std::string& path);
+        void PlaySFX(const std::string& name);
+
+        // Music API (Long streaming tracks)
+        void LoadMusic(const std::string& path);
+        void PlayMusic();
+        void StopMusic();
+        void SetMusicVolume(float volume);
+
+    private:
+        // SFX Storage
+        std::unordered_map<std::string, Sound> m_sfx;
+        std::unordered_map<std::string, std::string> m_sfxPaths; // Needed to serialize/save
+
+        // Music Storage
+        Music m_currentMusic;
+        std::string m_musicPath;
+        bool m_isMusicLoaded;
+        float m_musicVolume;
+};

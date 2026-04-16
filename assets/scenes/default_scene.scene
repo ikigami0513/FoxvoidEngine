@@ -3,12 +3,26 @@
         {
             "components": [
                 {
+                    "type": "PersistentComponent"
+                },
+                {
+                    "musicPath": "assets/audio/Definitely Our Town.ogg",
+                    "musicVolume": 1.0,
+                    "sfxPaths": {},
+                    "type": "AudioSource"
+                }
+            ],
+            "name": "Level Manager"
+        },
+        {
+            "components": [
+                {
                     "rotation": 0.0,
                     "scaleX": 4.0,
                     "scaleY": 4.0,
                     "type": "Transform2d",
-                    "x": 399.3562316894531,
-                    "y": 372.74676513671875
+                    "x": 245.62234497070313,
+                    "y": 381.6308898925781
                 },
                 {
                     "columns": 9,
@@ -1169,6 +1183,20 @@
                 }
             ],
             "name": "Score"
+        },
+        {
+            "components": [
+                {
+                    "type": "PersistentComponent"
+                },
+                {
+                    "musicPath": "assets/audio/Definitely Our Town.ogg",
+                    "musicVolume": 1.0,
+                    "sfxPaths": {},
+                    "type": "AudioSource"
+                }
+            ],
+            "name": "Level Manager"
         }
     ]
 }
