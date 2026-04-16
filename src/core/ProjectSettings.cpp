@@ -1,4 +1,5 @@
 #include "ProjectSettings.hpp"
+#include "scripting/PythonStubs.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -42,6 +43,15 @@ bool ProjectSettings::CreateNewProject(const fs::path& rootDirectory, const std:
         fs::create_directories(projectFolder / "assets" / "textures");
         fs::create_directories(projectFolder / "assets" / "audio");
         fs::create_directories(projectFolder / "assets" / "settings");
+
+        fs::path stubsFolder = projectFolder / "assets" / "scripts" / "foxvoid";
+        fs::create_directories(stubsFolder);
+
+        std::ofstream stubFile(stubsFolder / "__init__.pyi");
+        if (stubFile.is_open()) {
+            stubFile << FOXVOID_PYI_CONTENT;
+            stubFile.close();
+        }
 
         // Create the default project.json configuration
         nlohmann::json newConfig = {

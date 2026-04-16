@@ -1,0 +1,695 @@
+#pragma once
+
+#include <string>
+
+// This contains the entire boilerplate for the Python autocompletion.
+// Whenever you update your Pybind11 bindings, update this string too!
+
+const std::string FOXVOID_PYI_CONTENT = R"(
+# This file is strictly for Visual Studio Code (or other IDEs) to provide type hinting 
+# and autocompletion. The "..." (Ellipsis) indicate to Python that the actual 
+# implementation is handled natively in C++.
+
+from enum import Enum
+from typing import TypeVar, Type, Optional, List, overload, Tuple
+
+# Type variable for smart autocompletion in the get_component method.
+# It ensures that getting a Transform2d actually returns a Transform2d type in the IDE.
+T = TypeVar('T', bound='Component')
+
+
+class Debug:
+    @staticmethod
+    def log(msg: str) -> None:
+        """
+        Prints a message directly to the C++ engine console.
+        Bypasses Python's standard stdout to prevent crashes with graphics libraries.
+        """
+        ...
+
+    @staticmethod
+    def error(msg: str) -> None:
+        """
+        Prints an error directly to the C++ engine console.
+        Bypasses Python's standard stdout to prevent crashes with graphics libraries.
+        """
+        ...
+
+
+def set_pixel_art_mode(enable: bool) -> None:
+    """
+    Globally configures texture filtering. 
+    Call this BEFORE instantiating GameObjects with sprites.
+    - True: Nearest-neighbor filtering (Sharp, blocky, perfect for pixel art).
+    - False: Bilinear filtering (Smooth, interpolated edges).
+    """
+    ...
+
+
+def is_pixel_art_mode() -> bool:
+    """Returns whether the engine is currently in pixel art mode."""
+    ...
+
+
+class GameObject:
+    name: str
+
+    """Represents an entity within the engine's scene."""
+    @staticmethod
+    def spawn(name: str) -> GameObject:
+        """
+        Creates a new empty GameObject in the active scene.
+        
+        Args:
+            name: The name of the new entity.
+            
+        Returns:
+            The newly created GameObject instance.
+        """
+        ...
+
+    @staticmethod
+    def instantiate(prefab_path: str) -> Optional[GameObject]:
+        """
+        Instantiates a new GameObject from a saved JSON prefab file.
+        
+        Args:
+            prefab_path: The relative path to the .json prefab file (e.g., 'assets/prefabs/Bullet.json').
+            
+        Returns:
+            The newly instantiated GameObject instance, or None if the file could not be loaded.
+        """
+        ...
+
+    def destroy(self) -> None:
+        """
+        Marks this GameObject for destruction. 
+        It will be safely removed from memory at the end of the current C++ frame.
+        """
+        ...
+    
+    def get_component(self, type_obj: Type[T]) -> Optional[T]:
+        """
+        Retrieves a component attached to this GameObject.
+        
+        Args:
+            type_obj: The class type of the component to retrieve (e.g., Transform2d).
+            
+        Returns:
+            The component instance if found, otherwise None.
+        """
+        ...
+
+    def add_component(self, type_obj: Type[T], *args) -> T:
+        """
+        Dynamically instantiates and attaches a new component to this GameObject.
+        
+        Args:
+            type_obj: The class type of the component to create.
+            *args: Variable arguments passed directly to the C++ constructor of the component.
+            
+        Returns:
+            The newly created and attached component instance.
+        """
+        ...
+
+
+class Vector2:
+    """A 2D vector representing mathematical points or directions."""
+    x: float
+    y: float
+    def __init__(self, x: float = 0.0, y: float = 0.0) -> None: ...
+
+
+class Collision2D:
+    """Contains information about a physics collision event."""
+    
+    other: GameObject | None
+    """The GameObject collided with. Will be None if the collision was with the static TileMap."""
+    
+    normal: Vector2
+    """The direction vector of the surface hit. e.g., (0, -1) means you hit the floor."""
+
+
+class Component:
+    """Base class for all engine scripts and components."""
+    
+    def __init__(self) -> None: 
+        """Initializes the C++ base component memory."""
+        ...
+    
+    @property
+    def game_object(self) -> GameObject:
+        """The owning GameObject of this component (Read-only)."""
+        ...
+
+    def start(self) -> None: ...
+    def update(self, delta_time: float) -> None: ...
+    def on_collision(self, collision: Collision2D) -> None: ...
+
+
+class Transform2d(Component):
+    """Component managing spatial position, rotation, and scale."""
+    
+    position: Vector2
+    scale: Vector2
+    rotation: float
+    
+    def __init__(self, x: float = 0.0, y: float = 0.0) -> None: 
+        """Creates a new Transform2d component."""
+        ...
+    
+
+class Keys:
+    """Raylib keyboard key codes."""
+    KEY_NULL: int
+    KEY_APOSTROPHE: int
+    KEY_COMMA: int
+    KEY_MINUS: int
+    KEY_PERIOD: int
+    KEY_SLASH: int
+
+    KEY_ZERO: int
+    KEY_ONE: int
+    KEY_TWO: int
+    KEY_THREE: int
+    KEY_FOUR: int
+    KEY_FIVE: int
+    KEY_SIX: int
+    KEY_SEVEN: int
+    KEY_EIGHT: int
+    KEY_NINE: int
+
+    KEY_SEMICOLON: int
+    KEY_EQUAL: int
+
+    KEY_A: int
+    KEY_B: int
+    KEY_C: int
+    KEY_D: int
+    KEY_E: int
+    KEY_F: int
+    KEY_G: int
+    KEY_H: int
+    KEY_I: int
+    KEY_J: int
+    KEY_K: int
+    KEY_L: int
+    KEY_M: int
+    KEY_N: int
+    KEY_O: int
+    KEY_P: int
+    KEY_Q: int
+    KEY_R: int
+    KEY_S: int
+    KEY_T: int
+    KEY_U: int
+    KEY_V: int
+    KEY_W: int
+    KEY_X: int
+    KEY_Y: int
+    KEY_Z: int
+
+    KEY_LEFT_BRACKET: int
+    KEY_BACKSLASH: int
+    KEY_RIGHT_BRACKET: int
+    KEY_GRAVE: int
+
+    KEY_SPACE: int
+    KEY_ESCAPE: int
+    KEY_ENTER: int
+    KEY_TAB: int
+    KEY_BACKSPACE: int
+    KEY_INSERT: int
+    KEY_DELETE: int
+    RIGHT: int
+    LEFT: int
+    DOWN: int
+    UP: int
+    KEY_PAGE_UP: int
+    KEY_PAGE_DOWN: int
+    KEY_HOME: int
+    KEY_END: int
+    KEY_CAPS_LOCK: int
+    KEY_SCROLL_LOCK: int
+    KEY_NUM_LOCK: int
+    KEY_PRINT_SCREEN: int
+    KEY_PAUSE: int
+
+    KEY_F1: int
+    KEY_F2: int
+    KEY_F3: int
+    KEY_F4: int
+    KEY_F5: int
+    KEY_F6: int
+    KEY_F7: int
+    KEY_F8: int
+    KEY_F9: int
+    KEY_F10: int
+    KEY_F11: int
+    KEY_F12: int
+
+    KEY_LEFT_SHIFT: int
+    KEY_LEFT_CONTROL: int
+    KEY_LEFT_ALT: int
+    KEY_LEFT_SUPER: int
+    KEY_RIGHT_SHIFT: int
+    KEY_RIGHT_CONTROL: int
+    KEY_RIGHT_ALT: int
+    KEY_RIGHT_SUPER: int
+    KEY_KB_MENU: int
+
+    KEY_KP_0: int
+    KEY_KP_1: int
+    KEY_KP_2: int
+    KEY_KP_3: int
+    KEY_KP_4: int
+    KEY_KP_5: int
+    KEY_KP_6: int
+    KEY_KP_7: int
+    KEY_KP_8: int
+    KEY_KP_9: int
+
+    KEY_KP_DECIMAL: int
+    KEY_KP_DIVIDE: int
+    KEY_KP_MULTIPLY: int
+    KEY_KP_SUBTRACT: int
+    KEY_KP_ADD: int
+    KEY_KP_ENTER: int
+    KEY_KP_EQUAL: int
+
+    KEY_BACK: int
+    KEY_MENU: int
+    KEY_VOLUME_UP: int
+    KEY_VOLUME_DOWN: int
+
+
+class Input:
+    """Handles keyboard and mouse inputs from the engine."""
+    
+    @staticmethod
+    def is_key_down(key: int) -> bool:
+        """
+        Checks if a key is currently being held down.
+        Returns True every frame the key remains pressed.
+        """
+        ...
+        
+    @staticmethod
+    def is_key_pressed(key: int) -> bool:
+        """
+        Checks if a key has been pressed once.
+        Returns True only on the exact frame the key was pushed down.
+        """
+        ...
+
+    @staticmethod
+    def is_action_down(action: str) -> bool:
+        """
+        Checks if ANY of the keys bound to this named action are currently held down.
+        Useful for continuous movement (e.g., Input.is_action_down("MoveRight")).
+        """
+        ...
+
+    @staticmethod
+    def is_action_pressed(action: str) -> bool:
+        """
+        Checks if ANY of the keys bound to this named action were pressed this frame.
+        Useful for single actions like jumping or shooting (e.g., Input.is_action_pressed("Jump")).
+        """
+        ...
+
+
+class SpriteRenderer(Component):
+    """Renders a 2D texture at the position defined by the entity's Transform2d."""
+    
+    def __init__(self, texture_path: str) -> None: 
+        """
+        Loads an image file into GPU memory for rendering.
+        
+        Args:
+            texture_path: The relative path to the image file (e.g., 'assets/player.png').
+        """
+        ...
+
+
+class SpriteSheetRenderer(Component):
+    """Renders a specific frame from a grid-based spritesheet texture."""
+    
+    def __init__(self, texture_path: str, columns: int, rows: int) -> None: 
+        """
+        Loads a spritesheet into GPU memory.
+        
+        Args:
+            texture_path: The relative path to the image file.
+            columns: The number of columns in the spritesheet grid.
+            rows: The number of rows in the spritesheet grid.
+        """
+        ...
+        
+    @property
+    def frame(self) -> int:
+        """The current frame index being rendered (0 to frame_count - 1)."""
+        ...
+        
+    @frame.setter
+    def frame(self, value: int) -> None: ...
+    
+    @property
+    def frame_count(self) -> int:
+        """Total number of frames in the spritesheet (Read-only)."""
+        ...
+
+
+class Animation2d(Component):
+    """
+    Handles frame-by-frame animation by controlling a SpriteSheetRenderer.
+    Performance is maximized as the timer logic runs natively in C++.
+    """
+    
+    def __init__(self, frames: List[int], speed: float, loop: bool = True, flip_x: bool = False, flip_y: bool = False) -> None: 
+        """
+        Initializes the animation sequence.
+        
+        Args:
+            frames: Sequence of frame indices to play (e.g., [0, 1, 2, 3]).
+            speed: Time in seconds each frame is displayed.
+            loop: If True, the animation repeats indefinitely.
+        """
+        ...
+
+
+class Animator2d(Component):
+    """
+    Manages and plays 2D frame-based animations using an attached SpriteSheetRenderer.
+    """
+
+    def __init__(self) -> None:
+        """Initializes an empty Animator2d."""
+        ...
+
+    def add_animation(self, name: str, frames: list[int], frame_duration: float, loop: bool, flip_x: bool = False, flip_y: bool = False) -> None:
+        """
+        Registers a new animation state.
+        
+        :param name: The identifier for the animation (e.g., "walk", "idle").
+        :param frames: A list of frame indices in the sprite sheet.
+        :param frame_duration: Time in seconds each frame is displayed.
+        :param loop: If True, the animation restarts automatically.
+        """
+        ...
+
+    def play(self, name: str) -> None:
+        """
+        Switches the current playback to the specified animation.
+        Does nothing if the animation is already playing.
+        """
+        ...
+
+
+class RectCollider(Component):
+    """
+    Component that defines a 2D rectangular collision shape.
+    It does not apply physics forces by itself, it only defines the boundary.
+    """
+    
+    size: Vector2
+    """The width and height of the collision box (default is 50x50)."""
+    
+    offset: Vector2
+    """The local offset of the collider relative to the GameObject's center position."""
+    
+    is_trigger: bool
+    """
+    If true, this collider will not physically block or bounce off other objects.
+    It will only be used to detect overlapping areas (e.g., coins, checkpoints, damage zones).
+    """
+
+    def __init__(self, width: float = 50.0, height: float = 50.0) -> None:
+        """
+        Initializes a RectCollider.
+        :param width: The width of the collision bounding box.
+        :param height: The height of the collision bounding box.
+        """
+        ...
+
+
+class RigidBody2d(Component):
+    """
+    Component that puts the GameObject under the control of the physics engine.
+    It requires a Collider component on the same GameObject to actually hit things.
+    """
+    
+    velocity: Vector2
+    """The current linear speed and direction of the object."""
+    
+    mass: float
+    """The weight of the object. Heavier objects push lighter objects during collisions."""
+    
+    gravity_scale: float
+    """
+    Multiplier applied to the world's gravity. 
+    1.0 is normal gravity, 0.0 means the object floats, negative values make it fall upwards.
+    """
+    
+    is_kinematic: bool
+    """
+    If true, the physics engine will NOT apply forces, gravity, or push this object during collisions.
+    Useful for moving platforms or objects controlled entirely by animations/scripts.
+    """
+
+    @property
+    def is_grounded(self) -> bool: ...
+
+    def __init__(self) -> None:
+        """
+        Initializes a RigidBody2d with default values (mass=1.0, gravity=1.0, non-kinematic).
+        """
+        ...
+
+
+class Camera2dAnchor(Enum):
+    """
+    Defines the base screen position that the camera uses as its focal point.
+    """
+
+    TopLeft = 0
+    """Anchors the camera to the top-left corner of the screen (0, 0)."""
+    
+    Center = 1
+    """Anchors the camera to the exact center of the screen."""
+
+
+class Camera2d(Component):
+    """
+    Component that controls the viewport for rendering the game world.
+    The camera automatically looks at the Transform2d of the GameObject it is attached to.
+    """
+    
+    zoom: float
+    """The zoom level of the camera. 1.0 is default, > 1.0 zooms in, < 1.0 zooms out."""
+    
+    offset: Vector2
+    """
+    Custom pixel offset applied ON TOP of the anchor point.
+    Useful for shifting the camera view (e.g., aiming slightly higher or looking ahead).
+    """
+    
+    anchor: Camera2dAnchor
+    """The base screen alignment (default is CameraAnchor.Center)."""
+    
+    is_main: bool
+    """
+    If True, the Engine will use this camera to render the final Game View.
+    Make sure only one active camera is marked as main at a time.
+    """
+
+    def __init__(self) -> None:
+        """
+        Initializes a Camera2d component with default values 
+        (zoom=1.0, offset=(0,0), anchor=CameraAnchor.Center, is_main=True).
+        """
+        ...
+
+
+class TileLayer:
+    """Represents a single layer of tiles within a TileMap."""
+    
+    name: str
+    """The display name of the layer."""
+    
+    is_visible: bool
+    """Determines if the layer is currently rendered on screen."""
+    
+    is_solid: bool
+    """Determines if the layer generates collision boxes for the physics engine."""
+
+
+class TileMap(Component):
+    """
+    Manages a grid-based tile map with multiple layers and physics collision support.
+    Useful for level design and procedural generation.
+    """
+    
+    grid_width: int
+    """The number of columns in the grid."""
+    
+    grid_height: int
+    """The number of rows in the grid."""
+    
+    tile_spacing: int
+    """The gap in pixels between each tile in the source texture."""
+
+    def __init__(self) -> None:
+        """Initializes a new TileMap with a default 'Background' layer."""
+        ...
+
+    def load_tileset(self, path: str) -> None:
+        """
+        Loads a tileset texture from the specified file path.
+        """
+        ...
+        
+    def resize(self, new_width: int, new_height: int) -> None:
+        """
+        Resizes the map grid while safely preserving existing tile data.
+        """
+        ...
+
+    def add_layer(self, name: str) -> None:
+        """
+        Adds a new empty layer on top of the existing ones.
+        """
+        ...
+
+    def get_tile(self, layer_index: int, x: int, y: int) -> int:
+        """
+        Returns the tile ID at the given grid coordinates.
+        Returns -1 if the tile is empty or if the coordinates are out of bounds.
+        """
+        ...
+
+    def set_tile(self, layer_index: int, x: int, y: int, tile_id: int) -> None:
+        """
+        Sets the tile ID at the given grid coordinates on a specific layer.
+        Use -1 as the tile_id to erase a tile.
+        """
+        ...
+
+    @overload
+    def get_layer(self, index: int) -> Optional[TileLayer]:
+        """
+        Retrieves a layer by its numerical index (0 is the bottom layer).
+        Returns None if the index is out of bounds.
+        """
+        ...
+
+    @overload
+    def get_layer(self, name: str) -> Optional[TileLayer]:
+        """
+        Retrieves a layer by its assigned name.
+        Returns None if no layer with this name exists.
+        """
+        ...
+
+
+class TextRenderer(Component):
+    """
+    Renders text either in the game world or attached to the screen (HUD).
+    """
+    
+    text: str
+    """The string of text to display. Supports line breaks (\\n)."""
+
+    font_size: float
+    """The size of the rendered text."""
+
+    is_hud: bool
+    """If True, renders in screen space (ignoring the camera). If False, renders in world space."""
+
+    font_path: str
+    """The path to the custom .ttf or .otf font file. Leave empty to use the default engine font."""
+
+    def __init__(self) -> None:
+        """Initializes a new TextRenderer."""
+        ...
+        
+
+class SceneManager:
+    """Handles loading and transitioning between different scenes/levels."""
+    
+    @staticmethod
+    def load_scene(name: str) -> None:
+        """
+        Requests the engine to load a new scene at the start of the next frame.
+        The name should not include the extension or path (e.g., 'main_menu', 'level_01').
+        """
+        ...
+
+
+class Globals:
+    """Access global game variables managed in the Editor."""
+    @staticmethod
+    def set_int(key: str, value: int) -> None: ...
+
+    @staticmethod
+    def get_int(key: str, default_val: int = 0) -> int: ...
+
+    @staticmethod
+    def set_float(key: str, value: float) -> None: ...
+
+    @staticmethod
+    def get_float(key: str, default_val: float = 0.0) -> float: ...
+
+    @staticmethod
+    def set_bool(key: str, value: int) -> None: ...
+
+    @staticmethod
+    def get_bool(key: str, default_val: bool = False) -> bool: ...
+
+    @staticmethod
+    def set_string(key: str, value: str) -> None: ...
+
+    @staticmethod
+    def get_string(key: str, default_val: str = "") -> str: ...
+
+
+class AudioSource(Component):
+    def load_sfx(self, name: str, path: str) -> None: ...
+    def play_sfx(self, name: str) -> None: ...
+    
+    def load_music(self, path: str) -> None: ...
+    def play_music(self) -> None: ...
+    def stop_music(self) -> None: ...
+    def set_music_volume(self, volume: float) -> None: ...
+
+
+class RaycastHit:
+    """Contains information about a raycast impact."""
+    
+    hit: bool
+    """True if the ray hit a solid object or a TileMap."""
+    
+    collider: Optional[GameObject]
+    """The object hit by the ray (can be None if nothing was hit)."""
+    
+    point: Tuple[float, float]
+    """The exact (x, y) world coordinates of the impact point."""
+    
+    distance: float
+    """The distance between the ray's origin and the impact point."""
+
+
+class Physics:
+    """Global physics engine."""
+    
+    @staticmethod
+    def raycast(origin: Tuple[float, float], direction: Tuple[float, float], distance: float) -> RaycastHit:
+        """
+        Casts an invisible ray into the scene to detect collisions.
+        
+        Example: Physics.raycast((x, y), (0, 1), 100.0) casts a ray downwards.
+        """
+        ...
+
+)";
