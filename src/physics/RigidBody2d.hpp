@@ -10,9 +10,10 @@ class RigidBody2d : public Component {
         float mass;
         float gravityScale;
         bool isKinematic; // If true, physics logic ignores forces/gravity for this object
+        bool isGrounded;
 
         RigidBody2d()
-            : velocity{0.0f, 0.0f}, mass(1.0f), gravityScale(1.0f), isKinematic(false) {}
+            : velocity{0.0f, 0.0f}, mass(1.0f), gravityScale(1.0f), isKinematic(false), isGrounded(false) {}
 
         std::string GetName() const override {
             return "RigidBody 2D";

@@ -1,7 +1,8 @@
 #pragma once
 
-#include <raymath.h>
-#include "world/GameObject.hpp"
+#include <raylib.h>
+
+class GameObject;
 
 // Data structure to send to our python scripts
 struct Collision2D {

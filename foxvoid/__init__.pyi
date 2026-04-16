@@ -44,6 +44,8 @@ def is_pixel_art_mode() -> bool:
 
 
 class GameObject:
+    name: str
+
     """Represents an entity within the engine's scene."""
     @staticmethod
     def spawn(name: str) -> GameObject:
@@ -419,6 +421,9 @@ class RigidBody2d(Component):
     If true, the physics engine will NOT apply forces, gravity, or push this object during collisions.
     Useful for moving platforms or objects controlled entirely by animations/scripts.
     """
+
+    @property
+    def is_grounded(self) -> bool: ...
 
     def __init__(self) -> None:
         """

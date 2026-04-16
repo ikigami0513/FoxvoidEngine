@@ -21,6 +21,9 @@ void PhysicsEngine::Update(Scene& scene, float deltaTime) {
 
         // Only move objects that have physics and are not kinematic
         if (rb && transform && !rb->isKinematic) {
+            // Reset grounded state before collision checks
+            rb->isGrounded = false;
+
             // Apply global gravity based on the object's personal scale
             rb->velocity.x += GlobalGravity.x * rb->gravityScale * deltaTime;
             rb->velocity.y += GlobalGravity.y * rb->gravityScale * deltaTime;
@@ -53,7 +56,7 @@ void PhysicsEngine::Update(Scene& scene, float deltaTime) {
         for (const Rectangle& tileRect : solidTiles) {
             Vector2 normal = { 0.0f, 0.0f };
             if (ResolveTileCollision(gameObjects[i].get(), tileRect, normal)) {
-                collisionEvents.push_back({ objA, { nullptr, normal } });
+                collisionEvents.push_back({ objA, Collision2D{ nullptr, normal } });
             }
         }
 
@@ -64,8 +67,8 @@ void PhysicsEngine::Update(Scene& scene, float deltaTime) {
             Vector2 normalB = { 0.0f, 0.0f };
             
             if (ResolveCollision(objA, objB, normalA, normalB)) {
-                collisionEvents.push_back({ objA, { objB, normalA } });
-                collisionEvents.push_back({ objB, { objA, normalB } });
+                collisionEvents.push_back({ objA, Collision2D{ objB, normalA } });
+                collisionEvents.push_back({ objB, Collision2D{ objA, normalB } });
             }
         }
     }
@@ -85,25 +88,14 @@ bool PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB, Vector2
     auto colB = objB->GetComponent<RectCollider>();
 
     // Both objects must have colliders to collide
-    if (!colA || !colB) return;
-
-    // Triggers don't physically push each other
-    if (colA->isTrigger || colB->isTrigger) return;
+    if (!colA || !colB) return false;
 
     auto tA = objA->GetComponent<Transform2d>();
     auto tB = objB->GetComponent<Transform2d>();
-    if (!tA || !tB) return;
+    if (!tA || !tB) return false;
 
     auto rbA = objA->GetComponent<RigidBody2d>();
     auto rbB = objB->GetComponent<RigidBody2d>();
-
-    // Determine if objects can be pushed. 
-    // An object without a RigidBody is considered kinematic (like a solid wall).
-    bool isKinematicA = !rbA || rbA->isKinematic;
-    bool isKinematicB = !rbB || rbB->isKinematic;
-
-    // If both are solid/kinematic, they can't push each other anyway
-    if (isKinematicA && isKinematicB) return;
 
     // Define the actual world-space rectangles (centered around the transform)
     float scaledWidthA = colA->size.x * tA->scale.x;
@@ -184,6 +176,9 @@ bool PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB, Vector2
                 outNormalA = { 0.0f, sign };
                 outNormalB = { 0.0f, -sign };
 
+                if (sign < 0.0f && rbA) rbA->isGrounded = true;
+                if (sign > 0.0f && rbB) rbB->isGrounded = true;
+
                 if (!isKinematicA && isKinematicB) {
                     tA->position.y += overlapY * sign;
                     if (rbA) rbA->velocity.y = 0;
@@ -199,8 +194,12 @@ bool PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB, Vector2
                     if (rbB) rbB->velocity.y = 0;
                 }
             }
+
+            return true;
         }
     }
+
+    return false;
 }
 
 bool PhysicsEngine::ResolveTileCollision(GameObject* obj, const Rectangle& tileRect, Vector2& outNormal) {
@@ -252,6 +251,10 @@ bool PhysicsEngine::ResolveTileCollision(GameObject* obj, const Rectangle& tileR
                 t->position.y += overlapY * sign;
                 rb->velocity.y = 0;
                 outNormal = { 0.0f, sign };
+
+                if (sign < 0.0f) {
+                    rb->isGrounded = true;
+                }
             }
             return true;
         }

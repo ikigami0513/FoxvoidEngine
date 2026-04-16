@@ -26,5 +26,14 @@ class PlayerController(Component):
             if Input.is_key_down(Keys.LEFT):
                 self._transform.position.x -= self.speed * delta_time
 
-            if Input.is_key_pressed(Keys.KEY_SPACE):
+            if Input.is_key_pressed(Keys.KEY_SPACE) and self._rigidbody.is_grounded:
                 self._rigidbody.velocity.y = self.jump_force
+
+    def on_collision(self, collision: Collision2D):
+        if collision.other is not None:
+            Debug.log(f"Just it an object: {collision.other.name}")
+        else:
+            if collision.normal.y == -1.0:
+                Debug.log("hit the ground")
+            elif collision.normal.x != 0.0:
+                Debug.log("hit the wall")

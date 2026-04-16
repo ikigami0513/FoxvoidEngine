@@ -65,7 +65,8 @@ void BindMathAndPhysics(py::module_& m) {
         .def_readwrite("velocity", &RigidBody2d::velocity)
         .def_readwrite("mass", &RigidBody2d::mass)
         .def_readwrite("gravity_scale", &RigidBody2d::gravityScale)
-        .def_readwrite("is_kinematic", &RigidBody2d::isKinematic);
+        .def_readwrite("is_kinematic", &RigidBody2d::isKinematic)
+        .def_readonly("is_grounded", &RigidBody2d::isGrounded);
 
     ComponentRegistry::Register<RigidBody2d>("RigidBody2d",
         [](GameObject& go, py::args args) -> py::object {
