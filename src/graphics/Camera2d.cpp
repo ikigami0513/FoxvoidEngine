@@ -177,8 +177,24 @@ Camera2D Camera2d::GetCamera(float screenWidth, float screenHeight) const {
     cam.offset.x = baseOffset.x + offset.x;
     cam.offset.y = baseOffset.y + offset.y;
 
-    // Set target to the smoothly interpolated position
-    cam.target = m_currentTarget;
+    // Target calculation
+    // If the engine is currently in Edit mode (not playing), the Update() loop isn't running.
+    // In this case, we bypass the lerped target and snap directly to the Transform's current position 
+    // so the Game View remains accurate while editing.
+    bool isPlaying = true;
+    if (Engine::Get()) {
+        isPlaying = Engine::Get()->IsPlaying();
+    }
+
+    if (isPlaying && !m_isFirstFrame) {
+        cam.target = m_currentTarget;
+    } else {
+        if (owner && owner->GetComponent<Transform2d>()) {
+            cam.target = owner->GetComponent<Transform2d>()->position;
+        } else {
+            cam.target = m_currentTarget; // Fallback to (0,0)
+        }
+    }
 
     // Apply rotation
     if (owner) {

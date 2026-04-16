@@ -39,6 +39,8 @@ class Engine {
         // Requests a scene change for the start of the next frame
         void LoadScene(const std::string& scenePath);
 
+        bool IsPlaying() const;
+
     private:
         // Core loop stages
         void ProcessInput();

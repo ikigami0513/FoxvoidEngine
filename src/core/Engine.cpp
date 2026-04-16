@@ -199,3 +199,7 @@ void Engine::LoadScene(const std::string& scenePath) {
     std::cout << "[Engine] Scene change requested: " << scenePath << std::endl;
     m_pendingScenePath = scenePath;
 }
+
+bool Engine::IsPlaying() const { 
+    return m_isPlaying; 
+}
