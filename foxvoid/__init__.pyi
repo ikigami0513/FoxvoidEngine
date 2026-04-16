@@ -617,3 +617,30 @@ class SceneManager:
         The name should not include the extension or path (e.g., 'main_menu', 'level_01').
         """
         ...
+
+
+class Globals:
+    """Access global game variables managed in the Editor."""
+    @staticmethod
+    def set_int(key: str, value: int) -> None: ...
+
+    @staticmethod
+    def get_int(key: str, default_val: int = 0) -> int: ...
+
+    @staticmethod
+    def set_float(key: str, value: float) -> None: ...
+
+    @staticmethod
+    def get_float(key: str, default_val: float = 0.0) -> float: ...
+
+    @staticmethod
+    def set_bool(key: str, value: int) -> None: ...
+
+    @staticmethod
+    def get_bool(key: str, default_val: bool = False) -> bool: ...
+
+    @staticmethod
+    def set_string(key: str, value: str) -> None: ...
+
+    @staticmethod
+    def get_string(key: str, default_val: str = "") -> str: ...

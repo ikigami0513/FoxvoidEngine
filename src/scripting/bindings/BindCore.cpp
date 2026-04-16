@@ -10,6 +10,7 @@
 #include "../../graphics/SpriteSheetRenderer.hpp"
 #include "../../graphics/Animation2d.hpp"
 #include <world/ComponentRegistry.hpp>
+#include "core/GameStateManager.hpp"
 
 class Debug {
     public:
@@ -119,4 +120,17 @@ void BindCore(py::module_& m) {
             return py::cast(p, py::return_value_policy::reference);
         }
     );
+
+    py::class_<GameStateManager>(m, "Globals")
+        .def_static("set_int", &GameStateManager::SetInt)
+        .def_static("get_int", &GameStateManager::GetInt, py::arg("key"), py::arg("default_val") = 0)
+        
+        .def_static("set_float", &GameStateManager::SetFloat)
+        .def_static("get_float", &GameStateManager::GetFloat, py::arg("key"), py::arg("default_val") = 0.0f)
+        
+        .def_static("set_bool", &GameStateManager::SetBool)
+        .def_static("get_bool", &GameStateManager::GetBool, py::arg("key"), py::arg("default_val") = false)
+        
+        .def_static("set_string", &GameStateManager::SetString)
+        .def_static("get_string", &GameStateManager::GetString, py::arg("key"), py::arg("default_val") = "");
 }

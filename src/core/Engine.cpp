@@ -16,6 +16,7 @@
 #include "extras/IconsFontAwesome6.h"
 #include "InputManager.hpp"
 #include "graphics/TileMap.hpp"
+#include "GameStateManager.hpp"
 
 namespace fs = std::filesystem;
 
@@ -53,6 +54,7 @@ Engine::Engine(int width, int height, const std::string& title)
 
     // Load default input bindings if they exist
     InputManager::Load("assets/settings/inputs.json");
+    GameStateManager::Load("assets/settings/globals.json");
 
     // Create both render textures
     // We give it the base resolution of the game
@@ -222,10 +224,11 @@ void Engine::Render() {
             // Enable global docking over the entire application viewport
             ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport()); 
 
-            m_mainMenuBar.Draw(m_activeScene, m_currentScenePath, m_isRunning, m_selectedObject, m_inputSettingsPanel, m_showGlobalGrid);
+            m_mainMenuBar.Draw(m_activeScene, m_currentScenePath, m_isRunning, m_selectedObject, m_inputSettingsPanel, m_gameStatePanel, m_showGlobalGrid);
 
             // Draw the Input Settings (it will only draw if m_isOpen is true)
             m_inputSettingsPanel.Draw();
+            m_gameStatePanel.Draw();
 
             Texture2D currentTileset = {0};
             Vector2 tileSize = { 32.0f, 32.0f };

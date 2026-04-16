@@ -15,6 +15,7 @@
 #include <editor/MainMenuBar.hpp>
 #include "editor/InputSettingsPanel.hpp"
 #include "editor/TilePalettePanel.hpp"
+#include "editor/GameStatePanel.hpp"
 
 // The Engine class encapsulates the core loop and window management.
 class Engine {
@@ -87,6 +88,7 @@ class Engine {
         ProjectPanel m_projectPanel;
 
         InputSettingsPanel m_inputSettingsPanel;
+        GameStatePanel m_gameStatePanel;
 
         MainMenuBar m_mainMenuBar;
 
