@@ -27,7 +27,7 @@ void ToolbarPanel::Draw(Scene& activeScene, GameObject*& selectedObject, bool& i
             std::cout << "[Editor] Entered EDIT mode." << std::endl;
             
             selectedObject = nullptr;
-            activeScene.Deserialize(sceneBackup);
+            activeScene.Deserialize(sceneBackup, false);
         }
         ImGui::PopStyleColor();
     }

@@ -91,15 +91,22 @@ class Scene {
             }
         }
 
-        void Clear() {
-            // Use std::erase_if (C++20) to remove only non-persistent objects
-            std::erase_if(m_gameObjects, [](const std::unique_ptr<GameObject>& go) {
-                // If the object has a PersistentComponent, we return false (do NOT erase)
-                if (go->GetComponent<PersistentComponent>()) {
-                    return false;
-                }
-                return true; // Otherwise, erase it
-            });
+        void Clear(bool keepPersistent = true) {
+            if (!keepPersistent) {
+                // Editor stop mode: Destroy absolutely everything to restore the backup
+                m_gameObjects.clear();
+            }
+            else {
+                // Gameplay Mode: Keep objects that have the PersistentComponent
+                // Use std::erase_if (C++20) to remove only non-persistent objects
+                std::erase_if(m_gameObjects, [](const std::unique_ptr<GameObject>& go) {
+                    // If the object has a PersistentComponent, we return false (do NOT erase)
+                    if (go->GetComponent<PersistentComponent>()) {
+                        return false;
+                    }
+                    return true; // Otherwise, erase it
+                });
+            }
 
             m_pendingObjects.clear();
         }
@@ -146,8 +153,8 @@ class Scene {
             return j;
         }
 
-        void Deserialize(const nlohmann::json& j) {
-            Clear(); // Ensure the scene is totally empty before loading
+        void Deserialize(const nlohmann::json& j, bool keepPersistent = true) {
+            Clear(keepPersistent); // Ensure the scene is totally empty before loading
 
             if (!j.contains("gameObjects")) return;
 
