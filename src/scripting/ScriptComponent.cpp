@@ -90,6 +90,20 @@ void ScriptComponent::Update(float deltaTime) {
     }
 }
 
+void ScriptComponent::OnCollision(const Collision2D& collision) {
+    if (!m_instance) return;
+
+    try {
+        // Look for 'on_collision' in the Python script
+        if (py::hasattr(m_instance, "on_collision")) {
+            // Call the python method passing the Collision2D struct
+            m_instance.attr("on_collision")(collision);
+        }
+    } catch (const py::error_already_set& e) {
+        std::cerr << "[ScriptComponent] OnCollision Error:\n" << e.what() << std::endl;
+    }
+}
+
 void ScriptComponent::HotReload() {
     std::cout << "[ScriptEngine] File changed. Hot reloading: " << m_scriptName << "..." << std::endl;
 

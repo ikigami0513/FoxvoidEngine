@@ -6,6 +6,7 @@
 #include <world/ComponentRegistry.hpp>
 #include "physics/RectCollider.hpp"
 #include "physics/RigidBody2d.hpp"
+#include "physics/Collision2D.hpp"
 
 void BindMathAndPhysics(py::module_& m) {
     py::class_<Vector2>(m, "Vector2")
@@ -34,6 +35,10 @@ void BindMathAndPhysics(py::module_& m) {
             return py::cast(t, py::return_value_policy::reference);
         }
     );
+
+    py::class_<Collision2D>(m, "Collision2D")
+        .def_readwrite("other", &Collision2D::other, py::return_value_policy::reference)
+        .def_readwrite("normal", &Collision2D::normal);
 
     py::class_<RectCollider, Component>(m, "RectCollider")
         .def(py::init<float, float>(), py::arg("width") = 50.0f, py::arg("height") = 50.0f)

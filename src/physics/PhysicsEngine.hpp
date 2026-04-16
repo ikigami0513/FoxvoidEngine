@@ -2,6 +2,7 @@
 
 #include "world/GameObject.hpp"
 #include <raylib.h>
+#include "Collision2D.hpp"
 
 class Scene;
 
@@ -18,8 +19,8 @@ class PhysicsEngine {
 
     private:
         // Helper function to calculate AABB overlap and push objects apart
-        static void ResolveCollision(GameObject* objA, GameObject* objB);
+        static bool ResolveCollision(GameObject* objA, GameObject* objB, Vector2& outNormalA, Vector2& outNormalB);
 
         // Helper function to resolve collision against static TileMap geometry
-        static void ResolveTileCollision(GameObject* obj, const Rectangle& tileRect);
+        static bool ResolveTileCollision(GameObject* obj, const Rectangle& tileRect, Vector2& outNormal);
 };

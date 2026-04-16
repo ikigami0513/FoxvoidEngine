@@ -18,6 +18,8 @@ class [[gnu::visibility("default")]] ScriptComponent : public Component {
         void Start() override;
         void Update(float deltaTime) override;
 
+        void OnCollision(const Collision2D& collision) override;
+
         std::string GetName() const override;
 
         // Dynamically inspects the Python object and draws its variables

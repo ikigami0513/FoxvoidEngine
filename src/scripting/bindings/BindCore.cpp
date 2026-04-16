@@ -29,9 +29,13 @@ void BindCore(py::module_& m) {
 
     py::class_<Component>(m, "Component")
         .def(py::init<>())
-        .def_property_readonly("game_object", [](Component& c) { return c.owner; }, py::return_value_policy::reference);
+        .def_property_readonly("game_object", [](Component& c) { return c.owner; }, py::return_value_policy::reference)
+        .def("start", &Component::Start)
+        .def("update", &Component::Update, py::arg("delta_time"))
+        .def("on_collision", &Component::OnCollision, py::arg("collision"));
 
     py::class_<GameObject>(m, "GameObject")
+        .def_readwrite("name", &GameObject::name)
         // We return GameObject* directly. Pybind11 will apply the reference policy automatically
         // and convert nullptr to Python's None safely.
         .def_static("spawn", [](const std::string& name) -> GameObject* {

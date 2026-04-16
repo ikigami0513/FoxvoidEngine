@@ -111,6 +111,16 @@ class Vector2:
     def __init__(self, x: float = 0.0, y: float = 0.0) -> None: ...
 
 
+class Collision2D:
+    """Contains information about a physics collision event."""
+    
+    other: GameObject | None
+    """The GameObject collided with. Will be None if the collision was with the static TileMap."""
+    
+    normal: Vector2
+    """The direction vector of the surface hit. e.g., (0, -1) means you hit the floor."""
+
+
 class Component:
     """Base class for all engine scripts and components."""
     
@@ -122,6 +132,10 @@ class Component:
     def game_object(self) -> GameObject:
         """The owning GameObject of this component (Read-only)."""
         ...
+
+    def start(self) -> None: ...
+    def update(self, delta_time: float) -> None: ...
+    def on_collision(self, collision: Collision2D) -> None: ...
 
 
 class Transform2d(Component):

@@ -3,6 +3,7 @@
 #include <string>
 #include "imgui.h"
 #include <nlohmann/json.hpp>
+#include "physics/Collision2D.hpp"
 
 // Forward declaration to avoid circular dependencies
 class GameObject; 
@@ -28,6 +29,8 @@ class Component {
 
         // Called every frame after update, specifically for drawing via Raylib
         virtual void Render() {}
+
+        virtual void OnCollision(const Collision2D& collision) {}
 
         // Returns the name of the component for the Inspecteur header
         virtual std::string GetName() const { return "Component"; }

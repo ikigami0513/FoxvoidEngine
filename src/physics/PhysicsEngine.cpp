@@ -40,22 +40,47 @@ void PhysicsEngine::Update(Scene& scene, float deltaTime) {
         }
     }
 
+    // Event Queue to store collisions for this frame
+    // We store who collided (GameObject) and what they hit (Collision2D)
+    std::vector<std::pair<GameObject*, Collision2D>> collisionEvents;
+
     // Step 3: Collision resolution (O(N²) checks)
     for (size_t i = 0; i < gameObjects.size(); ++i) {
+        auto objA = gameObjects[i].get();
+
         // Dynamic Objects vs Static TileMap
         // We only test objects that have a collider against the solid tiles
         for (const Rectangle& tileRect : solidTiles) {
-            ResolveTileCollision(gameObjects[i].get(), tileRect);
+            Vector2 normal = { 0.0f, 0.0f };
+            if (ResolveTileCollision(gameObjects[i].get(), tileRect, normal)) {
+                collisionEvents.push_back({ objA, { nullptr, normal } });
+            }
         }
 
         // Object vs Object (O(N²) checks)
         for (size_t j = i + 1; j < gameObjects.size(); ++j) {
-            ResolveCollision(gameObjects[i].get(), gameObjects[j].get());
+            auto objB = gameObjects[j].get();
+            Vector2 normalA = { 0.0f, 0.0f };
+            Vector2 normalB = { 0.0f, 0.0f };
+            
+            if (ResolveCollision(objA, objB, normalA, normalB)) {
+                collisionEvents.push_back({ objA, { objB, normalA } });
+                collisionEvents.push_back({ objB, { objA, normalB } });
+            }
         }
+    }
+
+    // Step 4: Dispath events to scripts
+    for (const auto& event : collisionEvents) {
+        GameObject* entity = event.first;
+        const Collision2D& colData = event.second;
+        
+        // Tells the GameObject it collided, so it warns its components
+        entity->OnCollision(colData);
     }
 }
 
-void PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB) {
+bool PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB, Vector2& outNormalA, Vector2& outNormalB) {
     auto colA = objA->GetComponent<RectCollider>();
     auto colB = objB->GetComponent<RectCollider>();
 
@@ -101,6 +126,20 @@ void PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB) {
 
     // Check if they overlap using Raylib
     if (CheckCollisionRecs(recA, recB)) {
+        // Handle Triggers: Detect overlap but do NOT apply physics push
+        if (colA->isTrigger || colB->isTrigger) {
+            outNormalA = { 0.0f, 0.0f };
+            outNormalB = { 0.0f, 0.0f };
+            return true;
+        }
+
+        auto rbA = objA->GetComponent<RigidBody2d>();
+        auto rbB = objB->GetComponent<RigidBody2d>();
+
+        bool isKinematicA = !rbA || rbA->isKinematic;
+        bool isKinematicB = !rbB || rbB->isKinematic;
+
+        if (isKinematicA && isKinematicB) return true;
         
         // Calculate the center points of both rectangles
         float centerA_x = recA.x + recA.width / 2.0f;
@@ -120,7 +159,9 @@ void PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB) {
             if (overlapX < overlapY) {
                 // Resolve on the X-axis (Horizontal collision)
                 float sign = (centerA_x < centerB_x) ? -1.0f : 1.0f;
-                
+                outNormalA = { sign, 0.0f };
+                outNormalB = { -sign, 0.0f };
+
                 if (!isKinematicA && isKinematicB) {
                     tA->position.x += overlapX * sign;
                     if (rbA) rbA->velocity.x = 0; // Stop momentum on impact
@@ -140,6 +181,8 @@ void PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB) {
             else {
                 // Resolve on the Y-axis (Vertical collision, e.g., hitting the floor)
                 float sign = (centerA_y < centerB_y) ? -1.0f : 1.0f;
+                outNormalA = { 0.0f, sign };
+                outNormalB = { 0.0f, -sign };
 
                 if (!isKinematicA && isKinematicB) {
                     tA->position.y += overlapY * sign;
@@ -160,16 +203,13 @@ void PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB) {
     }
 }
 
-void PhysicsEngine::ResolveTileCollision(GameObject* obj, const Rectangle& tileRect) {
+bool PhysicsEngine::ResolveTileCollision(GameObject* obj, const Rectangle& tileRect, Vector2& outNormal) {
     auto col = obj->GetComponent<RectCollider>();
     auto t = obj->GetComponent<Transform2d>();
     auto rb = obj->GetComponent<RigidBody2d>();
 
     // We only resolve if the object has a physical presence
-    if (!col || !t || col->isTrigger) return;
-    
-    // We don't push static/kinematic objects out of the environment
-    if (!rb || rb->isKinematic) return;
+    if (!col || !t) return false;
 
     // Define the dynamic object's world-space rectangle
     float scaledWidth = col->size.x * t->scale.x;
@@ -183,6 +223,14 @@ void PhysicsEngine::ResolveTileCollision(GameObject* obj, const Rectangle& tileR
 
     // Check overlap
     if (CheckCollisionRecs(rec, tileRect)) {
+        // Triggers detect the tile, but aren't pushed by it
+        if (col->isTrigger) {
+            outNormal = { 0.0f, 0.0f };
+            return true; 
+        }
+
+        if (!rb || rb->isKinematic) return false;
+
         float center_x = rec.x + rec.width / 2.0f;
         float center_y = rec.y + rec.height / 2.0f;
         float tileCenter_x = tileRect.x + tileRect.width / 2.0f;
@@ -196,15 +244,20 @@ void PhysicsEngine::ResolveTileCollision(GameObject* obj, const Rectangle& tileR
                 // Horizontal collision (Hit a wall)
                 float sign = (center_x < tileCenter_x) ? -1.0f : 1.0f;
                 t->position.x += overlapX * sign;
-                rb->velocity.x = 0; 
+                rb->velocity.x = 0;
+                outNormal = { sign, 0.0f };
             } else {
                 // Vertical collision (Hit the floor or ceiling)
                 float sign = (center_y < tileCenter_y) ? -1.0f : 1.0f;
                 t->position.y += overlapY * sign;
                 rb->velocity.y = 0;
+                outNormal = { 0.0f, sign };
             }
+            return true;
         }
     }
+    
+    return false;
 }
 
 void PhysicsEngine::RenderDebug(Scene& scene) {

@@ -50,6 +50,13 @@ class GameObject {
             }
         }
 
+        // Relays the collision event to all attached components
+        void OnCollision(const Collision2D& collision) {
+            for (auto& component : components) {
+                component->OnCollision(collision);
+            }
+        }
+
         // Safely removes a component from the entity
         void RemoveComponent(Component* compToRemove) {
             if (!compToRemove) return;
