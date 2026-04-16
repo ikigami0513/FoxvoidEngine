@@ -583,3 +583,26 @@ class TileMap(Component):
         Returns None if no layer with this name exists.
         """
         ...
+
+
+class TextRenderer(Component):
+    """
+    Renders text either in the game world or attached to the screen (HUD).
+    """
+    
+    text: str
+    """The string of text to display. Supports line breaks (\\n)."""
+
+    font_size: float
+    """The size of the rendered text."""
+
+    is_hud: bool
+    """If True, renders in screen space (ignoring the camera). If False, renders in world space."""
+
+    font_path: str
+    """The path to the custom .ttf or .otf font file. Leave empty to use the default engine font."""
+
+    def __init__(self) -> None:
+        """Initializes a new TextRenderer."""
+        ...
+        

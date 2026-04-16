@@ -155,6 +155,8 @@ void Engine::Render() {
             // Draw all entities normally
             m_activeScene.Render();
         EndMode2D();
+
+        m_activeScene.RenderHUD();
     EndTextureMode();
 
     // Pass 2: Editor Rendering
@@ -184,6 +186,8 @@ void Engine::Render() {
             
         // Deactivate the camera
         m_editorCamera->End();
+
+        m_activeScene.RenderHUD();
     EndTextureMode();
 
     // Pass 3: Editor Rendering (ON-SCREEN)

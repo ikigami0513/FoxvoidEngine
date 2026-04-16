@@ -30,6 +30,10 @@ class Component {
         // Called every frame after update, specifically for drawing via Raylib
         virtual void Render() {}
 
+        // Called after the camera has finished drawing the world
+        // Used for UI elements like health bars, score text, etc.
+        virtual void RenderHUD() {}
+
         virtual void OnCollision(const Collision2D& collision) {}
 
         // Returns the name of the component for the Inspecteur header

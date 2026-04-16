@@ -32,18 +32,18 @@ class PlayerController(Component):
         is_moving = False
 
         # Handle movement and flip state
-        if Input.is_key_down(Keys.RIGHT):
+        if Input.is_action_down("walk_right"):
             self._transform.position.x += self.speed * delta_time
             self.facing_right = True
             is_moving = True
             
-        elif Input.is_key_down(Keys.LEFT):
+        elif Input.is_action_down("walk_left"):
             self._transform.position.x -= self.speed * delta_time
             self.facing_right = False
             is_moving = True
 
         # Handle jumping
-        if Input.is_key_pressed(Keys.KEY_SPACE) and self._rigidbody.is_grounded:
+        if Input.is_action_pressed("jump") and self._rigidbody.is_grounded:
             self._rigidbody.velocity.y = self.jump_force
 
         # Resolve animations based on current state

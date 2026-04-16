@@ -12,6 +12,7 @@
 #include "physics/RigidBody2d.hpp"
 #include "graphics/Camera2d.hpp"
 #include "graphics/TileMap.hpp"
+#include "gui/TextRenderer.hpp"
 
 namespace EngineSetup {
     void RegisterNativeComponents() {
@@ -27,6 +28,8 @@ namespace EngineSetup {
         ComponentRegistry::RegisterCPP<Animator2d>("Animator2d");
         ComponentRegistry::RegisterCPP<Camera2d>("Camera2d");
         ComponentRegistry::RegisterCPP<TileMap>("TileMap");
+
+        ComponentRegistry::RegisterCPP<TextRenderer>("TextRenderer");
 
         ComponentRegistry::RegisterCPP<ScriptComponent>("ScriptComponent");
     }

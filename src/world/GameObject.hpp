@@ -50,6 +50,13 @@ class GameObject {
             }
         }
 
+        // Iterate and call HUD render methods
+        void RenderHUD() {
+            for (auto& component : components) {
+                component->RenderHUD();
+            }
+        }
+
         // Relays the collision event to all attached components
         void OnCollision(const Collision2D& collision) {
             for (auto& component : components) {

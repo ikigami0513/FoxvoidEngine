@@ -1,5 +1,11 @@
 {
-    "Jump": [
+    "jump": [
         32
+    ],
+    "walk_left": [
+        263
+    ],
+    "walk_right": [
+        262
     ]
 }

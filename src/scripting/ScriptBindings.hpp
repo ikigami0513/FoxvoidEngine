@@ -8,3 +8,4 @@ void BindInput(py::module_& m);
 void BindMathAndPhysics(py::module_& m);
 void BindGraphics(py::module_& m);
 void BindCore(py::module_& m);
+void BindGUI(py::module_& m);

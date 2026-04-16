@@ -84,6 +84,12 @@ class Scene {
             }
         }
 
+        void RenderHUD() {
+            for (auto& go : m_gameObjects) {
+                go->RenderHUD();
+            }
+        }
+
         void Clear() {
             m_gameObjects.clear();
             m_pendingObjects.clear();
