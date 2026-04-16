@@ -3,6 +3,50 @@
 #include <iostream>
 #include <extras/IconsFontAwesome6.h>
 
+// Helper to generate a default Python script template
+void CreatePythonScript(const fs::path& directory, const std::string& scriptName) {
+    // Force the .py extension
+    std::string filename = scriptName;
+    if (filename.find(".py") == std::string::npos) {
+        filename += ".py";
+    }
+
+    fs::path fullPath = directory / filename;
+
+    // Check if file already exists to prevent accidental overwrites
+    if (fs::exists(fullPath)) {
+        std::cerr << "[ProjectPanel] Error: file " << filename << " already exists!" << std::endl;
+        return;
+    }
+
+    std::ofstream file(fullPath);
+    if (file.is_open()) {
+        // Derive class name from filename (e.g., "PlayerController.py" -> "PlayerController")
+        std::string className = filename.substr(0, filename.find_last_of('.'));
+
+        // Capitalize the first letter for Python class convention
+        if (!className.empty()) {
+            className[0] = std::toupper(className[0]);
+        }
+
+        // Write the boilerplate code
+        file << "from foxvoid import *\n\n";
+        file << "class " << className << "(Component):\n";
+        file << "    def __init__(self):\n";
+        file << "        super().__init__()\n\n";
+        file << "    def start(self):\n";
+        file << "        pass\n\n";
+        file << "    def update(self, delta_time: float):\n";
+        file << "        pass\n";
+
+        file.close();
+        std::cout << "[ProjectPanel] Created new script: " << fullPath.string() << std::endl;
+    }
+    else {
+        std::cerr << "[ProjectPanel] Error: Could not create file " << fullPath.string() << std::endl;
+    }
+}
+
 void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, const fs::path& assetsPath, std::string& currentScenePath) {
     ImGui::Begin("Project");
 
@@ -47,12 +91,53 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, const f
     }
 
     ImGui::PopStyleVar();
+
+    // Trigger the modal at the root id stack
+    if (m_requestScriptModal) {
+        ImGui::OpenPopup("New Python Script");
+        m_requestScriptModal = false; // Reset the flag immediately
+    }
+
+    // Modal
+    if (ImGui::BeginPopupModal("New Python Script", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        static char scriptName[64] = "NewScript";
+        ImGui::InputText("Name", scriptName, IM_ARRAYSIZE(scriptName));
+                
+        if (ImGui::Button("Create", ImVec2(120, 0))) {
+            CreatePythonScript(m_currentDirectory, scriptName);
+            ImGui::CloseCurrentPopup();
+            
+            // Reset buffer for the next time
+            scriptName[0] = '\0';
+            strcpy(scriptName, "NewScript");
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+
     ImGui::End();
 }
 
 void ProjectPanel::DrawExplorerView(Scene& activeScene, GameObject*& selectedObject, std::string& currentScenePath) {
     // If the directory does not exist, stop right here
     if (!fs::exists(m_currentDirectory)) return;
+
+    // Global Right-Click menu for the current directory
+    if (ImGui::BeginPopupContextWindow("ExplorerContextPopup")) {
+        if (ImGui::BeginMenu(ICON_FA_PLUS " Create")) {
+            if (ImGui::MenuItem(ICON_FA_FILE_CODE " Python Script")) {
+                m_requestScriptModal = true;
+            }
+            ImGui::EndMenu();
+        }
+        ImGui::EndPopup();
+    }
 
     // Iterate through all items in the current directory
     for (const auto& entry : fs::directory_iterator(m_currentDirectory)) {
@@ -141,8 +226,23 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
             // It's a FOLDER
             std::string folderName = ICON_FA_FOLDER " " + filename;
             
+            bool isOpen = ImGui::TreeNodeEx(folderName.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth);
+
+            // Context menu for specific folders in Tree View
+            // Push an ID so multiple folders don't share the same popup state
+            ImGui::PushID(entry.path().string().c_str());
+            if (ImGui::BeginPopupContextItem()) {
+                if (ImGui::MenuItem(ICON_FA_FILE_CODE " Create Python Script")) {
+                    // Update our tracked directory to the one clicked, then open the global modal
+                    m_currentDirectory = entry.path();
+                    m_requestScriptModal = true;
+                }
+                ImGui::EndPopup();
+            }
+            ImGui::PopID();
+
             // Create a collapsible tree node
-            if (ImGui::TreeNodeEx(folderName.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
+            if (isOpen) {
                 // Recursive call to read the contents of this subfolder
                 DrawDirectoryNode(activeScene, selectedObject, entry.path(), currentScenePath); 
                 ImGui::TreePop(); // Close the node

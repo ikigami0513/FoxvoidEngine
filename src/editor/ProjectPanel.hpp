@@ -23,4 +23,7 @@ class ProjectPanel {
 
         bool m_isTreeView = true; // Start in Tree view by default
         fs::path m_currentDirectory = "";
+
+        // Flag to trigger the modal safely
+        bool m_requestScriptModal = false;
 };
