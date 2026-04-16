@@ -10,14 +10,15 @@ class PlayerController(Component):
         super().__init__()
         self.speed = 400.0
         self.jump_force = -500.0
-        # self.msg = "hello hot reloading"
         self._transform: Optional[Transform2d] = None
         self._rigidbody: Optional[RigidBody2d] = None
+        self._animator: Optional[Animator2d] = None
 
     def start(self):
         Debug.log("PlayerController start sequence!")
         self._transform = self.game_object.get_component(Transform2d)
         self._rigidbody = self.game_object.get_component(RigidBody2d)
+        self._animator = self.game_object.get_component(Animator2d)
         
     def update(self, delta_time: float):
         if self._transform is not None:
@@ -32,8 +33,3 @@ class PlayerController(Component):
     def on_collision(self, collision: Collision2D):
         if collision.other is not None:
             Debug.log(f"Just it an object: {collision.other.name}")
-        else:
-            if collision.normal.y == -1.0:
-                Debug.log("hit the ground")
-            elif collision.normal.x != 0.0:
-                Debug.log("hit the wall")

@@ -17,7 +17,15 @@ class Camera2d : public Component {
         Camera2dAnchor anchor; // The base screen position
         bool isMain; // Determines if this is the primary camera used to render the Game View
 
+        // Camera smoothing and Constraints
+        float lerpFactor; // 0 means instant snap, > 0 means smooth follow (e.g., 5.0)
+        bool useWorldBounds;
+        Rectangle worldBounds; // Limits of the camera: x, y, width, height
+
         Camera2d();
+
+        // Called every frame to calculate smooth movement
+        void Update(float deltaTime) override;
 
         std::string GetName() const override;
         void OnInspector() override;
@@ -27,4 +35,8 @@ class Camera2d : public Component {
 
         // Generates the Raylib Camera2D struct dynamically based on the GameObject's Transform2d
         Camera2D GetCamera(float screenWidth, float screenHeight) const;
+
+    private:
+        Vector2 m_currentTarget; // Internal state for Lerp calculation
+        bool m_isFirstFrame;     // Ensures the camera snaps instantly on start instead of sliding from 0,0
 };

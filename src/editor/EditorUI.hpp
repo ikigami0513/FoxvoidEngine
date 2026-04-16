@@ -9,6 +9,9 @@ class EditorUI {
         // Helper to draw a 2-float Drag control (e.g., Vector2) with Undo/Redo tracking
         static bool DragFloat2(const char* label, float v[2], float v_speed, Component* component, float v_min = 0.0f, float v_max = 0.0f);
         
+        // Helper to draw a 4-float Drag control (e.g., Rectangle bounds) with Undo/Redo tracking
+        static bool DragFloat4(const char* label, float v[4], float v_speed, Component* component, float v_min = 0.0f, float v_max = 0.0f);
+
         // Helper to draw a single float Drag control with Undo/Redo tracking
         static bool DragFloat(const char* label, float* v, float v_speed, Component* component, float v_min = 0.0f, float v_max = 0.0f);
 

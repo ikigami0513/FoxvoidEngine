@@ -371,6 +371,34 @@ class Animation2d(Component):
         ...
 
 
+class Animator2d(Component):
+    """
+    Manages and plays 2D frame-based animations using an attached SpriteSheetRenderer.
+    """
+
+    def __init__(self) -> None:
+        """Initializes an empty Animator2d."""
+        ...
+
+    def add_animation(self, name: str, frames: list[int], frame_duration: float, loop: bool) -> None:
+        """
+        Registers a new animation state.
+        
+        :param name: The identifier for the animation (e.g., "walk", "idle").
+        :param frames: A list of frame indices in the sprite sheet.
+        :param frame_duration: Time in seconds each frame is displayed.
+        :param loop: If True, the animation restarts automatically.
+        """
+        ...
+
+    def play(self, name: str) -> None:
+        """
+        Switches the current playback to the specified animation.
+        Does nothing if the animation is already playing.
+        """
+        ...
+
+
 class RectCollider(Component):
     """
     Component that defines a 2D rectangular collision shape.
