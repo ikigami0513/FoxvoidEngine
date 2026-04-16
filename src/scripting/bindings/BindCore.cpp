@@ -109,4 +109,14 @@ void BindCore(py::module_& m) {
                 std::cerr << "[Python] Cannot load scene: Engine is null!" << std::endl;
             }
         });
+
+    py::class_<PersistentComponent, Component>(m, "PersistentComponent")
+        .def(py::init<>());
+
+    ComponentRegistry::Register<PersistentComponent>("PersistentComponent",
+        [](GameObject& go, py::args args) -> py::object {
+            auto* p = go.AddComponent<PersistentComponent>();
+            return py::cast(p, py::return_value_policy::reference);
+        }
+    );
 }

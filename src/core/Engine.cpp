@@ -139,7 +139,7 @@ void Engine::Update(float deltaTime) {
     if (!m_pendingScenePath.empty()) {
         std::cout << "[Engine] Loading new scene: " << m_pendingScenePath << std::endl;
 
-        // Destroy all current GameObjects and free memory
+        // Destroy all current non-persistent GameObjects and free memory
         m_activeScene.Clear();
 
         // Load the new JSON (.scene) file
@@ -148,11 +148,11 @@ void Engine::Update(float deltaTime) {
         // Update the editor's path so it knows what we are editing
         m_currentScenePath = m_pendingScenePath;
 
-        // Trigger the Start() method for all the newly loaded components
-        m_activeScene.Start();
-
         // Clear the pending path so we don't load it again next frame
         m_pendingScenePath = "";
+
+        // Trigger the Start() method for all the newly loaded components
+        m_activeScene.Start();
     }
 
     // Only run game logic (Python scripts, animations) if PLAY is active

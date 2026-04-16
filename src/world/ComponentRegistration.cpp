@@ -13,6 +13,7 @@
 #include "graphics/Camera2d.hpp"
 #include "graphics/TileMap.hpp"
 #include "gui/TextRenderer.hpp"
+#include "world/PersistentComponent.hpp"
 
 namespace EngineSetup {
     void RegisterNativeComponents() {
@@ -30,6 +31,8 @@ namespace EngineSetup {
         ComponentRegistry::RegisterCPP<TileMap>("TileMap");
 
         ComponentRegistry::RegisterCPP<TextRenderer>("TextRenderer");
+
+        ComponentRegistry::RegisterCPP<PersistentComponent>("PersistentComponent");
 
         ComponentRegistry::RegisterCPP<ScriptComponent>("ScriptComponent");
     }

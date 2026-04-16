@@ -17,6 +17,7 @@
 #include "ComponentRegistry.hpp"
 #include "physics/PhysicsEngine.hpp"
 #include "graphics/Camera2d.hpp"
+#include "PersistentComponent.hpp"
 
 class Scene {
     public:
@@ -91,7 +92,15 @@ class Scene {
         }
 
         void Clear() {
-            m_gameObjects.clear();
+            // Use std::erase_if (C++20) to remove only non-persistent objects
+            std::erase_if(m_gameObjects, [](const std::unique_ptr<GameObject>& go) {
+                // If the object has a PersistentComponent, we return false (do NOT erase)
+                if (go->GetComponent<PersistentComponent>()) {
+                    return false;
+                }
+                return true; // Otherwise, erase it
+            });
+
             m_pendingObjects.clear();
         }
 
