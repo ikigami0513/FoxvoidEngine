@@ -135,6 +135,26 @@ void Engine::ProcessInput() {
 }
 
 void Engine::Update(float deltaTime) {
+    // Check if a scene change was requested last frame
+    if (!m_pendingScenePath.empty()) {
+        std::cout << "[Engine] Loading new scene: " << m_pendingScenePath << std::endl;
+
+        // Destroy all current GameObjects and free memory
+        m_activeScene.Clear();
+
+        // Load the new JSON (.scene) file
+        m_activeScene.LoadFromFile(m_pendingScenePath);
+
+        // Update the editor's path so it knows what we are editing
+        m_currentScenePath = m_pendingScenePath;
+
+        // Trigger the Start() method for all the newly loaded components
+        m_activeScene.Start();
+
+        // Clear the pending path so we don't load it again next frame
+        m_pendingScenePath = "";
+    }
+
     // Only run game logic (Python scripts, animations) if PLAY is active
     if (m_isPlaying) {
         m_activeScene.Update(deltaTime);
@@ -239,6 +259,11 @@ void Engine::Render() {
 
         rlImGuiEnd();
     EndDrawing();
+}
+
+void Engine::LoadScene(const std::string& scenePath) {
+    std::cout << "[Engine] Scene change requested: " << scenePath << std::endl;
+    m_pendingScenePath = scenePath;
 }
 
 void Engine::ApplyModernTheme() {

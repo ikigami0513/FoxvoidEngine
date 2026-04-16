@@ -606,3 +606,14 @@ class TextRenderer(Component):
         """Initializes a new TextRenderer."""
         ...
         
+
+class SceneManager:
+    """Handles loading and transitioning between different scenes/levels."""
+    
+    @staticmethod
+    def load_scene(name: str) -> None:
+        """
+        Requests the engine to load a new scene at the start of the next frame.
+        The name should not include the extension or path (e.g., 'main_menu', 'level_01').
+        """
+        ...

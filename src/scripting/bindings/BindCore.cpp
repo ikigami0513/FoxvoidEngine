@@ -99,4 +99,14 @@ void BindCore(py::module_& m) {
             std::cerr << "[Python] Unknown component type: " << type_name << std::endl;
             return py::none();
         });
+
+    py::class_<Engine>(m, "SceneManager")
+        .def_static("load_scene", [](const std::string& path) {
+            if (Engine::Get()) {
+                Engine::Get()->LoadScene(path);
+            }
+            else {
+                std::cerr << "[Python] Cannot load scene: Engine is null!" << std::endl;
+            }
+        });
 }

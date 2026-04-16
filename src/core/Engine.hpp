@@ -39,6 +39,9 @@ class Engine {
         // Returns a reference to the active scene to allow GameObject instantiation
         Scene& GetActiveScene() { return m_activeScene; }
 
+        // Requests a scene change for the start of the next frame
+        void LoadScene(const std::string& scenePath);
+
     private:
         // Core loop stages
         void ProcessInput();
@@ -106,6 +109,9 @@ class Engine {
         bool m_showGlobalGrid = true;
 
         std::string m_currentScenePath = "";
+
+        // Stores the path of the scene waiting to be loaded
+        std::string m_pendingScenePath = "";
 
         // Static pointer holding the unique Engine instance
         static Engine* s_instance;
