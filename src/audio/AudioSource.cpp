@@ -5,7 +5,7 @@
 #include <iostream>
 #include <filesystem>
 
-AudioSource::AudioSource() : m_isMusicLoaded(false), m_musicVolume(1.0f) {
+AudioSource::AudioSource() : m_isMusicLoaded(false), m_musicVolume(1.0f), playOnStart(true) {
     m_currentMusic = {0};
 }
 
@@ -18,6 +18,13 @@ AudioSource::~AudioSource() {
 
     if (m_isMusicLoaded) {
         UnloadMusicStream(m_currentMusic);
+    }
+}
+
+void AudioSource::Start() {
+    if (playOnStart && m_isMusicLoaded) {
+        // Automatically start the background music if the toggle is checked
+        PlayMusic();
     }
 }
 
@@ -124,6 +131,9 @@ void AudioSource::OnInspector() {
         CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
     }
 
+    // Play on Start checkbox
+    EditorUI::Checkbox("Play on Start", &playOnStart, this);
+
     // Music playback controls for the Editor
     if (m_isMusicLoaded) {
         if (ImGui::Button("Play BGM")) PlayMusic();
@@ -220,12 +230,14 @@ nlohmann::json AudioSource::Serialize() const {
         {"type", "AudioSource"},
         {"musicPath", m_musicPath},
         {"musicVolume", m_musicVolume},
+        {"playOnStart", playOnStart},
         {"sfxPaths", m_sfxPaths} // nlohmann::json natively serializes unordered_map!
     };
 }
 
 void AudioSource::Deserialize(const nlohmann::json& j) {
     m_musicVolume = j.value("musicVolume", 1.0f);
+    playOnStart = j.value("playOnStart", true);
     
     std::string loadedMusicPath = j.value("musicPath", "");
     if (!loadedMusicPath.empty()) {

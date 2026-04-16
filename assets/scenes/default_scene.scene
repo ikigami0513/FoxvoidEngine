@@ -1178,6 +1178,7 @@
                 {
                     "musicPath": "assets/audio/Definitely Our Town.ogg",
                     "musicVolume": 1.0,
+                    "playOnStart": true,
                     "sfxPaths": {},
                     "type": "AudioSource"
                 }

@@ -8,10 +8,15 @@
 
 class AudioSource : public Component {
     public:
+        // Toggle to auto-play music when the scene starts
+        bool playOnStart;
+
         AudioSource();
         ~AudioSource() override;
 
+        void Start() override;
         void Update(float deltaTime) override;
+
         std::string GetName() const override;
         void OnInspector() override;
 
