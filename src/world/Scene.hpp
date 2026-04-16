@@ -78,9 +78,32 @@ class Scene {
             m_pendingObjects.clear();
         }
 
-        // Triggers the render loop for all GameObjects in the scene
+        // Triggers the render loop for all GameObjects in the scene based on Z-Index
         void Render() {
+            // Create a temporary list of raw pointers to sort
+            std::vector<GameObject*> renderList;
+            renderList.reserve(m_gameObjects.size());
             for (auto& go : m_gameObjects) {
+                renderList.push_back(go.get());
+            }
+
+            // Sort the list by Z-Index (Ascending: lower Z is drawn first, higher Z is drawn on top)
+            // std::stable_sort is crucial here: it preserves the creation order for objects that have the SAME Z-Index
+            std::stable_sort(renderList.begin(), renderList.end(), [](GameObject* a, GameObject* b) {
+                int zA = 0;
+                int zB = 0;
+                
+                auto tA = a->GetComponent<Transform2d>();
+                auto tB = b->GetComponent<Transform2d>();
+                
+                if (tA) zA = tA->zIndex;
+                if (tB) zB = tB->zIndex;
+                
+                return zA < zB;
+            });
+
+            // Render the sorted list
+            for (auto* go : renderList) {
                 go->Render();
             }
         }
@@ -218,14 +241,29 @@ class Scene {
 
         // Returns the top-most GameObject at the given world position, or nullptr if empty
         GameObject* PickObject(Vector2 worldPos) {
-            // We iterate backwards (rbegin to rend) to pick the object drawn ON TOP first
-            for (auto it = m_gameObjects.rbegin(); it != m_gameObjects.rend(); ++it) {
-                auto& go = *it;
+            // Gather all objects
+            std::vector<GameObject*> pickList;
+            pickList.reserve(m_gameObjects.size());
+            for (auto& go : m_gameObjects) {
+                pickList.push_back(go.get());
+            }
+
+            // Sort the list by Z-Index (Descending: Highest Z is checked first!)
+            std::stable_sort(pickList.begin(), pickList.end(), [](GameObject* a, GameObject* b) {
+                int zA = 0, zB = 0;
+                auto tA = a->GetComponent<Transform2d>();
+                auto tB = b->GetComponent<Transform2d>();
+                if (tA) zA = tA->zIndex;
+                if (tB) zB = tB->zIndex;
+                return zA > zB; // Note the > sign for descending order
+            });
+
+            // Check for collisions in sorted order
+            for (auto* go : pickList) {
                 auto transform = go->GetComponent<Transform2d>();
+                if (!transform) continue;
 
-                if (!transform) continue; // If it has no transform, it can't be clicked
-
-                // Default bounding box (fallback if the object has no renderer)
+                // Default bounding box
                 Rectangle bounds = { transform->position.x - 25.0f, transform->position.y - 25.0f, 50.0f, 50.0f };
 
                 // Try to get precise bounds from a SpriteRenderer
@@ -233,7 +271,6 @@ class Scene {
                 if (sprite && sprite->GetTexture().id != 0) {
                     float width = sprite->GetTexture().width * transform->scale.x;
                     float height = sprite->GetTexture().height * transform->scale.y;
-                    // Subtract half width/height because our origin is at the center
                     bounds = { transform->position.x - (width / 2.0f), transform->position.y - (height / 2.0f), width, height };
                 }
 
@@ -253,9 +290,9 @@ class Scene {
                     bounds = { transform->position.x - (width / 2.0f), transform->position.y - (height / 2.0f), width, height };
                 }
 
-                // Check if the world cursor intersects with the calculated bounding box
+                // If the click is inside the bounds, return this object immediately
                 if (CheckCollisionPointRec(worldPos, bounds)) {
-                    return go.get();
+                    return go;
                 }
             }
 

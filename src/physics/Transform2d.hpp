@@ -16,9 +16,12 @@ class Transform2d : public Component {
         float rotation;  // In degrees, as Raylib expects degrees for drawing
         Vector2 scale;
 
+        // Controls the render order (Higher = rendered on top)
+        int zIndex;
+
         // Constructor with default values
         Transform2d(float x = 0.0f, float y = 0.0f) 
-            : position{x, y}, rotation(0.0f), scale{1.0f, 1.0f} {}
+            : position{x, y}, rotation(0.0f), scale{1.0f, 1.0f}, zIndex(0) {}
 
         std::string GetName() const override {
             return "Transform 2D";
@@ -29,6 +32,15 @@ class Transform2d : public Component {
             EditorUI::DragFloat2("Position", &position.x, 0.1f, this);
             EditorUI::DragFloat2("Scale", &scale.x, 0.1f, this);
             EditorUI::DragFloat("Rotation", &rotation, 1.0f, this);
+
+            ImGui::Separator();
+
+            int tempZ = zIndex;
+            if (ImGui::InputInt("Z-Index", &tempZ)) {
+                nlohmann::json initialState = Serialize();
+                zIndex = tempZ;
+                CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
+            }
         }
 #endif
 
@@ -39,7 +51,8 @@ class Transform2d : public Component {
                 { "y", position.y },
                 { "scaleX", scale.x },
                 { "scaleY", scale.y },
-                { "rotation", rotation }
+                { "rotation", rotation },
+                { "zIndex", zIndex }
             };
         }
 
@@ -49,5 +62,6 @@ class Transform2d : public Component {
             scale.x    = j.value("scaleX", 1.0f);
             scale.y    = j.value("scaleY", 1.0f);
             rotation   = j.value("rotation", 0.0f);
+            zIndex = j.value("zIndex", 0);
         }
 };
