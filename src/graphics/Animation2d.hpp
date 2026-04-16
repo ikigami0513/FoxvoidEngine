@@ -8,7 +8,7 @@ class SpriteSheetRenderer; // Forward declaration
 class Animation2d : public Component {
 public:
     // Initializes the animation with a frame sequence, speed, and looping option
-    Animation2d(const std::vector<int>& frames = {0}, float speed = 0.15f, bool loop = true);
+    Animation2d(const std::vector<int>& frames = {0}, float speed = 0.15f, bool loop = true, bool flipX = false, bool flipY = false);
     ~Animation2d() override = default;
 
     void Start() override;
@@ -25,6 +25,10 @@ private:
     float m_speed;             // Time in seconds per frame
     bool m_loop;               // Should the animation restart at the end?
     
+    // Flip states
+    bool m_flipX;
+    bool m_flipY;
+
     int m_currentIndex;        // Current position in the m_frames array
     float m_timer;             // Time accumulator
     

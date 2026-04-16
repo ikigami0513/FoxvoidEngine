@@ -359,7 +359,7 @@ class Animation2d(Component):
     Performance is maximized as the timer logic runs natively in C++.
     """
     
-    def __init__(self, frames: List[int], speed: float, loop: bool = True) -> None: 
+    def __init__(self, frames: List[int], speed: float, loop: bool = True, flip_x: bool = False, flip_y: bool = False) -> None: 
         """
         Initializes the animation sequence.
         
@@ -380,7 +380,7 @@ class Animator2d(Component):
         """Initializes an empty Animator2d."""
         ...
 
-    def add_animation(self, name: str, frames: list[int], frame_duration: float, loop: bool) -> None:
+    def add_animation(self, name: str, frames: list[int], frame_duration: float, loop: bool, flip_x: bool = False, flip_y: bool = False) -> None:
         """
         Registers a new animation state.
         

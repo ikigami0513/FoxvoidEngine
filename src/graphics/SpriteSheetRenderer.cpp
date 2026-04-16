@@ -85,8 +85,15 @@ void SpriteSheetRenderer::Render() {
         // Origin: Center of the scaled frame
         Vector2 origin = { destRec.width / 2.0f, destRec.height / 2.0f };
 
+        // Make a temporary copy of the source rectangle for this specific frame
+        Rectangle drawRec = sourceRec;
+
+        // Force the absolute value, then apply the flip sign
+        drawRec.width = std::abs(drawRec.width) * (flipX ? -1.0f : 1.0f);
+        drawRec.height = std::abs(drawRec.height) * (flipY ? -1.0f : 1.0f);
+
         // Draw with full transform support
-        DrawTexturePro(m_texture, sourceRec, destRec, origin, m_transform->rotation, WHITE);
+        DrawTexturePro(m_texture, drawRec, destRec, origin, m_transform->rotation, WHITE);
     }
 }
 

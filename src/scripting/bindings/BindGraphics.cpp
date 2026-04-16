@@ -57,8 +57,8 @@ void BindGraphics(py::module_& m) {
     );
 
     py::class_<Animation2d, Component>(m, "Animation2d")
-        .def(py::init<std::vector<int>, float, bool>(), 
-             py::arg("frames"), py::arg("speed"), py::arg("loop") = true);
+        .def(py::init<std::vector<int>, float, bool, bool, bool>(), 
+             py::arg("frames"), py::arg("speed"), py::arg("loop") = true, py::arg("flip_x") = false, py::arg("flip_y") = false);
 
     ComponentRegistry::Register<Animation2d>("Animation2d", 
         [](GameObject& go, py::args args) -> py::object {
@@ -81,7 +81,9 @@ void BindGraphics(py::module_& m) {
 
     py::class_<Animator2d, Component>(m, "Animator2d")
         .def(py::init<>())
-        .def("add_animation", &Animator2d::AddAnimation)
+        .def("add_animation", &Animator2d::AddAnimation, 
+            py::arg("name"), py::arg("frames"), py::arg("frame_duration"), py::arg("loop"),
+            py::arg("flip_x") = false, py::arg("flip_y") = false)
         .def("play", &Animator2d::Play);
 
     ComponentRegistry::Register<Animator2d>("Animator2d", 

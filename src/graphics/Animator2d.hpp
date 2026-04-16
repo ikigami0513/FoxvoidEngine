@@ -13,6 +13,8 @@ struct AnimationData {
     std::vector<int> frames;
     float frameDuration;
     bool loop;
+    bool flipX;
+    bool flipY;
 };
 
 class Animator2d : public Component {
@@ -24,7 +26,7 @@ class Animator2d : public Component {
         void Update(float deltaTime) override;
 
         // Registers a new animation state
-        void AddAnimation(const std::string& name, const std::vector<int>& frames, float frameDuration, bool loop);
+        void AddAnimation(const std::string& name, const std::vector<int>& frames, float frameDuration, bool loop, bool flipX = false, bool flipY = false);
 
         // Switches to a new animation if it exists and isn't already playing
         void Play(const std::string& name);

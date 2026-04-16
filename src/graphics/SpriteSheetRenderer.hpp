@@ -10,6 +10,9 @@ class Transform2d; // Forward declaration
 
 class SpriteSheetRenderer : public Component {
     public:
+        bool flipX = false;
+        bool flipY = false;
+    
         // Takes the texture path, and the grid dimensions (columns and rows)
         SpriteSheetRenderer(const std::string& texturePath = "", int columns = 1, int rows = 1);
         ~SpriteSheetRenderer() override;

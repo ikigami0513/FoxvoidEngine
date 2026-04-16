@@ -7,8 +7,9 @@
 #include <editor/commands/ModifyComponentCommand.hpp>
 #include <editor/EditorUI.hpp>
 
-Animation2d::Animation2d(const std::vector<int>& frames, float speed, bool loop)
-    : m_frames(frames), m_speed(speed), m_loop(loop), 
+Animation2d::Animation2d(const std::vector<int>& frames, float speed, bool loop, bool flipX, bool flipY)
+    : m_frames(frames), m_speed(speed), m_loop(loop),
+      m_flipX(flipX), m_flipY(flipY),
       m_currentIndex(0), m_timer(0.0f), m_sprite(nullptr) {}
 
 void Animation2d::Start() {
@@ -20,6 +21,10 @@ void Animation2d::Start() {
     } else if (!m_frames.empty()) {
         // Apply the very first frame immediately
         m_sprite->SetFrame(m_frames[0]);
+
+        // Apply flip states immediately
+        m_sprite->flipX = m_flipX;
+        m_sprite->flipY = m_flipY;
     }
 }
 
@@ -46,6 +51,10 @@ void Animation2d::Update(float deltaTime) {
         
         // Tell the renderer to display the new frame
         m_sprite->SetFrame(m_frames[m_currentIndex]);
+
+        // Ensure flip states are continuously applied
+        m_sprite->flipX = m_flipX;
+        m_sprite->flipY = m_flipY;
     }
 }
 
@@ -90,6 +99,11 @@ void Animation2d::OnInspector() {
     EditorUI::DragFloat("Speed (s)", &m_speed, 0.01f, this, 0.01f, 5.0f);
     EditorUI::Checkbox("Loop", &m_loop, this);
 
+    // UI Checkboxes for flipping (EditorUI handles Undo/Redo natively)
+    EditorUI::Checkbox("Flip X", &m_flipX, this);
+    ImGui::SameLine();
+    EditorUI::Checkbox("Flip Y", &m_flipY, this);
+
     // Frame sequence editor (Custom UI)
     std::string framesStr = GetFramesAsString();
     char buffer[256];
@@ -132,13 +146,18 @@ nlohmann::json Animation2d::Serialize() const {
         {"type", "Animation2d"},
         {"frames", m_frames}, // nlohmann::json handles std::vector automatically!
         {"speed", m_speed},
-        {"loop", m_loop}
+        {"loop", m_loop},
+        {"flipX", m_flipX},
+        {"flipY", m_flipY}
     };
 }
 
 void Animation2d::Deserialize(const nlohmann::json& j) {
     m_speed = j.value("speed", 0.15f);
     m_loop = j.value("loop", true);
+
+    m_flipX = j.value("flipX", false);
+    m_flipY = j.value("flipY", false);
     
     if (j.contains("frames") && j["frames"].is_array()) {
         m_frames.clear();

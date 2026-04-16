@@ -15,8 +15,8 @@ Animator2d::Animator2d()
 {
 }
 
-void Animator2d::AddAnimation(const std::string& name, const std::vector<int>& frames, float frameDuration, bool loop) {
-    m_animations[name] = { frames, frameDuration, loop };
+void Animator2d::AddAnimation(const std::string& name, const std::vector<int>& frames, float frameDuration, bool loop, bool flipX, bool flipY) {
+    m_animations[name] = { frames, frameDuration, loop, flipX, flipY };
 }
 
 void Animator2d::Play(const std::string& name) {
@@ -93,6 +93,9 @@ void Animator2d::UpdateSprite() {
         if (!anim.frames.empty()) {
             // Apply the actual frame index to the SpriteSheetRenderer
             m_spriteRenderer->SetFrame(anim.frames[m_currentFrameIndex]);
+        
+            m_spriteRenderer->flipX = anim.flipX;
+            m_spriteRenderer->flipY = anim.flipY;
         }
     }
 }
@@ -136,10 +139,12 @@ void Animator2d::OnInspector() {
             
             // Show a small tooltip with animation details when hovering
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Frames: %zu | Duration: %.2fs | Loop: %s", 
+                ImGui::SetTooltip("Frames: %zu | Duration: %.2fs | Loop: %s | Flip: %s%s", 
                                   it->second.frames.size(), 
                                   it->second.frameDuration, 
-                                  it->second.loop ? "Yes" : "No");
+                                  it->second.loop ? "Yes" : "No",
+                                  it->second.flipX ? "X " : "",
+                                  it->second.flipY ? "Y" : (!it->second.flipX ? "None" : ""));
             }
 
             // Deletion: Trash icon button at the end of the line
@@ -183,6 +188,8 @@ void Animator2d::OnInspector() {
         static char framesBuffer[256] = "";
         static float duration = 0.1f;
         static bool loop = true;
+        static bool flipX = false;
+        static bool flipY = false;
 
         ImGui::InputText("Name", nameBuffer, IM_ARRAYSIZE(nameBuffer));
         
@@ -194,6 +201,10 @@ void Animator2d::OnInspector() {
 
         ImGui::DragFloat("Duration", &duration, 0.01f, 0.01f, 5.0f, "%.2f sec");
         ImGui::Checkbox("Loop", &loop);
+
+        ImGui::Checkbox("Flip X", &flipX);
+        ImGui::SameLine();
+        ImGui::Checkbox("Flip Y", &flipY);
 
         if (ImGui::Button("Create Animation", ImVec2(-1, 0))) {
             std::string animName(nameBuffer);
@@ -218,7 +229,7 @@ void Animator2d::OnInspector() {
                 if (!parsedFrames.empty()) {
                     nlohmann::json initialState = Serialize();
                     
-                    AddAnimation(animName, parsedFrames, duration, loop);
+                    AddAnimation(animName, parsedFrames, duration, loop, flipX, flipY);
                     
                     CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
 
@@ -254,6 +265,8 @@ nlohmann::json Animator2d::Serialize() const {
         animData["frames"] = pair.second.frames;
         animData["frameDuration"] = pair.second.frameDuration;
         animData["loop"] = pair.second.loop;
+        animData["flipX"] = pair.second.flipX;
+        animData["flipY"] = pair.second.flipY;
         
         // Use the animation name as the key in the JSON object
         animsJson[pair.first] = animData;
@@ -281,7 +294,9 @@ void Animator2d::Deserialize(const nlohmann::json& j) {
             data.frames = it.value()["frames"].get<std::vector<int>>();
             data.frameDuration = it.value()["frameDuration"].get<float>();
             data.loop = it.value()["loop"].get<bool>();
-            
+            data.flipX = it.value().value("flipX", false);
+            data.flipY = it.value().value("flipY", false);
+
             // Re-insert into our unordered_map using the JSON key as the animation name
             m_animations[it.key()] = data;
         }

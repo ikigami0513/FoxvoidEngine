@@ -17,23 +17,38 @@
                     "type": "SpriteSheetRenderer"
                 },
                 {
-                    "frames": [
-                        0
-                    ],
-                    "loop": true,
-                    "speed": 0.15000000596046448,
-                    "type": "Animation2d"
-                },
-                {
                     "animations": {
-                        "idle": {
+                        "idle_left": {
+                            "flipX": false,
+                            "flipY": false,
                             "frameDuration": 0.10000000149011612,
                             "frames": [
                                 0
                             ],
                             "loop": true
                         },
-                        "walk": {
+                        "idle_right": {
+                            "flipX": true,
+                            "flipY": false,
+                            "frameDuration": 0.10000000149011612,
+                            "frames": [
+                                0
+                            ],
+                            "loop": true
+                        },
+                        "walk_left": {
+                            "flipX": false,
+                            "flipY": false,
+                            "frameDuration": 0.10000000149011612,
+                            "frames": [
+                                0,
+                                1
+                            ],
+                            "loop": true
+                        },
+                        "walk_right": {
+                            "flipX": true,
+                            "flipY": false,
                             "frameDuration": 0.10000000149011612,
                             "frames": [
                                 0,
@@ -42,7 +57,7 @@
                             "loop": true
                         }
                     },
-                    "currentAnimation": "walk",
+                    "currentAnimation": "",
                     "currentFrameIndex": 0,
                     "timer": 0.0,
                     "type": "Animator2d"
