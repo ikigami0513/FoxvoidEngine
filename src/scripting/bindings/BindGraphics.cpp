@@ -97,6 +97,20 @@ void BindGraphics(py::module_& m) {
         }
     );
 
+    py::class_<Color>(m, "Color")
+        .def(py::init<unsigned char, unsigned char, unsigned char, unsigned char>(),
+             py::arg("r") = 0, py::arg("g") = 0, py::arg("b") = 0, py::arg("a") = 255)
+        .def_readwrite("r", &Color::r)
+        .def_readwrite("g", &Color::g)
+        .def_readwrite("b", &Color::b)
+        .def_readwrite("a", &Color::a)
+        .def("__repr__", [](const Color& c) {
+            return "<Color(r=" + std::to_string(c.r) + ", g=" + 
+                   std::to_string(c.g) + ", b=" + 
+                   std::to_string(c.b) + ", a=" + 
+                   std::to_string(c.a) + ")>";
+        });
+
     py::enum_<Camera2dAnchor>(m, "Camera2dAnchor")
         .value("TopLeft", Camera2dAnchor::TopLeft)
         .value("Center", Camera2dAnchor::Center)
@@ -107,7 +121,8 @@ void BindGraphics(py::module_& m) {
         .def_readwrite("zoom", &Camera2d::zoom)
         .def_readwrite("offset", &Camera2d::offset)
         .def_readwrite("anchor", &Camera2d::anchor)
-        .def_readwrite("is_main", &Camera2d::isMain);
+        .def_readwrite("is_main", &Camera2d::isMain)
+        .def_readwrite("background_color", &Camera2d::backgroundColor);
 
     ComponentRegistry::Register<Camera2d>("Camera2d",
         [](GameObject& go, py::args args) -> py::object {

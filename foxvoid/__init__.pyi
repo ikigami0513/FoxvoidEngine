@@ -460,6 +460,17 @@ class RigidBody2d(Component):
         ...
 
 
+class Color:
+    """Represents an RGBA color."""
+    r: int
+    g: int
+    b: int
+    a: int
+    
+    def __init__(self, r: int = 0, g: int = 0, b: int = 0, a: int = 255) -> None: ...
+    def __repr__(self) -> str: ...
+
+
 class Camera2dAnchor(Enum):
     """
     Defines the base screen position that the camera uses as its focal point.
@@ -494,6 +505,12 @@ class Camera2d(Component):
     """
     If True, the Engine will use this camera to render the final Game View.
     Make sure only one active camera is marked as main at a time.
+    """
+
+    background_color: Color
+    """
+    The color used to clear the background before rendering the scene.
+    Modify this to dynamically change the atmosphere or sky color of the level.
     """
 
     def __init__(self) -> None:
