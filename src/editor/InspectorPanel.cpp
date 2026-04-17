@@ -52,7 +52,7 @@ void InspectorPanel::Draw(GameObject*& selectedObject) {
         // Display existing components
         Component* componentToRemove = nullptr;
 
-        for (const auto& comp : selectedObject->GetComponents()) {
+        for (const auto& comp : selectedObject->GetAllComponents()) {
             ImGui::PushID(comp.get());
                 
             bool isOpen = ImGui::CollapsingHeader(comp->GetName().c_str(), ImGuiTreeNodeFlags_DefaultOpen);

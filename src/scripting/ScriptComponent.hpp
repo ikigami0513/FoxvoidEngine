@@ -19,6 +19,8 @@ class [[gnu::visibility("default")]] ScriptComponent : public Component {
         void Update(float deltaTime) override;
 
         void OnCollision(const Collision2D& collision) override;
+        
+        py::object GetInstance() const;
 
         std::string GetName() const override;
 

@@ -111,8 +111,21 @@ class GameObject {
 
         // Access to components for the Editor
         // Returns a constant reference to the components list
-        const std::vector<std::unique_ptr<Component>>& GetComponents() const {
+        const std::vector<std::unique_ptr<Component>>& GetAllComponents() const {
             return components;
+        }
+
+        template <typename T>
+        std::vector<T*> GetComponents() {
+            std::vector<T*> result;
+            for (auto& comp : components) {
+                T* casted = dynamic_cast<T*>(comp.get());
+                if (casted) {
+                    result.push_back(casted);
+                }
+            }
+            
+            return result;
         }
 
         nlohmann::json Serialize() const {

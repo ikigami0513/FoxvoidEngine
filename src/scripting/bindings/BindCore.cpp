@@ -76,16 +76,32 @@ void BindCore(py::module_& m) {
         // Expose the Destroy method so Python can schedule objects for deletion
         .def("destroy", &GameObject::Destroy)
         .def("get_component", [](GameObject& go, py::object type_obj) -> py::object {
-            // Get the string name of the requested class (e.g., "Transform2d")
+            // Get the string name of the requested class (e.g., "Transform2d" or "PlayerController")
             std::string type_name = py::str(py::getattr(type_obj, "__name__"));
             
-            // Search the registry for the getter function
+            // First, attempt to find a native C++ component in the registry
             auto it = ComponentRegistry::getters.find(type_name);
             if (it != ComponentRegistry::getters.end()) {
-                return it->second(go); // Execute the lambda
+                // Execute the registered lambda and return the C++ component to Python
+                return it->second(go); 
             }
             
-            // Return None if component is not found
+            // If not found in native components, check if it's a Python script
+            // Retrieve all ScriptComponents attached to this GameObject
+            auto scripts = go.GetComponents<ScriptComponent>();
+            
+            for (auto* script : scripts) {
+                // Retrieve the actual Python instance running inside this ScriptComponent
+                py::object py_instance = script->GetInstance(); 
+                
+                // Check if the instance is valid and matches the requested Python type
+                // py::isinstance correctly handles Python inheritance
+                if (!py_instance.is_none() && py::isinstance(py_instance, type_obj)) {
+                    return py_instance;
+                }
+            }
+            
+            // Return None if the component is neither native nor a matching Python script
             return py::none();
         })
         .def("add_component", [](GameObject& go, py::object type_obj, py::args args) -> py::object {

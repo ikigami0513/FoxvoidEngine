@@ -167,6 +167,10 @@ void ScriptComponent::HotReload() {
     }
 }
 
+py::object ScriptComponent::GetInstance() const {
+    return m_instance;
+}
+
 std::string ScriptComponent::GetName() const {
     // Show the python class name in the Inspector (e.g., "PlayerController (Script)")
     return m_className + " (Script)";
