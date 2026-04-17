@@ -121,7 +121,26 @@ void TileMap::OnInspector() {
         pathBuffer[sizeof(pathBuffer) - 1] = '\0';
         
         if (ImGui::InputText("Tileset Path", pathBuffer, sizeof(pathBuffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
+            nlohmann::json initialState = Serialize();
             LoadTileset(pathBuffer);
+            CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
+        }
+
+        // Drag and Drop support for the tileset path
+        if (ImGui::BeginDragDropTarget()) {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                std::string droppedPath = (const char*)payload->Data;
+                std::filesystem::path fsPath(droppedPath);
+                std::string ext = fsPath.extension().string();
+                
+                // Only accept common image formats supported by Raylib
+                if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp") {
+                    nlohmann::json initialState = Serialize();
+                    LoadTileset(droppedPath);
+                    CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
+                }
+            }
+            ImGui::EndDragDropTarget();
         }
     }
 
