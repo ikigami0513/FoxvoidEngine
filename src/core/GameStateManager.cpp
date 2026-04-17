@@ -9,6 +9,11 @@ std::unordered_map<std::string, bool> GameStateManager::Bools;
 std::unordered_map<std::string, std::string> GameStateManager::Strings;
 
 void GameStateManager::Load(const std::string& path) {
+    Ints.clear();
+    Floats.clear();
+    Bools.clear();
+    Strings.clear();
+    
     std::ifstream file(path);
     if (!file.is_open()) return; // If file doesn't exist yet, just start empty
 

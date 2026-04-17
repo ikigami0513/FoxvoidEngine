@@ -1,4 +1,6 @@
 #include "ToolbarPanel.hpp"
+#include <iostream>
+#include "core/GameStateManager.hpp"
 
 void ToolbarPanel::Draw(Scene& activeScene, GameObject*& selectedObject, bool& isPlaying, nlohmann::json& sceneBackup, bool& focusGameWindow) {
     ImGui::Begin("Toolbar");
@@ -12,7 +14,14 @@ void ToolbarPanel::Draw(Scene& activeScene, GameObject*& selectedObject, bool& i
             std::cout << "[Editor] Entered PLAY mode." << std::endl;
             
             selectedObject = nullptr;
+            
+            // Backup the scene before any scripts modify it
             sceneBackup = activeScene.Serialize();
+
+            // Reload the fresh global variables from disk before starting
+            GameStateManager::Load();
+
+            // Start the game logic
             activeScene.Start();
 
             // Set the flag to true so the Game view can grab focus on its next draw call
@@ -27,7 +36,12 @@ void ToolbarPanel::Draw(Scene& activeScene, GameObject*& selectedObject, bool& i
             std::cout << "[Editor] Entered EDIT mode." << std::endl;
             
             selectedObject = nullptr;
+
+            // Restore the scene to its initial state
             activeScene.Deserialize(sceneBackup, false);
+
+            // Restore the global variables so the Editor UI reflects the defaults
+            GameStateManager::Load();
         }
         ImGui::PopStyleColor();
     }
