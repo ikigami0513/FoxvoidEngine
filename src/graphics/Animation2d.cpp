@@ -6,6 +6,7 @@
 #include <editor/commands/CommandHistory.hpp>
 #include <editor/commands/ModifyComponentCommand.hpp>
 #include <editor/EditorUI.hpp>
+#include <core/Engine.hpp>
 
 Animation2d::Animation2d(const std::vector<int>& frames, float speed, bool loop, bool flipX, bool flipY)
     : m_frames(frames), m_speed(speed), m_loop(loop),
@@ -55,6 +56,26 @@ void Animation2d::Update(float deltaTime) {
         // Ensure flip states are continuously applied
         m_sprite->flipX = m_flipX;
         m_sprite->flipY = m_flipY;
+    }
+}
+
+void Animation2d::Render() {
+    // We only want to force the frame synchronization in the Editor (when the game is stopped).
+    // During Play mode, the Update() method naturally handles the animation timing.
+    bool isPlaying = true;
+    if (Engine::Get()) {
+        isPlaying = Engine::Get()->IsPlaying();
+    }
+
+    if (!isPlaying && owner) {
+        if (auto sprite = owner->GetComponent<SpriteSheetRenderer>()) {
+            if (!m_frames.empty()) {
+                // Instantly sync the visual state so the Game View is perfectly accurate
+                sprite->SetFrame(m_frames[0]);
+                sprite->flipX = m_flipX;
+                sprite->flipY = m_flipY;
+            }
+        }
     }
 }
 

@@ -14,6 +14,9 @@ public:
     void Start() override;
     void Update(float deltaTime) override;
 
+    // Render override for editor synchronization
+    void Render() override;
+
     std::string GetName() const override;
 
 #ifndef STANDALONE_MODE
