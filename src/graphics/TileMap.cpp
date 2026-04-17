@@ -14,9 +14,6 @@ TileMap::TileMap()
 {
     // By default, create a single base layer
     AddLayer("Background");
-
-    m_layers[0].data[0] = 0; // Put tile ID 1 at Top-Left
-    m_layers[0].data[1] = 0; // Put tile ID 2 next to it
 }
 
 TileMap::~TileMap() {
