@@ -103,6 +103,7 @@ void Editor::Draw(Scene& activeScene, RenderTexture2D& gameTexture, bool& isRunn
         m_console.Draw("Console");
         m_inspectorPanel.Draw(m_selectedObject);
         m_projectPanel.Draw(activeScene, m_selectedObject, m_assetsPath, currentScenePath);
+        m_performancePanel.Draw();
 
     rlImGuiEnd();
 }

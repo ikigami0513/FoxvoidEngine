@@ -19,7 +19,8 @@
 #include "editor/InputSettingsPanel.hpp"
 #include "editor/TilePalettePanel.hpp"
 #include "editor/GameStatePanel.hpp"
-#include "ProjectHubPanel.hpp"
+#include "editor/ProjectHubPanel.hpp"
+#include "editor/PerformancePanel.hpp"
 
 class Editor {
     public:
@@ -65,4 +66,5 @@ class Editor {
         GameStatePanel m_gameStatePanel;
         MainMenuBar m_mainMenuBar;
         TilePalettePanel m_tilePalettePanel;
+        PerformancePanel m_performancePanel;
 };
