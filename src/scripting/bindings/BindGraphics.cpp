@@ -10,6 +10,7 @@
 #include "graphics/Camera2d.hpp"
 #include <world/ComponentRegistry.hpp>
 #include "graphics/TileMap.hpp"
+#include "graphics/ShapeRenderer.hpp"
 
 void BindGraphics(py::module_& m) {
     m.def("set_pixel_art_mode", [](bool enable) {
@@ -52,6 +53,21 @@ void BindGraphics(py::module_& m) {
             int cols = args[1].cast<int>();
             int rows = args[2].cast<int>();
             auto* s = go.AddComponent<SpriteSheetRenderer>(path, cols, rows);
+            return py::cast(s, py::return_value_policy::reference);
+        }
+    );
+
+    py::class_<ShapeRenderer, Component>(m, "ShapeRenderer")
+        .def(py::init<>()) // Uses default arguments from the C++ constructor
+        .def_readwrite("width", &ShapeRenderer::width)
+        .def_readwrite("height", &ShapeRenderer::height)
+        .def_readwrite("color", &ShapeRenderer::color)
+        .def_readwrite("is_hud", &ShapeRenderer::isHUD);
+
+    ComponentRegistry::Register<ShapeRenderer>("ShapeRenderer", 
+        [](GameObject& go, py::args args) -> py::object {
+            // No arguments required upon creation via Python script
+            auto* s = go.AddComponent<ShapeRenderer>();
             return py::cast(s, py::return_value_policy::reference);
         }
     );

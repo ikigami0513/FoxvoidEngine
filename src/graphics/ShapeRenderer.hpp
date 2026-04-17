@@ -6,6 +6,7 @@
 #include <raylib.h>
 
 #ifndef STANDALONE_MODE
+#include "editor/EditorUI.hpp"
 #include <imgui.h>
 #endif
 
@@ -14,16 +15,20 @@ class ShapeRenderer : public Component {
         Color color;
         float width;
         float height;
+        bool isHUD;
 
-        ShapeRenderer(float w = 50.0f, float h = 50.0f, Color c = WHITE) 
-            : width(w), height(h), color(c) {}
+        ShapeRenderer(float w = 50.0f, float h = 50.0f, Color c = WHITE, bool hud = false) 
+            : width(w), height(h), color(c), isHUD(hud) {}
 
         // We only override Render, as this component doesn't need to update logic
         void Render() override {
-            // 1. Fetch the Transform component from the parent GameObject
+            // Skip rendering in world space if marked as HUD
+            if (isHUD || !owner) return;
+
+            // Fetch the Transform component from the parent GameObject
             Transform2d* transform = owner->GetComponent<Transform2d>();
             
-            // 2. Safety check: only draw if the GameObject actually has a Transform
+            // Safety check: only draw if the GameObject actually has a Transform
             if (transform != nullptr) {
                 
                 // Create a Raylib Rectangle definition
@@ -43,6 +48,24 @@ class ShapeRenderer : public Component {
             }
         }
 
+        void RenderHUD() override {
+            if (!isHUD || !owner) return;
+
+            Transform2d* transform = owner->GetComponent<Transform2d>();
+            
+            if (transform != nullptr) {
+                Rectangle rec = { 
+                    transform->position.x, 
+                    transform->position.y, 
+                    width * transform->scale.x, 
+                    height * transform->scale.y 
+                };
+                
+                Vector2 origin = { rec.width / 2.0f, rec.height / 2.0f };
+                DrawRectanglePro(rec, origin, transform->rotation, color);
+            }
+        }
+
         std::string GetName() const override {
             return "Shape Renderer";
         }
@@ -53,6 +76,9 @@ class ShapeRenderer : public Component {
             EditorUI::DragFloat("Height", &height, 1.0f, this, 0.0f, 10000.0f);
 
             EditorUI::ColorEdit4("Color", &color, this);
+
+            ImGui::Separator();
+            EditorUI::Checkbox("Is HUB (Screen Space)", &isHUD, this);
         }
 #endif
 
@@ -61,13 +87,15 @@ class ShapeRenderer : public Component {
                 { "type", "ShapeRenderer" },
                 { "width", width },
                 { "height", height },
-                { "color", { color.r, color.g, color.b, color.a }}
+                { "color", { color.r, color.g, color.b, color.a }},
+                { "isHUD", isHUD }
             };
         }
 
         void Deserialize(const nlohmann::json& j) override {
             width = j.value("width", 50.0f);
             height = j.value("height", 50.0f);
+            isHUD = j.value("isHUD", false);
             
             // Safely extract the color array
             if (j.contains("color") && j["color"].is_array() && j["color"].size() == 4) {

@@ -353,6 +353,34 @@ class SpriteSheetRenderer(Component):
         ...
 
 
+class ShapeRenderer(Component):
+    """
+    Component that renders a basic geometric rectangle.
+    It can be drawn in world space or locked to the screen as a HUD element.
+    """
+    
+    width: float
+    """The base width of the shape in pixels (before Transform scale)."""
+    
+    height: float
+    """The base height of the shape in pixels (before Transform scale)."""
+    
+    color: Color
+    """The RGBA color of the shape."""
+    
+    is_hud: bool
+    """
+    If True, the shape is rendered in Screen Space (sticks to the camera viewport).
+    If False, it is rendered in World Space.
+    """
+    
+    def __init__(self) -> None:
+        """
+        Initializes a ShapeRenderer with default values (50x50, white).
+        """
+        ...
+
+
 class Animation2d(Component):
     """
     Handles frame-by-frame animation by controlling a SpriteSheetRenderer.
@@ -698,5 +726,66 @@ class Physics:
         Casts an invisible ray into the scene to detect collisions.
         
         Example: Physics.raycast((x, y), (0, 1), 100.0) casts a ray downwards.
+        """
+        ...
+
+
+class ButtonState:
+    """Represents the current interaction state of a Button component."""
+    Normal: 'ButtonState'
+    Hovered: 'ButtonState'
+    Pressed: 'ButtonState'
+
+
+class Button(Component):
+    """
+    Component that provides a clickable interaction area.
+    If a ShapeRenderer is attached to the same GameObject, the Button will 
+    automatically update its color based on the current interaction state.
+    """
+    
+    width: float
+    """The width of the clickable hitbox."""
+    
+    height: float
+    """The height of the clickable hitbox."""
+    
+    is_hud: bool
+    """
+    Determines how mouse coordinates are calculated.
+    Ensure this matches the 'is_hud' property of your visual renderer (Text/Shape).
+    """
+    
+    normal_color: Color
+    """Color applied to an attached ShapeRenderer when inactive."""
+    
+    hover_color: Color
+    """Color applied to an attached ShapeRenderer when the mouse hovers over it."""
+    
+    pressed_color: Color
+    """Color applied to an attached ShapeRenderer when the mouse button is held down."""
+
+    def __init__(self) -> None:
+        """
+        Initializes a Button with default dimensions and UI colors.
+        """
+        ...
+        
+    def is_clicked(self) -> bool:
+        """
+        Checks if the button was successfully clicked.
+        
+        Returns:
+            bool: True only on the exact frame the user releases the left mouse button 
+                  while still hovering the button bounds.
+        """
+        ...
+        
+    def get_state(self) -> ButtonState:
+        """
+        Retrieves the current visual state of the button.
+        
+        Returns:
+            ButtonState: The interaction state (Normal, Hovered, or Pressed).
         """
         ...

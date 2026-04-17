@@ -13,6 +13,7 @@
 #include "graphics/Camera2d.hpp"
 #include "graphics/TileMap.hpp"
 #include "gui/TextRenderer.hpp"
+#include "gui/Button.hpp"
 #include "world/PersistentComponent.hpp"
 #include "audio/AudioSource.hpp"
 
@@ -32,6 +33,7 @@ namespace EngineSetup {
         ComponentRegistry::RegisterCPP<TileMap>("TileMap");
 
         ComponentRegistry::RegisterCPP<TextRenderer>("TextRenderer");
+        ComponentRegistry::RegisterCPP<Button>("Button");
 
         ComponentRegistry::RegisterCPP<PersistentComponent>("PersistentComponent");
 
