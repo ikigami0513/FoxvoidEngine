@@ -16,6 +16,7 @@ Camera2d::Camera2d()
       offset{0.0f, 0.0f}, 
       anchor(Camera2dAnchor::Center), 
       isMain(true),
+      backgroundColor{40, 40, 40, 255}, // Dark grey by default
       lerpFactor(0.0f), // Default is instant follow
       useWorldBounds(false),
       worldBounds{0.0f, 0.0f, 2000.0f, 2000.0f},
@@ -65,6 +66,8 @@ void Camera2d::OnInspector() {
     EditorUI::DragFloat2("Screen Offset", &offset.x, 1.0f, this);
     
     EditorUI::Checkbox("Is Main Camera", &isMain, this);
+
+    EditorUI::ColorEdit4("Background Color", &backgroundColor, this);
 
     ImGui::Separator();
     
@@ -136,6 +139,7 @@ nlohmann::json Camera2d::Serialize() const {
         { "offsetX", offset.x },
         { "offsetY", offset.y },
         { "isMain", isMain },
+        { "bgColor", { backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a } },
         { "lerpFactor", lerpFactor },
         { "useWorldBounds", useWorldBounds },
         { "boundsX", worldBounds.x },
@@ -150,6 +154,13 @@ void Camera2d::Deserialize(const nlohmann::json& j) {
     offset.x = j.value("offsetX", 0.0f);
     offset.y = j.value("offsetY", 0.0f);
     isMain = j.value("isMain", true);
+
+    if (j.contains("bgColor") && j["bgColor"].is_array() && j["bgColor"].size() == 4) {
+        backgroundColor.r = j["bgColor"][0];
+        backgroundColor.g = j["bgColor"][1];
+        backgroundColor.b = j["bgColor"][2];
+        backgroundColor.a = j["bgColor"][3];
+    }
 
     lerpFactor = j.value("lerpFactor", 0.0f);
     useWorldBounds = j.value("useWorldBounds", false);

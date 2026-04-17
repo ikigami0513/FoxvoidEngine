@@ -344,6 +344,18 @@ class Scene {
             return defaultCam;
         }
 
+        // Retrieves the background color defined by the main camera
+        Color GetMainCameraBackgroundColor() const {
+            for (const auto& go : m_gameObjects) {
+                auto cam = go->GetComponent<Camera2d>();
+                if (cam && cam->isMain) {
+                    return cam->backgroundColor;
+                }
+            }
+            // Fallback color if no main camera is found in the scene
+            return RAYWHITE; 
+        }
+
     private:
         // The scene owns the GameObjects
         std::vector<std::unique_ptr<GameObject>> m_gameObjects;

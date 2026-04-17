@@ -160,7 +160,7 @@ void Engine::UpdateResolution(int width, int height) {
 void Engine::Render() {
     // Pass 1: Game Rendering (What the player sees)
     BeginTextureMode(m_gameTexture);
-        ClearBackground(RAYWHITE);
+        ClearBackground(m_activeScene.GetMainCameraBackgroundColor());
 
         BeginMode2D(m_activeScene.GetMainCamera((float)m_windowWidth, (float)m_windowHeight));
             // Draw all entities normally

@@ -17,6 +17,9 @@ class Camera2d : public Component {
         Camera2dAnchor anchor; // The base screen position
         bool isMain; // Determines if this is the primary camera used to render the Game View
 
+        // Background clear color
+        Color backgroundColor;
+
         // Camera smoothing and Constraints
         float lerpFactor; // 0 means instant snap, > 0 means smooth follow (e.g., 5.0)
         bool useWorldBounds;
