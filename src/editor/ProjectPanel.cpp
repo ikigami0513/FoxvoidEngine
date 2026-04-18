@@ -184,7 +184,7 @@ void ProjectPanel::DrawExplorerView(Scene& activeScene, GameObject*& selectedObj
                     currentScenePath = entry.path().string();
                     
                     // Load the new scene
-                    activeScene.LoadFromFile(currentScenePath);
+                    activeScene.LoadFromFile(currentScenePath, false);
                 }
             }
         }
@@ -296,7 +296,7 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
                         currentScenePath = entry.path().string();
                         
                         // Load the new scene
-                        activeScene.LoadFromFile(currentScenePath);
+                        activeScene.LoadFromFile(currentScenePath, false);
                     }
                 }
             }

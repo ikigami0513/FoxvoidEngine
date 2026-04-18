@@ -1,4 +1,5 @@
 #include "GameViewPanel.hpp"
+#include "core/Mouse.hpp"
 
 void GameViewPanel::Draw(RenderTexture2D& gameTexture, bool& focusGameWindow) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
@@ -34,6 +35,26 @@ void GameViewPanel::Draw(RenderTexture2D& gameTexture, bool& focusGameWindow) {
         cursorPos.x += (windowSize.x - drawSize.x) * 0.5f;
         cursorPos.y += (windowSize.y - drawSize.y) * 0.5f;
         ImGui::SetCursorPos(cursorPos);
+
+        // Virtual mouse calculation with aspect ratio
+        // Get the global screen position where the image actually starts drawing (after centering)
+        ImVec2 imageScreenPos = ImGui::GetCursorScreenPos();
+        ImVec2 mousePos = ImGui::GetMousePos();
+
+        // Calculate relative position of the mouse inside the rendered image area
+        float relativeX = mousePos.x - imageScreenPos.x;
+        float relativeY = mousePos.y - imageScreenPos.y;
+
+        // Apply the scaling ratio based on the actual drawn size vs real texture size
+        float scaleX = texWidth / drawSize.x;
+        float scaleY = texHeight / drawSize.y;
+
+        Vector2 gameMousePos = { relativeX * scaleX, relativeY * scaleY };
+        
+        // Inject it into the Engine only if the mouse is hovering the Game View window
+        if (ImGui::IsWindowHovered()) {
+            Mouse::SetVirtualPosition(gameMousePos);
+        }
 
         Rectangle sourceRec = { 0.0f, 0.0f, texWidth, -texHeight };
         rlImGuiImageRect(&gameTexture.texture, (int)drawSize.x, (int)drawSize.y, sourceRec);

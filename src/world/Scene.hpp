@@ -150,13 +150,13 @@ class Scene {
         }
 
         // Loads a scene from a JSON file
-        void LoadFromFile(const std::string& filepath) {
+        void LoadFromFile(const std::string& filepath, bool keepPersistent = true) {
             std::ifstream file(filepath);
             if (file.is_open()) {
                 nlohmann::json j;
                 try {
                     file >> j;
-                    Deserialize(j, false);
+                    Deserialize(j, keepPersistent);
                     std::cout << "[Scene] Successfully loaded from: " << filepath << std::endl;
                 } catch (const nlohmann::json::parse_error& e) {
                     std::cerr << "[Scene] JSON parsing error in " << filepath << ":\n" << e.what() << std::endl;
@@ -183,6 +183,23 @@ class Scene {
 
             for (const auto& goJson : j["gameObjects"]) {
                 std::string name = goJson.value("name", "Entity");
+                
+                // Prevent duplicate Persistent Objects
+                // Check if an object with the exact same name survived the Clear() process
+                bool isDuplicate = false;
+                for (const auto& existingGo : m_gameObjects) {
+                    if (existingGo->name == name && existingGo->GetComponent<PersistentComponent>()) {
+                        isDuplicate = true;
+                        std::cout << "[Scene] Prevented spawning duplicate persistent object: " << name << std::endl;
+                        break;
+                    }
+                }
+
+                // If it already exists, skip loading this JSON object entirely
+                if (isDuplicate) {
+                    continue;
+                }
+
                 GameObject* go = CreateGameObject(name);
 
                 // Reconstruct components (Simple Factory approach for now)

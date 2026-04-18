@@ -3,6 +3,7 @@
 #include "graphics/ShapeRenderer.hpp"
 #include "world/GameObject.hpp"
 #include "core/Engine.hpp"
+#include "core/Mouse.hpp"
 
 #ifndef STANDALONE_MODE
 #include "editor/EditorUI.hpp"
@@ -34,8 +35,8 @@ void Button::Update(float deltaTime) {
         scaledHeight
     };
 
-    // Get the correct mouse position depending on HUD or World space
-    Vector2 mousePos = GetMousePosition();
+    // Use the Engine's virtual mouse position
+    Vector2 mousePos = Mouse::GetPosition();
     
     if (!isHUD) {
         if (Engine::Get()) {

@@ -13,6 +13,7 @@
 #include "InputManager.hpp"
 #include "graphics/TileMap.hpp"
 #include "GameStateManager.hpp"
+#include "Mouse.hpp"
 
 #ifndef STANDALONE_MODE
 #include "editor/Editor.hpp"
@@ -107,7 +108,15 @@ void Engine::Run() {
 
 void Engine::ProcessInput() {
     // Handle global engine inputs here (e.g., toggling debug mode)
-    // Gameplay inputs will eventually be handled by the Scene/Entities
+    
+#ifdef STANDALONE_MODE
+    // In standalone mode, the game fills the whole screen, 
+    // so the OS mouse is perfectly aligned with the game viewport.
+    Mouse::SetVirtualPosition(GetMousePosition());
+#endif
+
+    // Note: In Editor mode, we do NOT call GetMousePosition() here. 
+    // Instead, the Editor will call SetGameMousePosition() during its ImGui pass.
 }
 
 void Engine::Update(float deltaTime) {
