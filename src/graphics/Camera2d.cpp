@@ -31,14 +31,14 @@ void Camera2d::Update(float deltaTime) {
 
     // Prevent the camera from sliding from the origin on the very first frame of the game
     if (m_isFirstFrame) {
-        m_currentTarget = transform->position;
+        m_currentTarget = transform->GetGlobalPosition();
         m_isFirstFrame = false;
     } else {
         // Smooth interpolation towards the Transform's position
         if (lerpFactor > 0.0f) {
-            m_currentTarget = Vector2Lerp(m_currentTarget, transform->position, lerpFactor * deltaTime);
+            m_currentTarget = Vector2Lerp(m_currentTarget, transform->GetGlobalPosition(), lerpFactor * deltaTime);
         } else {
-            m_currentTarget = transform->position; // Instant snap
+            m_currentTarget = transform->GetGlobalPosition(); // Instant snap
         }
     }
 }
@@ -98,10 +98,12 @@ void Camera2d::OnInspector() {
                     auto transform = go->GetComponent<Transform2d>();
                     if (!transform) continue;
 
-                    float objMinX = transform->position.x;
-                    float objMinY = transform->position.y;
-                    float objMaxX = transform->position.x;
-                    float objMaxY = transform->position.y;
+                    auto position = transform->GetGlobalPosition();
+
+                    float objMinX = position.x;
+                    float objMinY = position.y;
+                    float objMaxX = position.x;
+                    float objMaxY = position.y;
 
                     // If it's a TileMap, add the total grid size to the maximum limits
                     if (auto tm = go->GetComponent<TileMap>()) {
@@ -201,7 +203,7 @@ Camera2D Camera2d::GetCamera(float screenWidth, float screenHeight) const {
         cam.target = m_currentTarget;
     } else {
         if (owner && owner->GetComponent<Transform2d>()) {
-            cam.target = owner->GetComponent<Transform2d>()->position;
+            cam.target = owner->GetComponent<Transform2d>()->GetGlobalPosition();
         } else {
             cam.target = m_currentTarget; // Fallback to (0,0)
         }

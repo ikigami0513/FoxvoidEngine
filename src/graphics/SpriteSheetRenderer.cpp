@@ -75,9 +75,10 @@ void SpriteSheetRenderer::Render() {
         Rectangle sourceRec = GetSourceRec();
 
         // Destination Rectangle: Position and scaled size of that single frame
+        auto position = m_transform->GetGlobalPosition();
         Rectangle destRec = {
-            m_transform->position.x,
-            m_transform->position.y,
+            position.x,
+            position.y,
             sourceRec.width * m_transform->scale.x,
             sourceRec.height * m_transform->scale.y
         };

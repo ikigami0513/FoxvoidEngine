@@ -56,7 +56,7 @@ void TextRenderer::Render() {
 
     // Use custom font if loaded, else fallback to Raylib's default
     Font f = m_isFontLoaded ? m_customFont : GetFontDefault();
-    DrawTextEx(f, text.c_str(), transform->position, fontSize, spacing, color);
+    DrawTextEx(f, text.c_str(), transform->GetGlobalPosition(), fontSize, spacing, color);
 }
 
 void TextRenderer::RenderHUD() {
@@ -68,7 +68,7 @@ void TextRenderer::RenderHUD() {
 
     // The Transform position now acts as X/Y coordinates on the screen, completely ignoring the camera!
     Font f = m_isFontLoaded ? m_customFont : GetFontDefault();
-    DrawTextEx(f, text.c_str(), transform->position, fontSize, spacing, color);
+    DrawTextEx(f, text.c_str(), transform->GetGlobalPosition(), fontSize, spacing, color);
 }
 
 std::string TextRenderer::GetName() const {

@@ -28,9 +28,10 @@ void Button::Update(float deltaTime) {
     float scaledWidth = width * transform->scale.x;
     float scaledHeight = height * transform->scale.y;
     
+    auto position = transform->GetGlobalPosition();
     Rectangle bounds = {
-        transform->position.x - (scaledWidth / 2.0f),
-        transform->position.y - (scaledHeight / 2.0f),
+        position.x - (scaledWidth / 2.0f),
+        position.y - (scaledHeight / 2.0f),
         scaledWidth,
         scaledHeight
     };

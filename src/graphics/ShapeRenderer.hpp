@@ -33,9 +33,10 @@ class ShapeRenderer : public Component {
                 
                 // Create a Raylib Rectangle definition
                 // We multiply width and height by the transform's scale
+                auto position = transform->GetGlobalPosition();
                 Rectangle rec = { 
-                    transform->position.x, 
-                    transform->position.y, 
+                    position.x, 
+                    position.y, 
                     width * transform->scale.x, 
                     height * transform->scale.y 
                 };
@@ -54,9 +55,10 @@ class ShapeRenderer : public Component {
             Transform2d* transform = owner->GetComponent<Transform2d>();
             
             if (transform != nullptr) {
+                auto position = transform->GetGlobalPosition();
                 Rectangle rec = { 
-                    transform->position.x, 
-                    transform->position.y, 
+                    position.x, 
+                    position.y, 
                     width * transform->scale.x, 
                     height * transform->scale.y 
                 };

@@ -202,27 +202,42 @@ class Scene {
 
                 GameObject* go = CreateGameObject(name);
 
-                // Reconstruct components (Simple Factory approach for now)
-                if (goJson.contains("components")) {
-                    for (const auto& compJson : goJson["components"]) {
-                        std::string type = compJson.value("type", "");
-                        
-                        // Search for the type in our C++ factory registry
-                        auto it = ComponentRegistry::factories.find(type);
-                        
-                        if (it != ComponentRegistry::factories.end()) {
-                            // Execute the lambda to create the specific component
-                            Component* newComp = it->second(*go);
-                            
-                            // Polymorphic deserialization: 
-                            // The virtual method ensures the correct derived logic is called
-                            newComp->Deserialize(compJson);
-                        } else {
-                            std::cerr << "[Scene] Warning: Unknown component type in JSON: " << type << std::endl;
+                go->Deserialize(goJson);
+            }
+
+            // Now that all objects exist in memory, we can safely link children to parents
+            for (auto& go : m_pendingObjects) {
+                if (go->pendingParentId != 0) { // If it's supposed to have a parent
+                    
+                    // Search for the parent in the pending list
+                    GameObject* foundParent = nullptr;
+                    for (auto& potentialParent : m_pendingObjects) {
+                        if (potentialParent->id == go->pendingParentId) {
+                            foundParent = potentialParent.get();
+                            break;
                         }
+                    }
+
+                    // If not found in pending, check the persistent active objects
+                    if (!foundParent) {
+                        for (auto& potentialParent : m_gameObjects) {
+                            if (potentialParent->id == go->pendingParentId) {
+                                foundParent = potentialParent.get();
+                                break;
+                            }
+                        }
+                    }
+
+                    // Link them!
+                    if (foundParent) {
+                        go->SetParent(foundParent);
+                    } else {
+                        std::cerr << "[Scene] Warning: Parent ID " << go->pendingParentId 
+                                  << " not found for child " << go->name << std::endl;
                     }
                 }
             }
+
             Flush(); // Crucial: move them from pending to active!
         }
 
@@ -248,7 +263,15 @@ class Scene {
 
             //  Inject the saved data into the new object
             // This will reconstruct all the components (Transform, Sprite, Scripts...)
+            // Warning: This will overwrite the fresh ID with the one from the JSON
             newObj->Deserialize(j);
+
+            // Regenerate a unique ID so this clone doesn't share the same ID as the file
+            newObj->RegenerateID();
+            
+            // Break any old parent links. 
+            // A freshly instantiated prefab should spawn at the root of the scene.
+            newObj->pendingParentId = 0;
 
             std::cout << "[Scene] Successfully instantiated prefab: " << prefabPath << std::endl;
             
@@ -280,15 +303,17 @@ class Scene {
                 auto transform = go->GetComponent<Transform2d>();
                 if (!transform) continue;
 
+                auto position = transform->GetGlobalPosition();
+
                 // Default bounding box
-                Rectangle bounds = { transform->position.x - 25.0f, transform->position.y - 25.0f, 50.0f, 50.0f };
+                Rectangle bounds = { position.x - 25.0f, position.y - 25.0f, 50.0f, 50.0f };
 
                 // Try to get precise bounds from a SpriteRenderer
                 auto sprite = go->GetComponent<SpriteRenderer>();
                 if (sprite && sprite->GetTexture().id != 0) {
                     float width = sprite->GetTexture().width * transform->scale.x;
                     float height = sprite->GetTexture().height * transform->scale.y;
-                    bounds = { transform->position.x - (width / 2.0f), transform->position.y - (height / 2.0f), width, height };
+                    bounds = { position.x - (width / 2.0f), position.y - (height / 2.0f), width, height };
                 }
 
                 // Try to get precise bounds from a SpriteSheetRenderer
@@ -297,14 +322,14 @@ class Scene {
                     Rectangle sourceRec = spriteSheet->GetSourceRec();
                     float width = sourceRec.width * std::abs(transform->scale.x);
                     float height = sourceRec.height * std::abs(transform->scale.y);
-                    bounds = { transform->position.x - (width / 2.0f), transform->position.y - (height / 2.0f), width, height };
+                    bounds = { position.x - (width / 2.0f), position.y - (height / 2.0f), width, height };
                 }
 
                 auto shape = go->GetComponent<ShapeRenderer>();
                 if (shape) {
                     float width = shape->width * std::abs(transform->scale.x);
                     float height = shape->height * std::abs(transform->scale.y);
-                    bounds = { transform->position.x - (width / 2.0f), transform->position.y - (height / 2.0f), width, height };
+                    bounds = { position.x - (width / 2.0f), position.y - (height / 2.0f), width, height };
                 }
 
                 // If the click is inside the bounds, return this object immediately

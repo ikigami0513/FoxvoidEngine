@@ -4,18 +4,21 @@
 #include <memory>
 #include <string>
 #include <iostream>
+#include <iostream>
 #include "Component.hpp"
 
 class GameObject {
     public:
         std::string name;
-        
-        // Basic position (X, Y). Later, you might want to move this into a dedicated 'TransformComponent'
-        float x = 0.0f;
-        float y = 0.0f;
 
-        GameObject(const std::string& name) : name(name) {}
-        ~GameObject() = default;
+        // Unique identifier for serialization and scene references
+        uint64_t id;
+
+        // Stores the parent ID loaded from JSON until the Scene links them
+        uint64_t pendingParentId = 0;
+
+        GameObject(const std::string& name);
+        ~GameObject();
 
         GameObject(const GameObject&) = delete;
         GameObject& operator=(const GameObject&) = delete;
@@ -23,6 +26,13 @@ class GameObject {
         // Marks the GameObject to be destroyed at the end of the frame
         void Destroy() {
             m_pendingDestroy = true;
+
+            // Cascade destruction to all children
+            for (auto* child : children) {
+                if (child) {
+                    child->Destroy();
+                }
+            }
         }
 
         // Checks if the GameObject is scheduled for destruction
@@ -30,6 +40,29 @@ class GameObject {
             return m_pendingDestroy;
         }
 
+        // Generates a completely new ID (Useful when instantiating Prefabs!)
+        void RegenerateID();
+
+#pragma region Hierarchy Methods
+        
+        // Assigns a new parent to this GameObject
+        void SetParent(GameObject* newParent);
+
+        // Returns the current parent
+        GameObject* GetParent() const { return parent; }
+
+        // Returns the list of children
+        const std::vector<GameObject*>& GetChildren() const { return children; }
+
+        // Internal helper to add a child (usually called by SetParent)
+        void AddChild(GameObject* child);
+
+        // Internal helper to remove a child (usually called by SetParent)
+        void RemoveChild(GameObject* child);
+
+#pragma endregion
+
+#pragma region Lifecycle and Components
         void Start() {
             for (auto& component : components) {
                 component->Start();
@@ -128,24 +161,25 @@ class GameObject {
             return result;
         }
 
-        nlohmann::json Serialize() const {
-            nlohmann::json j;
-            j["name"] = name;
-            j["components"] = nlohmann::json::array();
+#pragma endregion
 
-            for (const auto& comp : components) {
-                j["components"].push_back(comp->Serialize());
-            }
-
-            return j;
-        }
+        nlohmann::json Serialize() const;
 
         // Reconstructs the GameObject and all its components from a JSON object
-        void Deserialize(nlohmann::json& j);
+        void Deserialize(const nlohmann::json& j);
 
     private:
+        // Helper to generate random 64-bit integers
+        static uint64_t GenerateID();
+
         // We use unique_ptr so components are automatically destroyed when the GameObject dies
         std::vector<std::unique_ptr<Component>> components;
+
+        // Hierarchy Data
+        // We use raw pointers because the Scene still owns the GameObjects via unique_ptr
+        GameObject* parent;
+        std::vector<GameObject*> children;
+
 
         // The death flag
         bool m_pendingDestroy = false;

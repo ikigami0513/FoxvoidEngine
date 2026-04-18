@@ -77,8 +77,9 @@ void TileMap::Render() {
 
                 // Calculate where to draw the tile in the world (Destination Rectangle)
                 // We round the coordinates to avoid sub-pixel positioning
-                float dstX = std::round(transform->position.x + (x * tileSize.x * transform->scale.x));
-                float dstY = std::round(transform->position.y + (y * tileSize.y * transform->scale.y));
+                auto position = transform->GetGlobalPosition();
+                float dstX = std::round(position.x + (x * tileSize.x * transform->scale.x));
+                float dstY = std::round(position.y + (y * tileSize.y * transform->scale.y));
                 
                 // We use ceil to slightly force the width/height to the upper pixel
                 // This completely eliminates floating-point hairline cracks between tiles
@@ -308,8 +309,9 @@ std::vector<Rectangle> TileMap::GetCollisionRects() const {
                 if (tileID < 0) continue; // Skip empty tiles
 
                 // Calculate the world-space bounding box of this specific tile
-                float dstX = transform->position.x + (x * tileSize.x * transform->scale.x);
-                float dstY = transform->position.y + (y * tileSize.y * transform->scale.y);
+                auto position = transform->GetGlobalPosition();
+                float dstX = position.x + (x * tileSize.x * transform->scale.x);
+                float dstY = position.y + (y * tileSize.y * transform->scale.y);
                 float dstWidth = tileSize.x * transform->scale.x;
                 float dstHeight = tileSize.y * transform->scale.y;
 
@@ -337,28 +339,29 @@ void TileMap::RenderGrid() const {
     Color gridColor = { 255, 255, 255, 90 };
 
     // Draw vertical lines
+    auto position = transform->GetGlobalPosition();
     for (int x = 0; x <= gridWidth; ++x) {
-        float posX = transform->position.x + (x * scaledWidth);
+        float posX = position.x + (x * scaledWidth);
         DrawLineV(
-            { posX, transform->position.y },
-            { posX, transform->position.y + totalHeight },
+            { posX, position.y },
+            { posX, position.y + totalHeight },
             gridColor
         );
     }
 
     // Draw horizontal lines
     for (int y = 0; y <= gridHeight; ++y) {
-        float posY = transform->position.y + (y * scaledHeight);
+        float posY = position.y + (y * scaledHeight);
         DrawLineV(
-            { transform->position.x, posY },
-            { transform->position.x + totalWidth, posY },
+            { position.x, posY },
+            { position.x + totalWidth, posY },
             gridColor
         );
     }
 
     // Draw a thicker white border to clearly show the bounds of the TileMap
     DrawRectangleLinesEx(
-        { transform->position.x, transform->position.y, totalWidth, totalHeight },
+        { position.x, position.y, totalWidth, totalHeight },
         2.0f, 
         WHITE
     );

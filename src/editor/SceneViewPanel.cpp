@@ -90,8 +90,9 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                 }
 
                 // Define corners in World Space (assuming origin is center)
-                Vector2 topLeftWorld = { transform->position.x - (width / 2.0f), transform->position.y - (height / 2.0f) };
-                Vector2 bottomRightWorld = { transform->position.x + (width / 2.0f), transform->position.y + (height / 2.0f) };
+                auto position = transform->GetGlobalPosition();
+                Vector2 topLeftWorld = { position.x - (width / 2.0f), position.y - (height / 2.0f) };
+                Vector2 bottomRightWorld = { position.x + (width / 2.0f), position.y + (height / 2.0f) };
 
                 // Convert from World Space to Render Texture Space
                 Camera2D cam2d = camera.GetCamera();
@@ -191,9 +192,11 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                 };
 
                 // Extract the object's local Transform into a 4x4 matrix
-                float translation[3] = { transform->position.x, transform->position.y, 0.0f };
-                float rotation[3] = { 0.0f, 0.0f, transform->rotation };
-                float scale[3] = { transform->scale.x, transform->scale.y, 1.0f };
+                auto position = transform->GetGlobalPosition();
+                auto global_scale = transform->GetGlobalScale();
+                float translation[3] = { position.x, position.y, 0.0f };
+                float rotation[3] = { 0.0f, 0.0f, transform->GetGlobalRotation() };
+                float scale[3] = { global_scale.x, global_scale.y, 1.0f };
                 
                 float objMatrix[16];
                 ImGuizmo::RecomposeMatrixFromComponents(translation, rotation, scale, objMatrix);
@@ -208,24 +211,23 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
 
                 if (ImGuizmo::IsUsing()) {
                     if (!wasUsingGizmo) {
-                        // The user JUST clicked on the Gizmo! Save the current state.
+                        // The user JUST clicked on the Gizmo! Save the current LOCAL state.
                         initialTransformState = { transform->position, transform->rotation, transform->scale };
                         wasUsingGizmo = true;
                     }
 
                     // Apply the continuous movement to the transform
                     ImGuizmo::DecomposeMatrixToComponents(objMatrix, translation, rotation, scale);
-                    transform->position.x = translation[0];
-                    transform->position.y = translation[1];
-                    transform->rotation = rotation[2];
-                    transform->scale.x = scale[0];
-                    transform->scale.y = scale[1];
+                    
+                    // Let the Transform component calculate the proper local math!
+                    transform->SetGlobalPosition({ translation[0], translation[1] });
+                    transform->SetGlobalRotation(rotation[2]);
+                    transform->SetGlobalScale({ scale[0], scale[1] });
 
                 } else {
                     if (wasUsingGizmo) {
                         // The user JUST released the mouse click! The drag is over.
-                        // We record this movement as a single undoable action.
-                        
+                        // We record this movement as a single undoable action using LOCAL coordinates.
                         Transform2dState currentState = { transform->position, transform->rotation, transform->scale };
 
                         // We check if it actually moved to avoid empty commands
@@ -235,10 +237,6 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                             initialTransformState.scale.x != currentState.scale.x ||
                             initialTransformState.scale.y != currentState.scale.y)
                         {
-                            // Important: We bypass AddCommand because AddCommand calls Execute().
-                            // The object is ALREADY in the new position, we just want to push it to history.
-                            
-                            // To do this cleanly, let's create a custom pointer and push it directly (we'll need a small update to CommandHistory for this later, or we can just use AddCommand and let it set the position again, which is harmless and easier!)
                             CommandHistory::AddCommand(std::make_unique<Transform2dCommand>(selectedObject, initialTransformState, currentState));
                         }
 
@@ -288,8 +286,9 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                         if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
                             
                             // Calculate local position relative to the TileMap's origin
-                            float localX = worldPos.x - transform->position.x;
-                            float localY = worldPos.y - transform->position.y;
+                            auto position = transform->GetGlobalPosition();
+                            float localX = worldPos.x - position.x;
+                            float localY = worldPos.y - position.y;
                             
                             // Account for the object's scale
                             float scaledTileWidth = tileMap->tileSize.x * transform->scale.x;

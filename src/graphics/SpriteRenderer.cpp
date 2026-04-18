@@ -53,9 +53,10 @@ void SpriteRenderer::Render() {
         Rectangle sourceRec = { 0.0f, 0.0f, (float)m_texture.width, (float)m_texture.height };
     
         // Destination Rectangle: Position and scaled size
+        auto position = m_transform->GetGlobalPosition();
         Rectangle destRec = {
-            m_transform->position.x,
-            m_transform->position.y,
+            position.x,
+            position.y,
             m_texture.width * m_transform->scale.x,
             m_texture.height * m_transform->scale.y
         };
