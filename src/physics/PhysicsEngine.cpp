@@ -29,9 +29,11 @@ void PhysicsEngine::Update(Scene& scene, float deltaTime) {
             rb->velocity.x += GlobalGravity.x * rb->gravityScale * deltaTime;
             rb->velocity.y += GlobalGravity.y * rb->gravityScale * deltaTime;
 
-            // Apply the velocity to the actual position
-            transform->position.x += rb->velocity.x * deltaTime;
-            transform->position.y += rb->velocity.y * deltaTime;
+            // Apply the velocity to the actual position in GLOBAL SPACE
+            Vector2 globalPos = transform->GetGlobalPosition();
+            globalPos.x += rb->velocity.x * deltaTime;
+            globalPos.y += rb->velocity.y * deltaTime;
+            transform->SetGlobalPosition(globalPos);
         }
     }
 
@@ -74,7 +76,7 @@ void PhysicsEngine::Update(Scene& scene, float deltaTime) {
         }
     }
 
-    // Step 4: Dispath events to scripts
+    // Step 4: Dispatch events to scripts
     for (const auto& event : collisionEvents) {
         GameObject* entity = event.first;
         const Collision2D& colData = event.second;
@@ -98,21 +100,28 @@ bool PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB, Vector2
     auto rbA = objA->GetComponent<RigidBody2d>();
     auto rbB = objB->GetComponent<RigidBody2d>();
 
+    // Fetch Global Properties
+    Vector2 posA = tA->GetGlobalPosition();
+    Vector2 scaleA = tA->GetGlobalScale();
+    Vector2 posB = tB->GetGlobalPosition();
+    Vector2 scaleB = tB->GetGlobalScale();
+
     // Define the actual world-space rectangles (centered around the transform)
-    float scaledWidthA = colA->size.x * tA->scale.x;
-    float scaledHeightA = colA->size.y * tA->scale.y;
+    // We use std::abs on scale to prevent negative width/height
+    float scaledWidthA = colA->size.x * std::abs(scaleA.x);
+    float scaledHeightA = colA->size.y * std::abs(scaleA.y);
     Rectangle recA = {
-        (tA->position.x + colA->offset.x) - (scaledWidthA / 2.0f),
-        (tA->position.y + colA->offset.y) - (scaledHeightA / 2.0f),
+        (posA.x + colA->offset.x) - (scaledWidthA / 2.0f),
+        (posA.y + colA->offset.y) - (scaledHeightA / 2.0f),
         scaledWidthA,
         scaledHeightA
     };
 
-    float scaledWidthB = colB->size.x * tB->scale.x;
-    float scaledHeightB = colB->size.y * tB->scale.y;
+    float scaledWidthB = colB->size.x * std::abs(scaleB.x);
+    float scaledHeightB = colB->size.y * std::abs(scaleB.y);
     Rectangle recB = {
-        (tB->position.x + colB->offset.x) - (scaledWidthB / 2.0f),
-        (tB->position.y + colB->offset.y) - (scaledHeightB / 2.0f),
+        (posB.x + colB->offset.x) - (scaledWidthB / 2.0f),
+        (posB.y + colB->offset.y) - (scaledHeightB / 2.0f),
         scaledWidthB,
         scaledHeightB
     };
@@ -125,9 +134,6 @@ bool PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB, Vector2
             outNormalB = { 0.0f, 0.0f };
             return true;
         }
-
-        auto rbA = objA->GetComponent<RigidBody2d>();
-        auto rbB = objB->GetComponent<RigidBody2d>();
 
         bool isKinematicA = !rbA || rbA->isKinematic;
         bool isKinematicB = !rbB || rbB->isKinematic;
@@ -156,17 +162,21 @@ bool PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB, Vector2
                 outNormalB = { -sign, 0.0f };
 
                 if (!isKinematicA && isKinematicB) {
-                    tA->position.x += overlapX * sign;
+                    posA.x += overlapX * sign;
+                    tA->SetGlobalPosition(posA);
                     if (rbA) rbA->velocity.x = 0; // Stop momentum on impact
                 } 
                 else if (isKinematicA && !isKinematicB) {
-                    tB->position.x -= overlapX * sign;
+                    posB.x -= overlapX * sign;
+                    tB->SetGlobalPosition(posB);
                     if (rbB) rbB->velocity.x = 0;
                 } 
                 else {
                     // Both dynamic: split the push equally (or by mass later!)
-                    tA->position.x += (overlapX / 2.0f) * sign;
-                    tB->position.x -= (overlapX / 2.0f) * sign;
+                    posA.x += (overlapX / 2.0f) * sign;
+                    posB.x -= (overlapX / 2.0f) * sign;
+                    tA->SetGlobalPosition(posA);
+                    tB->SetGlobalPosition(posB);
                     if (rbA) rbA->velocity.x = 0;
                     if (rbB) rbB->velocity.x = 0;
                 }
@@ -181,16 +191,20 @@ bool PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB, Vector2
                 if (sign > 0.0f && rbB) rbB->isGrounded = true;
 
                 if (!isKinematicA && isKinematicB) {
-                    tA->position.y += overlapY * sign;
+                    posA.y += overlapY * sign;
+                    tA->SetGlobalPosition(posA);
                     if (rbA) rbA->velocity.y = 0;
                 } 
                 else if (isKinematicA && !isKinematicB) {
-                    tB->position.y -= overlapY * sign;
+                    posB.y -= overlapY * sign;
+                    tB->SetGlobalPosition(posB);
                     if (rbB) rbB->velocity.y = 0;
                 } 
                 else {
-                    tA->position.y += (overlapY / 2.0f) * sign;
-                    tB->position.y -= (overlapY / 2.0f) * sign;
+                    posA.y += (overlapY / 2.0f) * sign;
+                    posB.y -= (overlapY / 2.0f) * sign;
+                    tA->SetGlobalPosition(posA);
+                    tB->SetGlobalPosition(posB);
                     if (rbA) rbA->velocity.y = 0;
                     if (rbB) rbB->velocity.y = 0;
                 }
@@ -211,12 +225,15 @@ bool PhysicsEngine::ResolveTileCollision(GameObject* obj, const Rectangle& tileR
     // We only resolve if the object has a physical presence
     if (!col || !t) return false;
 
+    Vector2 pos = t->GetGlobalPosition();
+    Vector2 scale = t->GetGlobalScale();
+
     // Define the dynamic object's world-space rectangle
-    float scaledWidth = col->size.x * t->scale.x;
-    float scaledHeight = col->size.y * t->scale.y;
+    float scaledWidth = col->size.x * std::abs(scale.x);
+    float scaledHeight = col->size.y * std::abs(scale.y);
     Rectangle rec = {
-        (t->position.x + col->offset.x) - (scaledWidth / 2.0f),
-        (t->position.y + col->offset.y) - (scaledHeight / 2.0f),
+        (pos.x + col->offset.x) - (scaledWidth / 2.0f),
+        (pos.y + col->offset.y) - (scaledHeight / 2.0f),
         scaledWidth,
         scaledHeight
     };
@@ -243,13 +260,15 @@ bool PhysicsEngine::ResolveTileCollision(GameObject* obj, const Rectangle& tileR
             if (overlapX < overlapY) {
                 // Horizontal collision (Hit a wall)
                 float sign = (center_x < tileCenter_x) ? -1.0f : 1.0f;
-                t->position.x += overlapX * sign;
+                pos.x += overlapX * sign;
+                t->SetGlobalPosition(pos);
                 rb->velocity.x = 0;
                 outNormal = { sign, 0.0f };
             } else {
                 // Vertical collision (Hit the floor or ceiling)
                 float sign = (center_y < tileCenter_y) ? -1.0f : 1.0f;
-                t->position.y += overlapY * sign;
+                pos.y += overlapY * sign;
+                t->SetGlobalPosition(pos);
                 rb->velocity.y = 0;
                 outNormal = { 0.0f, sign };
 
@@ -272,14 +291,17 @@ void PhysicsEngine::RenderDebug(Scene& scene) {
         auto transform = go->GetComponent<Transform2d>();
 
         if (col && transform) {
+            Vector2 pos = transform->GetGlobalPosition();
+            Vector2 scale = transform->GetGlobalScale();
+
             // Calculate the exact AABB centered around the transform position
-            float scaledWidth = col->size.x * transform->scale.x;
-            float scaledHeight = col->size.y * transform->scale.y;
+            float scaledWidth = col->size.x * std::abs(scale.x);
+            float scaledHeight = col->size.y * std::abs(scale.y);
 
             // Shift the top-left corner back by half the width and height
             Rectangle rec = {
-                (transform->position.x + col->offset.x) - (scaledWidth / 2.0f),
-                (transform->position.y + col->offset.y) - (scaledHeight / 2.0f),
+                (pos.x + col->offset.x) - (scaledWidth / 2.0f),
+                (pos.y + col->offset.y) - (scaledHeight / 2.0f),
                 scaledWidth,
                 scaledHeight
             };
@@ -292,8 +314,8 @@ void PhysicsEngine::RenderDebug(Scene& scene) {
 
             // Draw a tiny crosshair at the actual position of the GameObject 
             // This is super helpful to visualize how the 'offset' is moving the collider
-            DrawLine(transform->position.x - 5, transform->position.y, transform->position.x + 5, transform->position.y, RED);
-            DrawLine(transform->position.x, transform->position.y - 5, transform->position.x, transform->position.y + 5, RED);
+            DrawLine(pos.x - 5, pos.y, pos.x + 5, pos.y, RED);
+            DrawLine(pos.x, pos.y - 5, pos.x, pos.y + 5, RED);
         }
 
         // Draw TileMap Solid Layers Geometry
@@ -365,11 +387,14 @@ RaycastHit PhysicsEngine::Raycast(Scene& scene, Vector2 origin, Vector2 directio
         // Skip triggers if you want, or add a parameter to the function to include them!
         if (!col || !t || col->isTrigger) continue;
 
-        float scaledWidth = col->size.x * t->scale.x;
-        float scaledHeight = col->size.y * t->scale.y;
+        Vector2 pos = t->GetGlobalPosition();
+        Vector2 scale = t->GetGlobalScale();
+
+        float scaledWidth = col->size.x * std::abs(scale.x);
+        float scaledHeight = col->size.y * std::abs(scale.y);
         Rectangle rec = {
-            (t->position.x + col->offset.x) - (scaledWidth / 2.0f),
-            (t->position.y + col->offset.y) - (scaledHeight / 2.0f),
+            (pos.x + col->offset.x) - (scaledWidth / 2.0f),
+            (pos.y + col->offset.y) - (scaledHeight / 2.0f),
             scaledWidth,
             scaledHeight
         };

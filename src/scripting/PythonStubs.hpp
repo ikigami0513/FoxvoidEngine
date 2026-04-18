@@ -53,6 +53,22 @@ def is_pixel_art_mode() -> bool:
 
 class GameObject:
     name: str
+    
+    # Read-only unique identifier
+    @property
+    def id(self) -> int: ...
+
+    def set_parent(self, new_parent: Optional['GameObject']) -> None:
+        """Attaches this object to a new parent. Pass None to unparent (move to root)."""
+        ...
+        
+    def get_parent(self) -> Optional['GameObject']:
+        """Returns the current parent of this object, or None if it's at the root."""
+        ...
+        
+    def get_children(self) -> List['GameObject']:
+        """Returns a list of all direct children attached to this object."""
+        ...
 
     """Represents an entity within the engine's scene."""
     @staticmethod
@@ -151,12 +167,41 @@ class Component:
 class Transform2d(Component):
     """Component managing spatial position, rotation, and scale."""
     
-    position: Vector2
-    scale: Vector2
-    rotation: float
+    position: Vector2 # Local position
+    scale: Vector2    # Local scale
+    rotation: float   # Local rotation
+    z_index: int      # Local z-index order
     
     def __init__(self, x: float = 0.0, y: float = 0.0) -> None: 
         """Creates a new Transform2d component."""
+        ...
+
+    def get_global_position(self) -> Vector2:
+        """Returns the true world position, taking all parent transforms into account."""
+        ...
+        
+    def get_global_rotation(self) -> float:
+        """Returns the true world rotation in degrees."""
+        ...
+        
+    def get_global_scale(self) -> Vector2:
+        """Returns the true world scale."""
+        ...
+        
+    def get_global_z_index(self) -> int:
+        """Returns the accumulated rendering order."""
+        ...
+
+    def set_global_position(self, target_global_pos: Vector2) -> None:
+        """Moves the object to a world position by automatically calculating the required local position."""
+        ...
+        
+    def set_global_rotation(self, target_global_rot: float) -> None:
+        """Sets the world rotation by automatically calculating the required local rotation."""
+        ...
+        
+    def set_global_scale(self, target_global_scale: Vector2) -> None:
+        """Sets the world scale by automatically calculating the required local scale."""
         ...
     
 

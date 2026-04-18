@@ -20,10 +20,23 @@ void BindMathAndPhysics(py::module_& m) {
 
     py::class_<Transform2d, Component>(m, "Transform2d")
         .def(py::init<float, float>(), py::arg("x") = 0.0f, py::arg("y") = 0.0f)
-        // Bind the actual Vector2 and float members
+        
+        // Local properties
         .def_readwrite("position", &Transform2d::position)
         .def_readwrite("scale", &Transform2d::scale)
-        .def_readwrite("rotation", &Transform2d::rotation);
+        .def_readwrite("rotation", &Transform2d::rotation)
+        .def_readwrite("z_index", &Transform2d::zIndex)
+
+        // Global Getters
+        .def("get_global_position", &Transform2d::GetGlobalPosition)
+        .def("get_global_rotation", &Transform2d::GetGlobalRotation)
+        .def("get_global_scale", &Transform2d::GetGlobalScale)
+        .def("get_global_z_index", &Transform2d::GetGlobalZIndex)
+        
+        // Global Setters
+        .def("set_global_position", &Transform2d::SetGlobalPosition, py::arg("target_global_pos"))
+        .def("set_global_rotation", &Transform2d::SetGlobalRotation, py::arg("target_global_rot"))
+        .def("set_global_scale", &Transform2d::SetGlobalScale, py::arg("target_global_scale"));
 
     ComponentRegistry::Register<Transform2d>("Transform2d", 
         [](GameObject& go, py::args args) -> py::object {
