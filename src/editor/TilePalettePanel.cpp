@@ -73,6 +73,16 @@ void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileMap* ac
 
         ImGui::Separator();
 
+        // Display the currently selected Tile ID
+        if (selectedTileID == -1) {
+            ImGui::TextDisabled("Tile: None");
+        }
+        else {
+            ImGui::Text("Tile: %d", selectedTileID);
+        }
+
+        ImGui::Separator();
+
         // Palette display
         // We use a child window to allow scrolling if the tileset is large
         ImGui::BeginChild("PaletteRegion", ImVec2(0, 0), true, ImGuiWindowFlags_HorizontalScrollbar);

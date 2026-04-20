@@ -1,6 +1,7 @@
 #include "Animator2d.hpp"
 #include "../world/GameObject.hpp"
 #include "SpriteSheetRenderer.hpp"
+#include "core/Engine.hpp"
 #include <iostream>
 #include <sstream>
 
@@ -85,6 +86,34 @@ void Animator2d::Update(float deltaTime) {
         }
 
         UpdateSprite();
+    }
+}
+
+void Animator2d::Render() {
+    // We only want to force the frame synchronization in the Editor (when the game is stopped).
+    // During Play mode, the Update() method naturally handles the animation timing.
+    bool isPlaying = true;
+    if (Engine::Get()) {
+        isPlaying = Engine::Get()->IsPlaying();
+    }
+
+    if (!isPlaying && owner) {
+        // If an animation is currently selected...
+        if (!m_currentAnimation.empty() && m_animations.find(m_currentAnimation) != m_animations.end()) {
+            
+            if (auto sprite = owner->GetComponent<SpriteSheetRenderer>()) {
+                const AnimationData& anim = m_animations[m_currentAnimation];
+                
+                // Ensure the frame index is valid before applying it
+                if (!anim.frames.empty() && m_currentFrameIndex >= 0 && m_currentFrameIndex < anim.frames.size()) {
+                    
+                    // Instantly sync the visual state so the Editor Game View is perfectly accurate
+                    sprite->SetFrame(anim.frames[m_currentFrameIndex]);
+                    sprite->flipX = anim.flipX;
+                    sprite->flipY = anim.flipY;
+                }
+            }
+        }
     }
 }
 

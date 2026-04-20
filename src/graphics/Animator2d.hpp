@@ -25,6 +25,8 @@ class Animator2d : public Component {
         // Called every frame by the Engine/Scene
         void Update(float deltaTime) override;
 
+        void Render() override;
+
         // Registers a new animation state
         void AddAnimation(const std::string& name, const std::vector<int>& frames, float frameDuration, bool loop, bool flipX = false, bool flipY = false);
 
