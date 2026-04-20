@@ -1,0 +1,25 @@
+site_name: Foxvoid Engine
+site_description: Lightweight 2D game engine with Python scripting
+site_author: Ikigami0513
+
+theme:
+  name: material
+  palette:
+    scheme: slate
+    primary: indigo
+    accent: deep purple
+  features:
+    - navigation.tabs
+    - search.suggest
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: ["."]
+
+nav:
+  - Introduction: index.md
+  - Python API Reference: scripting_api.md
+  
