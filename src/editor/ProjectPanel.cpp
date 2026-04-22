@@ -131,66 +131,94 @@ void CreateAssetFile(const fs::path& directory, const std::string& filename, con
     }
 }
 
-// UPDATED SIGNATURE
+// Helper function to handle Drag and Drop payload moving
+void HandleDragAndDropMove(const fs::path& targetDirectory) {
+    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+        std::string sourcePathStr = (const char*)payload->Data;
+        fs::path sourcePath = sourcePathStr;
+        
+        // Construct the new path
+        fs::path destinationPath = targetDirectory / sourcePath.filename();
+
+        // Prevent moving a folder into itself or if the file is already there
+        if (sourcePath != destinationPath && destinationPath.string().find(sourcePath.string()) == std::string::npos) {
+            try {
+                fs::rename(sourcePath, destinationPath);
+                std::cout << "[ProjectPanel] Moved: " << sourcePath.filename() << " -> " << destinationPath.string() << std::endl;
+            } catch (const fs::filesystem_error& e) {
+                std::cerr << "[ProjectPanel] Failed to move item: " << e.what() << std::endl;
+            }
+        }
+    }
+}
+
 void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& assetsPath, std::string& currentScenePath) {
     ImGui::Begin("Project");
 
-    // Initialize the current directory the very first time the panel is drawn
     if (m_currentDirectory.empty()) {
         m_currentDirectory = assetsPath;
     }
 
-    // Toolbar
-    // Button to switch views
-    if (ImGui::Button(m_isTreeView ? ICON_FA_FOLDER_OPEN " Switch to Explorer" : ICON_FA_SITEMAP " Switch to Tree")) {
-        m_isTreeView = !m_isTreeView;
-    }
+    // Global Right-Click menu for the panel background (Root directory creation)
+    if (ImGui::BeginPopupContextWindow("ProjectPanelContext")) {
+        if (ImGui::BeginMenu(ICON_FA_PLUS " Create")) {
+            if (ImGui::MenuItem(ICON_FA_FOLDER " Folder")) {
+                m_currentDirectory = assetsPath; // Force creation at root
+                m_requestFolderModal = true;
+            }
+            ImGui::Separator();
+            if (ImGui::BeginMenu(ICON_FA_FILE_CODE " Python Script")) {
+                if (ImGui::MenuItem("Component")) {
+                    m_currentDirectory = assetsPath; // Force creation at root
+                    m_pendingScriptType = ScriptType::Component;
+                    m_requestScriptModal = true;
+                }
+                if (ImGui::MenuItem("Scriptable Object Class")) {
+                    m_currentDirectory = assetsPath; // Force creation at root
+                    m_pendingScriptType = ScriptType::ScriptableObject;
+                    m_requestScriptModal = true;
+                }
+                ImGui::EndMenu();
+            }
 
-    ImGui::SameLine();
-
-    if (!m_isTreeView) {
-        // Explorer View Toolbar: We need a "Back" button to go up a directory
-        ImGui::BeginDisabled(m_currentDirectory == assetsPath); // Disable if we are at the root
-        if (ImGui::Button(ICON_FA_ARROW_LEFT)) {
-            m_currentDirectory = m_currentDirectory.parent_path();
+            ImGui::EndMenu();
         }
-        ImGui::EndDisabled();
-
-        ImGui::SameLine();
-        ImGui::TextDisabled("%s", m_currentDirectory.string().c_str());
-    } else {
-        // Tree View Toolbar: Just show the root path
-        ImGui::TextDisabled("Path: %s", assetsPath.string().c_str());
+        ImGui::EndPopup();
     }
 
+    // Simple Header
+    ImGui::TextDisabled("Root: %s", assetsPath.string().c_str());
     ImGui::Separator();
 
+    // Allow dropping items into the empty space of the panel to move them to the root
+    if (ImGui::BeginDragDropTarget()) {
+        HandleDragAndDropMove(assetsPath);
+        ImGui::EndDragDropTarget();
+    }
+
     // Viewport
-    // Add a little padding inside the window
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(4, 4));
 
-    if (m_isTreeView) {
-        // UPDATED CALL
-        DrawDirectoryNode(activeScene, selectedObject, selectedAsset, selectedAssetPath, assetsPath, currentScenePath);
-    } else {
-        // UPDATED CALL
-        DrawExplorerView(activeScene, selectedObject, selectedAsset, selectedAssetPath, currentScenePath);
-    }
+    // Only draw the Tree View now
+    DrawDirectoryNode(activeScene, selectedObject, selectedAsset, selectedAssetPath, assetsPath, currentScenePath);
 
     ImGui::PopStyleVar();
 
     // Trigger the modals at the root id stack safely
     if (m_requestScriptModal) {
         ImGui::OpenPopup("New Python Script");
-        m_requestScriptModal = false; // Reset the flag immediately
+        m_requestScriptModal = false;
     }
-
     if (m_requestAssetModal) {
         ImGui::OpenPopup("New Scriptable Object");
-        m_requestAssetModal = false; // Reset the flag immediately
+        m_requestAssetModal = false;
+    }
+    if (m_requestFolderModal) {
+        ImGui::OpenPopup("New Folder");
+        m_requestFolderModal = false;
     }
 
-    // Modal
+    // Modal: Python Script
     if (ImGui::BeginPopupModal("New Python Script", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
         static char scriptName[64] = "NewScript";
         ImGui::InputText("Name", scriptName, IM_ARRAYSIZE(scriptName));
@@ -202,7 +230,6 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind1
             CreatePythonScript(m_currentDirectory, scriptName, m_pendingScriptType);
             ImGui::CloseCurrentPopup();
             
-            // Reset buffer for the next time
             scriptName[0] = '\0';
             strcpy(scriptName, "NewScript");
         }
@@ -227,7 +254,6 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind1
         ImGui::Separator();
         ImGui::TextDisabled("Python Binding");
         
-        // We disable these fields because they are automatically filled by right-clicking the script!
         ImGui::BeginDisabled();
         ImGui::InputText("Module", m_assetPrefillModule, sizeof(m_assetPrefillModule));
         ImGui::InputText("Class", m_assetPrefillClass, sizeof(m_assetPrefillClass));
@@ -237,7 +263,6 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind1
             CreateAssetFile(m_currentDirectory, assetFileName, assetId, m_assetPrefillModule, m_assetPrefillClass);
             ImGui::CloseCurrentPopup();
             
-            // Reset buffers for the next time
             strcpy(assetFileName, "NewData");
             strcpy(assetId, "data_01");
         }
@@ -251,170 +276,65 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind1
         ImGui::EndPopup();
     }
 
-    ImGui::End();
-}
-
-// UPDATED SIGNATURE
-void ProjectPanel::DrawExplorerView(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, std::string& currentScenePath) {
-    // If the directory does not exist, stop right here
-    if (!fs::exists(m_currentDirectory)) return;
-
-    // Global Right-Click menu for the current directory
-    if (ImGui::BeginPopupContextWindow("ExplorerContextPopup")) {
-        if (ImGui::BeginMenu(ICON_FA_PLUS " Create")) {
-            // Sub-menu for Python Scripts
-            if (ImGui::BeginMenu(ICON_FA_FILE_CODE " Python Script")) {
-                if (ImGui::MenuItem("Component")) {
-                    m_pendingScriptType = ScriptType::Component;
-                    m_requestScriptModal = true;
-                }
-                if (ImGui::MenuItem("Scriptable Object Class")) {
-                    m_pendingScriptType = ScriptType::ScriptableObject;
-                    m_requestScriptModal = true;
-                }
-                ImGui::EndMenu();
+    // Modal: Folder
+    if (ImGui::BeginPopupModal("New Folder", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        static char folderName[64] = "NewFolder";
+        ImGui::InputText("Folder Name", folderName, IM_ARRAYSIZE(folderName));
+        ImGui::Spacing();
+                
+        if (ImGui::Button("Create", ImVec2(120, 0))) {
+            fs::path newFolderPath = m_currentDirectory / folderName;
+            if (!fs::exists(newFolderPath)) {
+                fs::create_directory(newFolderPath);
+                std::cout << "[ProjectPanel] Created new folder: " << newFolderPath.string() << std::endl;
+            } else {
+                std::cerr << "[ProjectPanel] Error: Folder already exists!" << std::endl;
             }
-            
-            // Note: We removed the direct Asset creation from the global menu here
-            // to force the user to right-click on a script instead, preventing empty/invalid bindings.
+            ImGui::CloseCurrentPopup();
+            strcpy(folderName, "NewFolder");
         }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
 
-    // Iterate through all items in the current directory
-    for (const auto& entry : fs::directory_iterator(m_currentDirectory)) {
-        const auto& filename = entry.path().filename().string();
-        std::string extension = entry.path().extension().string();
-
-        // Filter exclusions
-        // Ignore Python cache directories
-        if (entry.is_directory() && filename == "__pycache__") continue;
-        // Ignore compiled python files
-        if (!entry.is_directory() && extension == ".pyc") continue;
-        // Ignore hidden files/folders (starting with a dot, like .git or .vscode)
-        if (!filename.empty() && filename[0] == '.') continue;
-
-        bool isDir = entry.is_directory();
-        
-        // Add a small visual icon prefix based on the file type
-        std::string icon = isDir ? ICON_FA_FOLDER : ICON_FA_FILE;
-        if (!isDir) {
-            if (extension == ".scene") icon = ICON_FA_CUBES;
-            else if (extension == ".prefab") icon = ICON_FA_BOX;
-            else if (extension == ".py") icon = ICON_FA_FILE_CODE;
-            else if (extension == ".png") icon = ICON_FA_IMAGE;
-            else if (extension == ".asset") icon = ICON_FA_DATABASE;
-        }
-
-        std::string displayName = icon + "  " + filename;
-
-        // Draw the item as a selectable row
-        if (ImGui::Selectable(displayName.c_str(), false, ImGuiSelectableFlags_AllowDoubleClick)) {
-            // INTERACTION: What happens when we interact with this file?
-            if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-                if (isDir) {
-                    // It's a FOLDER -> Enter the folder!
-                    m_currentDirectory /= filename; 
-                } else if (extension == ".scene") {
-                    // It's a FILE -> If it's a scene, load it!
-                    std::cout << "[Editor] Loading scene via Project Browser: " << filename << std::endl;
-                    
-                    // Safety: Clear the editor selection before changing the scene
-                    selectedObject = nullptr; 
-                    currentScenePath = entry.path().string();
-                    
-                    // Load the new scene
-                    activeScene.LoadFromFile(currentScenePath, false);
-                } else if (extension == ".asset") {
-                    // NEW: Load the Data Asset into the Inspector
-                    std::cout << "[Editor] Inspecting asset: " << filename << std::endl;
-                    
-                    selectedObject = nullptr; // Prioritize asset over hierarchy object
-                    selectedAssetPath = entry.path().string();
-                    selectedAsset = DataManager::LoadAsset(selectedAssetPath);
-                }
-            }
-        }
-
-        // Context menu specifically for Python scripts (Explorer View)
-        if (!isDir && extension == ".py") {
-            if (ImGui::BeginPopupContextItem()) {
-                
-                if (IsScriptableObjectFile(entry.path())) {
-                    if (ImGui::MenuItem(ICON_FA_DATABASE " Create Asset from this Script")) {
-                        // 1. Get the module name (filename without .py)
-                        std::string modName = fs::path(filename).stem().string();
-                        strncpy(m_assetPrefillModule, modName.c_str(), sizeof(m_assetPrefillModule));
-
-                        // 2. Read the file to find the class name
-                        std::string clsName = ExtractClassNameFromFile(entry.path());
-                        if (clsName.empty()) {
-                            // Fallback: capitalize filename if extraction failed
-                            clsName = modName;
-                            if (!clsName.empty()) clsName[0] = std::toupper(clsName[0]);
-                        }
-                        strncpy(m_assetPrefillClass, clsName.c_str(), sizeof(m_assetPrefillClass));
-
-                        // 3. Trigger the modal
-                        m_requestAssetModal = true;
-                    }
-                }
-                else {
-                    ImGui::TextDisabled(ICON_FA_GEARS " Component Script");
-                }
-                
-                ImGui::EndPopup();
-            }
-        }
-
-        // Drag and drop source (For Files Only in Explorer view)
-        // If the user clicks and drags this item, initialize the drag payload
-        if (!isDir && ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
-            // Get the relative path of the file (e.g., "assets/textures/player.png")
-            std::string itemPath = entry.path().string();
-
-            // Set the payload data. 
-            // "CONTENT_BROWSER_ITEM" is our custom identifier.
-            // We add +1 to the size to ensure the null-terminator ('\0') is included.
-            ImGui::SetDragDropPayload("CONTENT_BROWSER_ITEM", itemPath.c_str(), itemPath.size() + 1);
-            
-            // Display a tooltip right next to the mouse cursor while dragging
-            ImGui::Text("%s Drop %s", icon.c_str(), filename.c_str());
-            
-            ImGui::EndDragDropSource();
-        }
-    }
+    ImGui::End();
 }
 
-// UPDATED SIGNATURE
 void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& path, std::string& currentScenePath) {
-    // If the directory does not exist, stop right here
     if (!fs::exists(path)) return;
 
-    // Iterate through all items in the current directory
     for (const auto& entry : fs::directory_iterator(path)) {
         const auto& filename = entry.path().filename().string();
         std::string extension = entry.path().extension().string();
 
-        // Filter exclusions
-        // Ignore Python cache directories
         if (entry.is_directory() && filename == "__pycache__") continue;
-        // Ignore compiled python files
         if (!entry.is_directory() && extension == ".pyc") continue;
-        // Ignore hidden files/folders (starting with a dot, like .git or .vscode)
         if (!filename.empty() && filename[0] == '.') continue;
 
         if (entry.is_directory()) {
-            // It's a FOLDER
             std::string folderName = ICON_FA_FOLDER " " + filename;
-            
             bool isOpen = ImGui::TreeNodeEx(folderName.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth);
 
-            // Context menu for specific folders in Tree View
-            // Push an ID so multiple folders don't share the same popup state
+            if (ImGui::BeginDragDropTarget()) {
+                HandleDragAndDropMove(entry.path());
+                ImGui::EndDragDropTarget();
+            }
+
+            if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
+                std::string itemPath = entry.path().string();
+                ImGui::SetDragDropPayload("CONTENT_BROWSER_ITEM", itemPath.c_str(), itemPath.size() + 1);
+                ImGui::Text("%s Move %s", ICON_FA_FOLDER, filename.c_str());
+                ImGui::EndDragDropSource();
+            }
+
             ImGui::PushID(entry.path().string().c_str());
             if (ImGui::BeginPopupContextItem()) {
-                // Sub-menu for Python Scripts in Tree View
+                if (ImGui::MenuItem(ICON_FA_FOLDER " Create Folder")) {
+                    m_currentDirectory = entry.path();
+                    m_requestFolderModal = true;
+                }
+                ImGui::Separator();
                 if (ImGui::BeginMenu(ICON_FA_FILE_CODE " Create Python Script")) {
                     if (ImGui::MenuItem("Component")) {
                         m_currentDirectory = entry.path();
@@ -432,19 +352,13 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
             }
             ImGui::PopID();
 
-            // Create a collapsible tree node
             if (isOpen) {
-                // Recursive call to read the contents of this subfolder
-                // UPDATED CALL
                 DrawDirectoryNode(activeScene, selectedObject, selectedAsset, selectedAssetPath, entry.path(), currentScenePath); 
-                ImGui::TreePop(); // Close the node
+                ImGui::TreePop();
             }
         } else {
-            // It's a FILE
-            // Draw it as a "Leaf" (no children to expand)
             ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
             
-            // Add a small visual icon prefix based on the file type (optional but looks nice)
             std::string icon = ICON_FA_FILE;
             if (extension == ".scene") icon = ICON_FA_CUBES;
             else if (extension == ".prefab") icon = ICON_FA_BOX;
@@ -455,10 +369,8 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
             std::string displayName = icon + "  " + filename;
             ImGui::TreeNodeEx(displayName.c_str(), flags);
             
-            // Context menu specifically for Python scripts (Tree View)
             if (!entry.is_directory() && extension == ".py") {
                 if (ImGui::BeginPopupContextItem()) {
-                    
                     if (IsScriptableObjectFile(entry.path())) {
                         if (ImGui::MenuItem(ICON_FA_DATABASE " Create Asset from this Script")) {
                             m_currentDirectory = entry.path().parent_path();
@@ -479,48 +391,27 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
                     else {
                         ImGui::TextDisabled(ICON_FA_GEARS " Component Script");
                     }
-
                     ImGui::EndPopup();
                 }
             }
 
-            // Drag and drop source
-            // If the user clicks and drags this item, initialize the drag payload
             if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
-                // Get the relative path of the file (e.g., "assets/textures/player.png")
                 std::string itemPath = entry.path().string();
-
-                // Set the payload data. 
-                // "CONTENT_BROWSER_ITEM" is our custom identifier.
-                // We add +1 to the size to ensure the null-terminator ('\0') is included.
                 ImGui::SetDragDropPayload("CONTENT_BROWSER_ITEM", itemPath.c_str(), itemPath.size() + 1);
-                
-                // Display a tooltip right next to the mouse cursor while dragging
-                ImGui::Text("%s Drop %s", icon.c_str(), filename.c_str());
-                
+                ImGui::Text("%s Move %s", icon.c_str(), filename.c_str());
                 ImGui::EndDragDropSource();
             }
 
-            // INTERACTION: What happens when we interact with this file?
             if (ImGui::IsItemHovered()) {
-                // Double left-click
                 if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-                    
-                    // If it's a scene, load it!
                     if (extension == ".scene") {
                         std::cout << "[Editor] Loading scene via Project Browser: " << filename << std::endl;
-                        
-                        // Safety: Clear the editor selection before changing the scene
                         selectedObject = nullptr; 
                         currentScenePath = entry.path().string();
-                        
-                        // Load the new scene
                         activeScene.LoadFromFile(currentScenePath, false);
                     } else if (extension == ".asset") {
-                        // NEW: Load the Data Asset into the Inspector
                         std::cout << "[Editor] Inspecting asset: " << filename << std::endl;
-                        
-                        selectedObject = nullptr; // Prioritize asset over hierarchy object
+                        selectedObject = nullptr;
                         selectedAssetPath = entry.path().string();
                         selectedAsset = DataManager::LoadAsset(selectedAssetPath);
                     }
