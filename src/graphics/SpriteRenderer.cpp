@@ -4,6 +4,7 @@
 #include "../physics/Transform2d.hpp"
 #include <iostream>
 #include <core/AssetManager.hpp>
+#include <core/AssetRegistry.hpp>
 #include <filesystem>
 
 #ifndef STANDALONE_MODE
@@ -24,17 +25,35 @@ SpriteRenderer::SpriteRenderer(const std::string& texturePath) {
 SpriteRenderer::~SpriteRenderer() {}
 
 void SpriteRenderer::SetTexture(const std::string& path) {
+    if (path.empty()) {
+        SetTexture(UUID(0));
+        return;
+    }
+    
+    // Interrogate the registry to find the unique ID of this file
+    UUID assetId = AssetRegistry::GetUUIDForPath(path);
+    SetTexture(assetId);
+}
+
+void SpriteRenderer::SetTexture(UUID uuid) {
     // If a texture is already loaded, free its GPU memory first
     if (m_texture.id != 0) {
         UnloadTexture(m_texture);
         m_texture.id = 0;
     }
 
-    m_texturePath = path;
+    m_textureUUID = uuid;
 
-    // Only try to load if the path isn't empty
-    if (!m_texturePath.empty()) {
-        m_texture = AssetManager::GetTexture(path);
+    // Only try to load if the UUID is valid (not 0)
+    if (m_textureUUID != 0) {
+        // Resolve the UUID back to its CURRENT path on the hard drive
+        std::string resolvedPath = AssetRegistry::GetPathForUUID(m_textureUUID).string();
+        
+        if (!resolvedPath.empty()) {
+            m_texture = AssetManager::GetTexture(resolvedPath);
+        } else {
+            std::cerr << "[SpriteRenderer] Error: Could not resolve UUID " << (uint64_t)m_textureUUID << " to a valid path!" << std::endl;
+        }
     }
 }
 
@@ -75,29 +94,25 @@ std::string SpriteRenderer::GetName() const {
 
 #ifndef STANDALONE_MODE
 void SpriteRenderer::OnInspector() {
-    // Prepare a C-string buffer for ImGui text input
+    // Dynamically fetch the current path from the registry for the UI
+    std::string currentPath = "";
+    if (m_textureUUID != 0) {
+        currentPath = AssetRegistry::GetPathForUUID(m_textureUUID).string();
+    }
+
     char buffer[256];
-    strncpy(buffer, m_texturePath.c_str(), sizeof(buffer));
+    strncpy(buffer, currentPath.c_str(), sizeof(buffer));
     buffer[sizeof(buffer) - 1] = '\0';
 
-    // Manual Path Entry
-    // We only trigger the logic when the user presses ENTER to avoid disk I/O spam
     if (ImGui::InputText("Texture Path", buffer, sizeof(buffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
         std::string newPath(buffer);
-        if (newPath != m_texturePath) {
-            // Capture the state BEFORE loading the new texture
+        if (newPath != currentPath) {
             nlohmann::json initialState = Serialize();
-            
-            // Perform the heavy action
-            SetTexture(newPath); 
-            
-            // Push the command to the history
+            SetTexture(newPath); // Will automatically find the new UUID
             CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
         }
     }
 
-    // Drag and Drop Target
-    // Make the InputText act as a drop target for content browser items
     if (ImGui::BeginDragDropTarget()) {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
             
@@ -109,9 +124,7 @@ void SpriteRenderer::OnInspector() {
             
             if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga") {
                 nlohmann::json initialState = Serialize();
-                
-                SetTexture(droppedPath);
-                
+                SetTexture(droppedPath); // Will automatically find the new UUID
                 CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
             }
         }
@@ -120,9 +133,9 @@ void SpriteRenderer::OnInspector() {
     
     ImGui::TextDisabled("Press ENTER to load new texture");
 
-    // Show useful debug info
     if (m_texture.id != 0) {
         ImGui::Text("Resolution: %d x %d", m_texture.width, m_texture.height);
+        ImGui::TextDisabled("UUID: %llu", (uint64_t)m_textureUUID); // Helpful debug info
     } else {
         ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "No texture loaded!");
     }
@@ -132,11 +145,16 @@ void SpriteRenderer::OnInspector() {
 nlohmann::json SpriteRenderer::Serialize() const {
     return {
         {"type", "SpriteRenderer"},
-        {"texturePath", m_texturePath}
+        {"textureUUID", (uint64_t)m_textureUUID}
     };
 }
 
 void SpriteRenderer::Deserialize(const nlohmann::json& j) {
-    std::string path = j.value("texturePath", "");
-    SetTexture(path);
+    // Backward compatibility: If the scene is old and uses texturePath, convert it on load!
+    if (j.contains("textureUUID")) {
+        SetTexture(UUID(j["textureUUID"].get<uint64_t>()));
+    } 
+    else if (j.contains("texturePath")) {
+        SetTexture(j["texturePath"].get<std::string>());
+    }
 }

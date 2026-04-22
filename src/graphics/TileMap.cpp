@@ -8,6 +8,7 @@
 #include "editor/EditorUI.hpp"
 #include <imgui.h>
 #endif
+#include <core/AssetRegistry.hpp>
 
 TileMap::TileMap()
     : tileSize { 32.0f, 32.0f }, tileSpacing(0), gridWidth(10), gridHeight(10), m_tilesetTexture{0}
@@ -27,13 +28,33 @@ std::string TileMap::GetName() const {
 }
 
 void TileMap::LoadTileset(const std::string& path) {
+    if (path.empty()) {
+        LoadTileset(UUID(0));
+        return;
+    }
+    
+    // Resolve UI path to UUID
+    UUID assetId = AssetRegistry::GetUUIDForPath(path);
+    LoadTileset(assetId);
+}
+
+void TileMap::LoadTileset(UUID uuid) {
     if (m_tilesetTexture.id != 0) {
         UnloadTexture(m_tilesetTexture);
+        m_tilesetTexture.id = 0;
     }
 
-    m_tilesetTexture = Graphics::LoadTextureFiltered(path);
-    if (m_tilesetTexture.id != 0) {
-        m_tilesetPath = path;
+    m_tilesetUUID = uuid;
+
+    if (m_tilesetUUID != 0) {
+        std::string resolvedPath = AssetRegistry::GetPathForUUID(m_tilesetUUID).string();
+        
+        if (!resolvedPath.empty()) {
+            // We use Graphics::LoadTextureFiltered to ensure the tilemap renders correctly without blur
+            m_tilesetTexture = Graphics::LoadTextureFiltered(resolvedPath);
+        } else {
+            std::cerr << "[TileMap] Error: Could not resolve UUID " << (uint64_t)m_tilesetUUID << " to a valid path!" << std::endl;
+        }
     }
 }
 
@@ -113,15 +134,23 @@ void TileMap::OnInspector() {
         if (ImGui::DragInt("Grid Width", &newWidth, 1, 1, 1000)) ResizeMap(newWidth, gridHeight);
         if (ImGui::DragInt("Grid Height", &newHeight, 1, 1, 1000)) ResizeMap(gridWidth, newHeight);
         
-        // Simple file path input for prototype (Asset Browser drag-n-drop would be better later)
+        // Dynamically fetch the current path from the registry for the UI
+        std::string currentPath = "";
+        if (m_tilesetUUID != 0) {
+            currentPath = AssetRegistry::GetPathForUUID(m_tilesetUUID).string();
+        }
+        
         static char pathBuffer[256];
-        strncpy(pathBuffer, m_tilesetPath.c_str(), sizeof(pathBuffer));
+        strncpy(pathBuffer, currentPath.c_str(), sizeof(pathBuffer));
         pathBuffer[sizeof(pathBuffer) - 1] = '\0';
         
         if (ImGui::InputText("Tileset Path", pathBuffer, sizeof(pathBuffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
-            nlohmann::json initialState = Serialize();
-            LoadTileset(pathBuffer);
-            CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
+            std::string newPath(pathBuffer);
+            if (newPath != currentPath) {
+                nlohmann::json initialState = Serialize();
+                LoadTileset(newPath); // Will translate path to UUID
+                CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
+            }
         }
 
         // Drag and Drop support for the tileset path
@@ -130,8 +159,8 @@ void TileMap::OnInspector() {
                 std::string droppedPath = (const char*)payload->Data;
                 std::filesystem::path fsPath(droppedPath);
                 std::string ext = fsPath.extension().string();
+                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
                 
-                // Only accept common image formats supported by Raylib
                 if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp") {
                     nlohmann::json initialState = Serialize();
                     LoadTileset(droppedPath);
@@ -139,6 +168,10 @@ void TileMap::OnInspector() {
                 }
             }
             ImGui::EndDragDropTarget();
+        }
+
+        if (m_tilesetUUID != 0) {
+            ImGui::TextDisabled("UUID: %llu", (uint64_t)m_tilesetUUID);
         }
     }
 
@@ -213,7 +246,7 @@ void TileMap::ResizeMap(int newWidth, int newHeight) {
 nlohmann::json TileMap::Serialize() const {
     nlohmann::json j;
     j["type"] = "TileMap";
-    j["tilesetPath"] = m_tilesetPath;
+    j["tilesetUUID"] = (uint64_t)m_tilesetUUID;
     j["tileSize"] = { tileSize.x, tileSize.y };
     j["tileSpacing"] = tileSpacing;
     j["gridWidth"] = gridWidth;
@@ -253,9 +286,12 @@ void TileMap::Deserialize(const nlohmann::json& j) {
 
     showGrid = j.value("showGrid", true);
     
-    std::string path = j.value("tilesetPath", "");
-    if (!path.empty()) {
-        LoadTileset(path);
+    // Backward compatibility for loading the texture
+    if (j.contains("tilesetUUID")) {
+        LoadTileset(UUID(j["tilesetUUID"].get<uint64_t>()));
+    } 
+    else if (j.contains("tilesetPath")) {
+        LoadTileset(j["tilesetPath"].get<std::string>());
     }
 
     m_layers.clear();

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "world/Component.hpp"
+#include "core/UUID.hpp"
 #include <string>
 #include <raylib.h>
 
@@ -11,8 +12,6 @@ class TextRenderer : public Component {
         float spacing;
         Color color;
         bool isHUD; // If true, renders in Screen Space, If false, renders in World Space.
-
-        std::string fontPath;
 
         TextRenderer();
         ~TextRenderer() override;
@@ -29,12 +28,16 @@ class TextRenderer : public Component {
         nlohmann::json Serialize() const override;
         void Deserialize(const nlohmann::json& j) override;
 
-        // Called when the path changes (from UI, JSON or Python)
+        // Overloaded methods to handle both Paths (UI/Scripts) and UUIDs (Serialization)
         void SetFontPath(const std::string& path);
+        void SetFontPath(UUID uuid);
+
+        std::string GetFontPath() const;
 
     private:
+        // We store the UUID instead of the hardcoded path
+        UUID m_fontUUID = 0;
+
         Font m_customFont;
         bool m_isFontLoaded;
-
-        void LoadFontFromDisk();
 };

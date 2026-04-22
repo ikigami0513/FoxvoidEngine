@@ -1,6 +1,7 @@
 #pragma once
 
 #include "world/Component.hpp"
+#include "core/UUID.hpp"
 #include <raylib.h>
 #include <string>
 #include <unordered_map>
@@ -28,10 +29,12 @@ class AudioSource : public Component {
 
         // SFX API (short sounds)
         void LoadSFX(const std::string& name, const std::string& path);
+        void LoadSFX(const std::string& name, UUID uuid);
         void PlaySFX(const std::string& name);
 
         // Music API (Long streaming tracks)
         void LoadMusic(const std::string& path);
+        void LoadMusic(UUID uuid);
         void PlayMusic();
         void StopMusic();
         void SetMusicVolume(float volume);
@@ -39,11 +42,16 @@ class AudioSource : public Component {
     private:
         // SFX Storage
         std::unordered_map<std::string, Sound> m_sfx;
-        std::unordered_map<std::string, std::string> m_sfxPaths; // Needed to serialize/save
+        
+        // Store UUIDs instead of paths for SFX serialization
+        std::unordered_map<std::string, UUID> m_sfxUUIDs; 
 
         // Music Storage
         Music m_currentMusic;
-        std::string m_musicPath;
+        
+        // Store the UUID instead of the hardcoded path
+        UUID m_musicUUID = 0;
+        
         bool m_isMusicLoaded;
         float m_musicVolume;
 };

@@ -160,7 +160,7 @@ void BindGraphics(py::module_& m) {
         .def_readwrite("grid_height", &TileMap::gridHeight)
         .def_readwrite("tile_spacing", &TileMap::tileSpacing)
         // Expose public methods
-        .def("load_tileset", &TileMap::LoadTileset)
+        .def("load_tileset", py::overload_cast<const std::string&>(&TileMap::LoadTileset))
         .def("resize", &TileMap::ResizeMap)
         .def("add_layer", &TileMap::AddLayer)
         .def("get_tile", &TileMap::GetTile)

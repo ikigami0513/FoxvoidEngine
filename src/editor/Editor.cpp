@@ -14,6 +14,7 @@
 #include <rlImGui.h>
 #include "ImGuizmo.h"
 #endif
+#include <core/AssetRegistry.hpp>
 
 Editor::Editor(int windowWidth, int windowHeight) {
     // Initialize Console Redirects
@@ -135,6 +136,9 @@ void Editor::OnProjectLoaded() {
 
     // Pass the correct assets path to the ProjectPanel
     m_assetsPath = ProjectSettings::GetAssetsPath();
+
+    // Initialize the global Asset Registry to map all UUIDs to their file paths
+    AssetRegistry::Initialize(m_assetsPath);
 
     // Change the OS Current Working Directory
     // This forces Raylib to look for "assets/..." inside the project folder,

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "world/Component.hpp"
+#include "core/UUID.hpp"
 #include <raylib.h>
 #include <vector>
 #include <string>
@@ -49,6 +50,7 @@ class TileMap : public Component {
 
         // Loads a new tileset texture from the disk
         void LoadTileset(const std::string& path);
+        void LoadTileset(UUID uuid);
 
         // Safely resizes the map without losing existing tile data
         void ResizeMap(int newWidth, int newHeight);
@@ -83,7 +85,8 @@ class TileMap : public Component {
         TileLayer* GetLayer(const std::string& name);
 
     private:
-        std::string m_tilesetPath;
+        UUID m_tilesetUUID = 0;
+        
         Texture2D m_tilesetTexture;
         std::vector<TileLayer> m_layers;
 

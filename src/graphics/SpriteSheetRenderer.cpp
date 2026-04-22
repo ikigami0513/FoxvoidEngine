@@ -6,6 +6,7 @@
 #include <cstring>
 #include <core/AssetManager.hpp>
 #include <filesystem>
+#include <core/AssetRegistry.hpp>
 
 SpriteSheetRenderer::SpriteSheetRenderer(const std::string& texturePath, int columns, int rows)
     : m_columns(columns), m_rows(rows), m_currentFrame(0), m_transform(nullptr) 
@@ -20,15 +21,35 @@ SpriteSheetRenderer::SpriteSheetRenderer(const std::string& texturePath, int col
 SpriteSheetRenderer::~SpriteSheetRenderer() {}
 
 void SpriteSheetRenderer::SetTexture(const std::string& path) {
+    if (path.empty()) {
+        SetTexture(UUID(0));
+        return;
+    }
+    
+    // Interrogate the registry to find the unique ID of this file
+    UUID assetId = AssetRegistry::GetUUIDForPath(path);
+    SetTexture(assetId);
+}
+
+void SpriteSheetRenderer::SetTexture(UUID uuid) {
+    // If a texture is already loaded, free its GPU memory first
     if (m_texture.id != 0) {
         UnloadTexture(m_texture);
         m_texture.id = 0;
     }
     
-    m_texturePath = path;
+    m_textureUUID = uuid;
     
-    if (!m_texturePath.empty()) {
-        m_texture = AssetManager::GetTexture(path);
+    // Only try to load if the UUID is valid (not 0)
+    if (m_textureUUID != 0) {
+        // Resolve the UUID back to its CURRENT path on the hard drive
+        std::string resolvedPath = AssetRegistry::GetPathForUUID(m_textureUUID).string();
+        
+        if (!resolvedPath.empty()) {
+            m_texture = AssetManager::GetTexture(resolvedPath);
+        } else {
+            std::cerr << "[SpriteSheetRenderer] Error: Could not resolve UUID " << (uint64_t)m_textureUUID << " to a valid path!" << std::endl;
+        }
     }
 }
 
@@ -104,16 +125,22 @@ std::string SpriteSheetRenderer::GetName() const {
 
 #ifndef STANDALONE_MODE
 void SpriteSheetRenderer::OnInspector() {
+    // Dynamically fetch the current path from the registry for the UI
+    std::string currentPath = "";
+    if (m_textureUUID != 0) {
+        currentPath = AssetRegistry::GetPathForUUID(m_textureUUID).string();
+    }
+
     // Texture Path Input
     char buffer[256];
-    strncpy(buffer, m_texturePath.c_str(), sizeof(buffer));
+    strncpy(buffer, currentPath.c_str(), sizeof(buffer));
     buffer[sizeof(buffer) - 1] = '\0';
 
     if (ImGui::InputText("Texture Path", buffer, sizeof(buffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
         std::string newPath(buffer);
-        if (newPath != m_texturePath) {
+        if (newPath != currentPath) {
             nlohmann::json initialState = Serialize();
-            SetTexture(newPath);
+            SetTexture(newPath); // Will automatically find the new UUID
             CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
         }
     }
@@ -130,16 +157,16 @@ void SpriteSheetRenderer::OnInspector() {
             
             if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga") {
                 nlohmann::json initialState = Serialize();
-                SetTexture(droppedPath);
+                SetTexture(droppedPath); // Will automatically find the new UUID
                 CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
             }
         }
         ImGui::EndDragDropTarget();
     }
+    
+    ImGui::TextDisabled("Press ENTER to load new texture");
 
     // Grid Dimensions (Columns and Rows)
-    // We use EditorUI to handle Undo/Redo automatically, and we can still use the 
-    // returned boolean to know if we need to reset the current frame!
     if (EditorUI::DragInt("Columns", &m_columns, 0.1f, this, 1, 64)) {
         m_currentFrame = 0; 
     }
@@ -149,13 +176,18 @@ void SpriteSheetRenderer::OnInspector() {
 
     // 3. Debug frame viewer (Read Only in Editor)
     ImGui::Text("Current Frame: %d / %d", m_currentFrame, (m_columns * m_rows) - 1);
+    
+    // Show useful debug info
+    if (m_texture.id != 0) {
+        ImGui::TextDisabled("UUID: %llu", (uint64_t)m_textureUUID);
+    }
 }
 #endif
 
 nlohmann::json SpriteSheetRenderer::Serialize() const {
     return {
         {"type", "SpriteSheetRenderer"},
-        {"texturePath", m_texturePath},
+        {"textureUUID", (uint64_t)m_textureUUID},
         {"columns", m_columns},
         {"rows", m_rows}
     };
@@ -166,6 +198,11 @@ void SpriteSheetRenderer::Deserialize(const nlohmann::json& j) {
     m_rows = j.value("rows", 1);
     m_currentFrame = 0; // Always reset frame on load
 
-    std::string path = j.value("texturePath", "");
-    SetTexture(path);
+    // Backward compatibility: If the scene is old and uses texturePath, convert it on load!
+    if (j.contains("textureUUID")) {
+        SetTexture(UUID(j["textureUUID"].get<uint64_t>()));
+    } 
+    else if (j.contains("texturePath")) {
+        SetTexture(j["texturePath"].get<std::string>());
+    }
 }

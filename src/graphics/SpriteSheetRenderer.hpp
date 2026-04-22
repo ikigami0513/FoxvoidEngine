@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../world/Component.hpp"
+#include "core/UUID.hpp"
 #include <string>
 #include <raylib.h>
 #include <nlohmann/json.hpp>
@@ -25,6 +26,7 @@ class SpriteSheetRenderer : public Component {
 
         // Safely unloads the old texture and loads the new one
         void SetTexture(const std::string& path);
+        void SetTexture(UUID uuid);
 
         Texture2D GetTexture() const { return m_texture; }
 
@@ -48,7 +50,8 @@ class SpriteSheetRenderer : public Component {
         Rectangle GetSourceRec() const;
 
     private:
-        std::string m_texturePath;
+        UUID m_textureUUID = 0;
+    
         Texture2D m_texture;
         Transform2d* m_transform;
 

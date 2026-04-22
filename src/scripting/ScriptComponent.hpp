@@ -1,31 +1,33 @@
 #pragma once
 
 #include "../world/Component.hpp"
+#include "core/UUID.hpp"
 #include <string>
 #include <pybind11/pybind11.h>
 #include <nlohmann/json.hpp>
+#include <filesystem>
 
 namespace py = pybind11;
 
 class [[gnu::visibility("default")]] ScriptComponent : public Component {
     public:
         ScriptComponent() = default;
-
         ~ScriptComponent() override;
 
+        // Legacy constructor for backward compatibility
         ScriptComponent(const std::string& moduleName, const std::string& className);
         
         void Start() override;
         void Update(float deltaTime) override;
-
         void OnCollision(const Collision2D& collision) override;
         
-        py::object GetInstance() const;
+        // Core method to load a script safely via UUID
+        void LoadScript(UUID scriptUUID, const std::string& className);
 
+        py::object GetInstance() const;
         std::string GetName() const override;
 
 #ifndef STANDALONE_MODE
-        // Dynamically inspects the Python object and draws its variables
         void OnInspector() override;
 #endif
 
@@ -33,14 +35,16 @@ class [[gnu::visibility("default")]] ScriptComponent : public Component {
         void Deserialize(const nlohmann::json& j) override;
 
     private:
-        // Executes the reload via Python's importlib
         void HotReload();
 
+        // The UUID linking this component to its .py file on disk
+        UUID m_scriptUUID = 0;
+
+        // Cached strings to maintain performance and feed Python's importlib
         std::string m_scriptName;
         std::string m_className;
+        std::string m_scriptFilePath;
 
         py::object m_instance; 
-
-        std::string m_scriptFilePath;
         std::filesystem::file_time_type m_lastWriteTime;
 };

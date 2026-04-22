@@ -1,6 +1,7 @@
 #include "AudioSource.hpp"
 #include <iostream>
 #include <filesystem>
+#include <core/AssetRegistry.hpp>
 
 #ifndef STANDALONE_MODE
 #include "editor/EditorUI.hpp"
@@ -38,18 +39,34 @@ void AudioSource::Update(float deltaTime) {
     }
 }
 
+// Helper for UI/Scripting to resolve the path
 void AudioSource::LoadSFX(const std::string& name, const std::string& path) {
+    if (path.empty()) return;
+    UUID assetId = AssetRegistry::GetUUIDForPath(path);
+    LoadSFX(name, assetId);
+}
+
+// Core SFX loading using UUID
+void AudioSource::LoadSFX(const std::string& name, UUID uuid) {
+    if (uuid == 0) return;
+
     // If a sound with this name already exists, unload the old one first
     if (m_sfx.find(name) != m_sfx.end()) {
         UnloadSound(m_sfx[name]);
     }
 
-    Sound newSound = LoadSound(path.c_str());
-    if (newSound.frameCount > 0) { // Raylib way to check if load was successful
-        m_sfx[name] = newSound;
-        m_sfxPaths[name] = path;
+    std::string resolvedPath = AssetRegistry::GetPathForUUID(uuid).string();
+
+    if (!resolvedPath.empty()) {
+        Sound newSound = LoadSound(resolvedPath.c_str());
+        if (newSound.frameCount > 0) { // Raylib way to check if load was successful
+            m_sfx[name] = newSound;
+            m_sfxUUIDs[name] = uuid; // Track the UUID
+        } else {
+            std::cerr << "[AudioSource] Failed to load SFX: " << resolvedPath << std::endl;
+        }
     } else {
-        std::cerr << "[AudioSource] Failed to load SFX: " << path << std::endl;
+        std::cerr << "[AudioSource] Error: Could not resolve SFX UUID " << (uint64_t)uuid << std::endl;
     }
 }
 
@@ -62,21 +79,39 @@ void AudioSource::PlaySFX(const std::string& name) {
     }
 }
 
+// Helper for UI/Scripting to resolve the path
 void AudioSource::LoadMusic(const std::string& path) {
+    if (path.empty()) {
+        LoadMusic(UUID(0));
+        return;
+    }
+    UUID assetId = AssetRegistry::GetUUIDForPath(path);
+    LoadMusic(assetId);
+}
+
+// Core Music loading using UUID
+void AudioSource::LoadMusic(UUID uuid) {
     if (m_isMusicLoaded) {
         UnloadMusicStream(m_currentMusic);
         m_isMusicLoaded = false;
     }
 
-    if (path.empty()) return;
+    m_musicUUID = uuid;
 
-    m_currentMusic = LoadMusicStream(path.c_str());
-    if (m_currentMusic.frameCount > 0) {
-        m_isMusicLoaded = true;
-        m_musicPath = path;
-        SetMusicVolume(m_musicVolume); // Apply current volume setting
-    } else {
-        std::cerr << "[AudioSource] Failed to load Music: " << path << std::endl;
+    if (m_musicUUID != 0) {
+        std::string resolvedPath = AssetRegistry::GetPathForUUID(m_musicUUID).string();
+
+        if (!resolvedPath.empty()) {
+            m_currentMusic = LoadMusicStream(resolvedPath.c_str());
+            if (m_currentMusic.frameCount > 0) {
+                m_isMusicLoaded = true;
+                SetMusicVolume(m_musicVolume); // Apply current volume setting
+            } else {
+                std::cerr << "[AudioSource] Failed to load Music: " << resolvedPath << std::endl;
+            }
+        } else {
+            std::cerr << "[AudioSource] Error: Could not resolve Music UUID " << (uint64_t)m_musicUUID << std::endl;
+        }
     }
 }
 
@@ -107,11 +142,24 @@ std::string AudioSource::GetName() const {
 void AudioSource::OnInspector() {
     ImGui::TextDisabled("Background Music");
     
+    // Dynamically fetch the current path from the registry for the UI
+    std::string currentPath = m_musicUUID != 0 ? AssetRegistry::GetPathForUUID(m_musicUUID).string() : "";
+    
     char musicBuffer[256];
-    strncpy(musicBuffer, m_musicPath.c_str(), sizeof(musicBuffer));
+    strncpy(musicBuffer, currentPath.c_str(), sizeof(musicBuffer));
+    musicBuffer[sizeof(musicBuffer) - 1] = '\0';
     
-    ImGui::InputText("Music Path", musicBuffer, sizeof(musicBuffer));
+    ImGui::InputText("Music Path", musicBuffer, sizeof(musicBuffer), ImGuiInputTextFlags_EnterReturnsTrue);
     
+    if (ImGui::IsItemDeactivatedAfterEdit()) {
+        std::string newPath(musicBuffer);
+        if (newPath != currentPath) {
+            nlohmann::json initialState = Serialize();
+            LoadMusic(newPath); // Will translate path to UUID
+            CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
+        }
+    }
+
     // Drag & Drop for Background Music
     if (ImGui::BeginDragDropTarget()) {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
@@ -122,17 +170,15 @@ void AudioSource::OnInspector() {
             // Accept standard audio formats
             if (ext == ".ogg" || ext == ".wav" || ext == ".mp3") {
                 nlohmann::json initialState = Serialize();
-                LoadMusic(droppedPath);
+                LoadMusic(droppedPath); // Will translate path to UUID
                 CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
             }
         }
         ImGui::EndDragDropTarget();
     }
 
-    if (ImGui::IsItemDeactivatedAfterEdit()) {
-        nlohmann::json initialState = Serialize();
-        LoadMusic(musicBuffer);
-        CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
+    if (m_musicUUID != 0) {
+        ImGui::TextDisabled("UUID: %llu", (uint64_t)m_musicUUID);
     }
 
     // Play on Start checkbox
@@ -187,7 +233,7 @@ void AudioSource::OnInspector() {
         std::string pathStr(sfxPath);
         if (!nameStr.empty() && !pathStr.empty()) {
             nlohmann::json initialState = Serialize();
-            LoadSFX(nameStr, pathStr);
+            LoadSFX(nameStr, pathStr); // Will translate path to UUID
             CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
             
             sfxName[0] = '\0';
@@ -196,9 +242,9 @@ void AudioSource::OnInspector() {
     }
 
     // List loaded SFX
-    if (!m_sfxPaths.empty()) {
+    if (!m_sfxUUIDs.empty()) {
         ImGui::Spacing();
-        for (auto it = m_sfxPaths.begin(); it != m_sfxPaths.end(); ) {
+        for (auto it = m_sfxUUIDs.begin(); it != m_sfxUUIDs.end(); ) {
             ImGui::PushID(it->first.c_str());
             ImGui::TextUnformatted(it->first.c_str());
             ImGui::SameLine(ImGui::GetWindowWidth() - 90);
@@ -214,7 +260,7 @@ void AudioSource::OnInspector() {
                 // Unload from GPU/RAM
                 UnloadSound(m_sfx[it->first]);
                 m_sfx.erase(it->first);
-                it = m_sfxPaths.erase(it);
+                it = m_sfxUUIDs.erase(it);
                 
                 CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
                 
@@ -231,25 +277,41 @@ void AudioSource::OnInspector() {
 #endif
 
 nlohmann::json AudioSource::Serialize() const {
-    return {
-        {"type", "AudioSource"},
-        {"musicPath", m_musicPath},
-        {"musicVolume", m_musicVolume},
-        {"playOnStart", playOnStart},
-        {"sfxPaths", m_sfxPaths} // nlohmann::json natively serializes unordered_map!
-    };
+    nlohmann::json j;
+    j["type"] = "AudioSource";
+    j["musicUUID"] = (uint64_t)m_musicUUID;
+    j["musicVolume"] = m_musicVolume;
+    j["playOnStart"] = playOnStart;
+
+    // Manually serialize the unordered_map of UUIDs
+    nlohmann::json sfxJson = nlohmann::json::object(); 
+    
+    for (const auto& pair : m_sfxUUIDs) {
+        sfxJson[pair.first] = (uint64_t)pair.second;
+    }
+    j["sfxUUIDs"] = sfxJson;
+
+    return j;
 }
 
 void AudioSource::Deserialize(const nlohmann::json& j) {
     m_musicVolume = j.value("musicVolume", 1.0f);
     playOnStart = j.value("playOnStart", true);
     
-    std::string loadedMusicPath = j.value("musicPath", "");
-    if (!loadedMusicPath.empty()) {
-        LoadMusic(loadedMusicPath);
+    // Backward compatibility for Music
+    if (j.contains("musicUUID")) {
+        LoadMusic(UUID(j["musicUUID"].get<uint64_t>()));
+    } else if (j.contains("musicPath")) {
+        LoadMusic(j["musicPath"].get<std::string>());
     }
 
-    if (j.contains("sfxPaths")) {
+    // Backward compatibility for SFX
+    if (j.contains("sfxUUIDs") && j["sfxUUIDs"].is_object()) {
+        auto sfxMap = j["sfxUUIDs"].get<std::unordered_map<std::string, uint64_t>>();
+        for (const auto& pair : sfxMap) {
+            LoadSFX(pair.first, UUID(pair.second));
+        }
+    } else if (j.contains("sfxPaths") && j["sfxPaths"].is_object()) {
         auto paths = j["sfxPaths"].get<std::unordered_map<std::string, std::string>>();
         for (const auto& pair : paths) {
             LoadSFX(pair.first, pair.second);

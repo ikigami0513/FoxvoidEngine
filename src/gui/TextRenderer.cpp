@@ -1,16 +1,20 @@
 #include "TextRenderer.hpp"
 #include "physics/Transform2d.hpp"
 #include "world/GameObject.hpp"
+#include <core/AssetRegistry.hpp>
+#include <iostream>
+#include <filesystem>
 
 #ifndef STANDALONE_MODE
 #include "editor/EditorUI.hpp"
 #include "editor/commands/CommandHistory.hpp"
 #include "editor/commands/ModifyComponentCommand.hpp"
+#include <imgui.h>
 #endif
 
 TextRenderer::TextRenderer()
     : text("New Text"), fontSize(20.0f), spacing(1.0f), color(BLACK), isHUD(true),
-      fontPath(""), m_isFontLoaded(false), m_customFont{0} {}
+      m_isFontLoaded(false), m_customFont{0} {}
 
 TextRenderer::~TextRenderer() {
     // Free the GPU memory when the component is destroyed
@@ -19,32 +23,48 @@ TextRenderer::~TextRenderer() {
     }
 }
 
+// Converts a path from UI/Drag&Drop into a UUID, then loads it
 void TextRenderer::SetFontPath(const std::string& path) {
-    if (fontPath == path) return;
-    fontPath = path;
-    LoadFontFromDisk();
+    if (path.empty()) {
+        SetFontPath(UUID(0));
+        return;
+    }
+    
+    // Resolve UI path to UUID
+    UUID assetId = AssetRegistry::GetUUIDForPath(path);
+    SetFontPath(assetId);
 }
 
-void TextRenderer::LoadFontFromDisk() {
+// The core loading logic using UUID
+void TextRenderer::SetFontPath(UUID uuid) {
     // Unload the previous font if one was loaded
     if (m_isFontLoaded) {
         UnloadFont(m_customFont);
         m_isFontLoaded = false;
     }
 
-    if (!fontPath.empty() && std::filesystem::exists(fontPath)) {
-        // We load the font at a high resolution (128) so it stays crisp even if 'fontSize' is large.
-        // Raylib will automatically scale it down perfectly during DrawTextEx.
-        m_customFont = LoadFontEx(fontPath.c_str(), 128, 0, 250);
+    m_fontUUID = uuid;
+
+    if (m_fontUUID != 0) {
+        std::string resolvedPath = AssetRegistry::GetPathForUUID(m_fontUUID).string();
         
-        // Use Point filtering for crisp pixel-art fonts, or Bilinear for smooth modern fonts.
-        // (You could make this an Inspector toggle later!)
-        SetTextureFilter(m_customFont.texture, TEXTURE_FILTER_BILINEAR); 
-        
-        m_isFontLoaded = true;
-    } else if (!fontPath.empty()) {
-        std::cerr << "[TextRenderer] Error: Font not found at " << fontPath << std::endl;
+        if (!resolvedPath.empty() && std::filesystem::exists(resolvedPath)) {
+            // We load the font at a high resolution (128) so it stays crisp even if 'fontSize' is large.
+            // Raylib will automatically scale it down perfectly during DrawTextEx.
+            m_customFont = LoadFontEx(resolvedPath.c_str(), 128, 0, 250);
+            
+            // Use Point filtering for crisp pixel-art fonts, or Bilinear for smooth modern fonts.
+            SetTextureFilter(m_customFont.texture, TEXTURE_FILTER_BILINEAR); 
+            
+            m_isFontLoaded = true;
+        } else {
+            std::cerr << "[TextRenderer] Error: Could not resolve UUID " << (uint64_t)m_fontUUID << " to a valid path!" << std::endl;
+        }
     }
+}
+
+std::string TextRenderer::GetFontPath() const {
+    return m_fontUUID != 0 ? AssetRegistry::GetPathForUUID(m_fontUUID).string() : "";
 }
 
 void TextRenderer::Render() {
@@ -98,12 +118,22 @@ void TextRenderer::OnInspector() {
 
     ImGui::Separator();
 
+    // Dynamically fetch the current path from the registry for the UI
+    std::string currentPath = m_fontUUID != 0 ? AssetRegistry::GetPathForUUID(m_fontUUID).string() : "";
+
     // Font path input & Drag-Drop
     char pathBuffer[256];
-    strncpy(pathBuffer, fontPath.c_str(), sizeof(pathBuffer));
+    strncpy(pathBuffer, currentPath.c_str(), sizeof(pathBuffer));
     pathBuffer[sizeof(pathBuffer) - 1] = '\0';
 
-    ImGui::InputText("Font Path", pathBuffer, sizeof(pathBuffer));
+    if (ImGui::InputText("Font Path", pathBuffer, sizeof(pathBuffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
+        std::string newPath(pathBuffer);
+        if (newPath != currentPath) {
+            nlohmann::json stateBefore = Serialize();
+            SetFontPath(newPath); // Will translate path to UUID
+            CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, stateBefore, Serialize()));
+        }
+    }
 
     // Drag & Drop for .ttf files from the Content Browser
     if (ImGui::BeginDragDropTarget()) {
@@ -113,19 +143,16 @@ void TextRenderer::OnInspector() {
             
             if (fsPath.extension() == ".ttf" || fsPath.extension() == ".otf") {
                 nlohmann::json stateBeforeDrop = Serialize();
-                SetFontPath(droppedPath);
+                SetFontPath(droppedPath); // Will translate path to UUID
                 CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, stateBeforeDrop, Serialize()));
             }
         }
         ImGui::EndDragDropTarget();
     }
 
-    if (ImGui::IsItemActivated()) initialState = Serialize();
-    if (ImGui::IsItemDeactivatedAfterEdit()) {
-        SetFontPath(pathBuffer);
-        CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
+    if (m_fontUUID != 0) {
+        ImGui::TextDisabled("UUID: %llu", (uint64_t)m_fontUUID);
     }
-
     ImGui::TextDisabled(m_isFontLoaded ? "Status: Custom Font Loaded" : "Status: Using Default Font");
 
     ImGui::Separator();
@@ -149,7 +176,7 @@ nlohmann::json TextRenderer::Serialize() const {
     return {
         {"type", "TextRenderer"},
         {"text", text},
-        {"fontPath", fontPath},
+        {"fontUUID", (uint64_t)m_fontUUID}, // Save the UUID instead of the path
         {"fontSize", fontSize},
         {"spacing", spacing},
         {"isHUD", isHUD},
@@ -171,6 +198,11 @@ void TextRenderer::Deserialize(const nlohmann::json& j) {
     color.b = j.value("color_b", 0);
     color.a = j.value("color_a", 255);
 
-    // Call the setter to ensure the font is physically loaded from disk
-    SetFontPath(j.value("fontPath", ""));
+    // Backward compatibility & UUID loading
+    if (j.contains("fontUUID")) {
+        SetFontPath(UUID(j["fontUUID"].get<uint64_t>()));
+    } 
+    else if (j.contains("fontPath")) {
+        SetFontPath(j["fontPath"].get<std::string>());
+    }
 }

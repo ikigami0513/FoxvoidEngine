@@ -9,6 +9,7 @@
 #include <imgui.h>
 #include <extras/IconsFontAwesome6.h>
 #endif
+#include <core/AssetRegistry.hpp>
 
 bool IsScriptableObjectFile(const fs::path& filepath) {
     std::ifstream file(filepath);
@@ -145,6 +146,17 @@ void HandleDragAndDropMove(const fs::path& targetDirectory) {
         if (sourcePath != destinationPath && destinationPath.string().find(sourcePath.string()) == std::string::npos) {
             try {
                 fs::rename(sourcePath, destinationPath);
+
+                // Synchronize the .meta file if it exists
+                fs::path sourceMeta = sourcePath.string() + ".meta";
+                if (fs::exists(sourceMeta)) {
+                    fs::path destMeta = destinationPath.string() + ".meta";
+                    fs::rename(sourceMeta, destMeta);
+                }
+
+                // Refresh the registry to update the GUID-to-Path mapping
+                AssetRegistry::Refresh();
+
                 std::cout << "[ProjectPanel] Moved: " << sourcePath.filename() << " -> " << destinationPath.string() << std::endl;
             } catch (const fs::filesystem_error& e) {
                 std::cerr << "[ProjectPanel] Failed to move item: " << e.what() << std::endl;
@@ -322,7 +334,18 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind1
             
             if (!fs::exists(newPath) && !std::string(m_renameBuffer).empty()) {
                 try {
+                    // Rename main asset
                     fs::rename(m_actionTarget, newPath);
+
+                    // Rename meta file
+                    fs::path oldMeta = m_actionTarget.string() + ".meta";
+                    if (fs::exists(oldMeta)) {
+                        fs::path newMeta = newPath.string() + ".meta";
+                        fs::rename(oldMeta, newMeta);
+                    }
+
+                    // Sync the registry
+                    AssetRegistry::Refresh();
                 } catch (const fs::filesystem_error& e) {
                     std::cerr << "[ProjectPanel] Rename error: " << e.what() << std::endl;
                 }
@@ -344,6 +367,15 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind1
             try {
                 // remove_all recursively deletes folders and files safely
                 fs::remove_all(m_actionTarget); 
+
+                // Delete associated meta file if it's a file
+                fs::path metaPath = m_actionTarget.string() + ".meta";
+                if (fs::exists(metaPath)) {
+                    fs::remove(metaPath);
+                }
+
+                // Clean up the registry
+                AssetRegistry::Refresh();
             } catch (const fs::filesystem_error& e) {
                 std::cerr << "[ProjectPanel] Delete error: " << e.what() << std::endl;
             }
@@ -365,7 +397,7 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
         std::string extension = entry.path().extension().string();
 
         if (entry.is_directory() && filename == "__pycache__") continue;
-        if (!entry.is_directory() && extension == ".pyc") continue;
+        if (!entry.is_directory() && extension == ".pyc" || extension == ".meta") continue;
         if (!filename.empty() && filename[0] == '.') continue;
 
         if (entry.is_directory()) {

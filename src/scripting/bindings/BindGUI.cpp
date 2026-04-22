@@ -11,7 +11,7 @@ void BindGUI(py::module_& m) {
         .def_readwrite("font_size", &TextRenderer::fontSize)
         .def_readwrite("is_hud", &TextRenderer::isHUD)
         .def_property("font_path",
-            [](TextRenderer& t) { return t.fontPath; },
+            [](TextRenderer& t) { return t.GetFontPath(); },
             [](TextRenderer& t, const std::string& path) { t.SetFontPath(path); }
         );
 

@@ -4,6 +4,8 @@
 #include <fstream>
 #include <sstream>
 
+#include "core/AssetRegistry.hpp"
+
 #ifndef STANDALONE_MODE
 #include "editor/EditorUI.hpp"
 #include "editor/commands/CommandHistory.hpp"
@@ -13,21 +15,10 @@
 ScriptComponent::ScriptComponent(const std::string& moduleName, const std::string& className)
     : m_scriptName(moduleName), m_className(className)
 {
-    try {
-        py::module_ mod = py::module_::import(moduleName.c_str());
-        
-        py::object cls = mod.attr(className.c_str());
-        
-        m_instance = cls();
-
-        m_scriptFilePath = "assets/scripts/" + moduleName + ".py";
-        if (std::filesystem::exists(m_scriptFilePath)) {
-            m_lastWriteTime = std::filesystem::last_write_time(m_scriptFilePath);
-        }
-
-    } catch (const py::error_already_set& e) {
-        std::cerr << "[ScriptComponent] Constructor Error:\n" << e.what() << std::endl;
-    }
+    // Legacy support: Try to deduce the path and get the UUID
+    std::string assumedPath = "assets/scripts/" + moduleName + ".py";
+    UUID uuid = AssetRegistry::GetUUIDForPath(assumedPath);
+    LoadScript(uuid, className);
 }
 
 ScriptComponent::~ScriptComponent() {
@@ -42,6 +33,66 @@ ScriptComponent::~ScriptComponent() {
         } catch (...) {
             
         }
+    }
+}
+
+void ScriptComponent::LoadScript(UUID scriptUUID, const std::string& className) {
+    m_scriptUUID = scriptUUID;
+    m_className = className;
+
+    // On ne s'arrête plus si className est vide, on a juste besoin de l'UUID valide !
+    if (m_scriptUUID == 0) return;
+
+    // Resolve the UUID to the physical file path
+    std::filesystem::path path = AssetRegistry::GetPathForUUID(m_scriptUUID);
+    if (path.empty()) {
+        std::cerr << "[ScriptComponent] Error: Could not resolve script UUID " << (uint64_t)m_scriptUUID << std::endl;
+        return;
+    }
+
+    // Extract the module name (filename without extension) for Python import
+    m_scriptName = path.stem().string();
+    m_scriptFilePath = path.string();
+
+    // CORRECTIF MAGIQUE : Si la classe est vide (vieille sauvegarde), on la déduit du fichier !
+    if (m_className.empty()) {
+        m_className = m_scriptName; // Fallback par défaut
+        std::ifstream file(m_scriptFilePath);
+        if (file.is_open()) {
+            std::string line;
+            while (std::getline(file, line)) {
+                size_t classPos = line.find("class ");
+                if (classPos != std::string::npos) {
+                    size_t start = classPos + 6;
+                    size_t end = line.find_first_of("(: \r\n", start);
+                    if (end != std::string::npos) {
+                        m_className = line.substr(start, end - start);
+                        break; 
+                    }
+                }
+            }
+            file.close();
+        }
+    }
+
+    try {
+        py::module_ mod = py::module_::import(m_scriptName.c_str());
+        py::object cls = mod.attr(m_className.c_str());
+        
+        m_instance = cls();
+        
+        // Immediately bind the owner pointer so Python knows its GameObject
+        Component* nativeComponent = m_instance.cast<Component*>();
+        if (nativeComponent && this->owner) {
+            nativeComponent->owner = this->owner;
+        }
+
+        if (std::filesystem::exists(m_scriptFilePath)) {
+            m_lastWriteTime = std::filesystem::last_write_time(m_scriptFilePath);
+        }
+
+    } catch (const py::error_already_set& e) {
+        std::cerr << "[ScriptComponent] LoadScript Error (" << m_scriptName << "):\n" << e.what() << std::endl;
     }
 }
 
@@ -178,30 +229,33 @@ std::string ScriptComponent::GetName() const {
 
 #ifndef STANDALONE_MODE
 void ScriptComponent::OnInspector() {
+    // 1. Script Binding (Only visible if no script is currently loaded)
     if (!m_instance) {
-        ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.2f, 1.0f), "No Python script loaded.");
+        ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.2f, 1.0f), "No valid Python instance.");
         
-        char modBuffer[256];
+        std::string currentPath = m_scriptUUID != 0 ? AssetRegistry::GetPathForUUID(m_scriptUUID).string() : "Drop a .py file here";
+        
+        char pathBuffer[256];
         char clsBuffer[256];
-        strncpy(modBuffer, m_scriptName.c_str(), sizeof(modBuffer));
+        strncpy(pathBuffer, currentPath.c_str(), sizeof(pathBuffer));
         strncpy(clsBuffer, m_className.c_str(), sizeof(clsBuffer));
-        
-        if (ImGui::InputText("Module (File)", modBuffer, sizeof(modBuffer))) m_scriptName = modBuffer;
-        if (ImGui::InputText("Class", clsBuffer, sizeof(clsBuffer))) m_className = clsBuffer;
 
+        // Make the path input read-only in the UI. Drag & Drop is the primary way to assign scripts now.
+        ImGui::InputText("File", pathBuffer, sizeof(pathBuffer), ImGuiInputTextFlags_ReadOnly);
+        
         // Drag and drop target for Python files
         if (ImGui::BeginDragDropTarget()) {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
-                
                 std::string droppedPath = (const char*)payload->Data;
                 std::filesystem::path fsPath(droppedPath);
                 
                 if (fsPath.extension() == ".py") {
                     nlohmann::json initialState = Serialize();
 
-                    m_scriptName = fsPath.stem().string();
-                    m_className = m_scriptName; 
+                    UUID newUUID = AssetRegistry::GetUUIDForPath(fsPath);
+                    std::string parsedClassName = fsPath.stem().string(); // Default fallback
 
+                    // Extract class name from the file
                     std::ifstream file(fsPath);
                     if (file.is_open()) {
                         std::string line;
@@ -211,7 +265,7 @@ void ScriptComponent::OnInspector() {
                                 size_t start = classPos + 6;
                                 size_t end = line.find_first_of("(: \r\n", start);
                                 if (end != std::string::npos) {
-                                    m_className = line.substr(start, end - start);
+                                    parsedClassName = line.substr(start, end - start);
                                     break; 
                                 }
                             }
@@ -219,41 +273,27 @@ void ScriptComponent::OnInspector() {
                         file.close();
                     }
 
-                    // Push command after all assignments are done
+                    LoadScript(newUUID, parsedClassName);
                     CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
                 }
             }
             ImGui::EndDragDropTarget();
         }
 
-        // Button to load the script
-        if (ImGui::Button("Load Script") && !m_scriptName.empty() && !m_className.empty()) {
-            nlohmann::json initialState = Serialize();
-            try {
-                py::module_ mod = py::module_::import(m_scriptName.c_str());
-                py::object cls = mod.attr(m_className.c_str());
-                m_instance = cls();
-                
-                Component* nativeComponent = m_instance.cast<Component*>();
-                if (nativeComponent) nativeComponent->owner = this->owner;
-
-                // Initialize hot reload paths when loading from UI
-                m_scriptFilePath = "assets/scripts/" + m_scriptName + ".py";
-                if (std::filesystem::exists(m_scriptFilePath)) {
-                    m_lastWriteTime = std::filesystem::last_write_time(m_scriptFilePath);
-                }
-
+        // Allow manual class name edits (useful if multiple classes exist in one file)
+        if (ImGui::InputText("Class", clsBuffer, sizeof(clsBuffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
+            if (m_scriptUUID != 0 && std::string(clsBuffer) != m_className) {
+                nlohmann::json initialState = Serialize();
+                LoadScript(m_scriptUUID, clsBuffer);
                 CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
-            } catch (const py::error_already_set& e) {
-                std::cerr << "[ScriptComponent] Load Error:\n" << e.what() << std::endl;
             }
         }
-        return; 
+
+        ImGui::Separator();
+        return; // Stop drawing here if no instance is loaded
     }
 
-    // Hot Reload Check for Editor Mode
-    // Because Update() doesn't run when the game is paused in the Editor,
-    // we also check for script modifications right before drawing the Inspector!
+    // 2. Hot Reload Check for Editor Mode (Only runs if a script is loaded)
     try {
         if (!m_scriptFilePath.empty() && std::filesystem::exists(m_scriptFilePath)) {
             auto currentWriteTime = std::filesystem::last_write_time(m_scriptFilePath);
@@ -266,11 +306,9 @@ void ScriptComponent::OnInspector() {
         std::cerr << "[ScriptComponent] Inspector File system error: " << e.what() << std::endl;
     }
 
+    // 3. Dynamic Variables Inspection
     try {
         py::dict attributes = m_instance.attr("__dict__");
-
-        // Static variable shared across the loop for String text inputs.
-        // This is safe because ImGui only allows interacting with ONE widget at a time.
         static nlohmann::json initialDynamicState;
 
         for (auto item : attributes) {
@@ -280,35 +318,26 @@ void ScriptComponent::OnInspector() {
 
             py::object value = py::reinterpret_borrow<py::object>(item.second);
 
-            if (py::isinstance<Component>(value)) {
-                continue;
-            }
+            if (py::isinstance<Component>(value)) continue;
 
-            // Handle Floats
             if (py::isinstance<py::float_>(value)) {
-                // Copy value from Python to C++
                 float v = value.cast<float>();
-                // EditorUI handles the Undo/Redo logic using our Component pointer!
                 if (EditorUI::DragFloat(key.c_str(), &v, 0.1f, this)) {
-                    // If true, the user is dragging. Push the value back to Python.
                     m_instance.attr(key.c_str()) = v;
                 }
             }
-            // Handle Booleans
             else if (py::isinstance<py::bool_>(value)) {
                 bool v = value.cast<bool>();
                 if (EditorUI::Checkbox(key.c_str(), &v, this)) {
                     m_instance.attr(key.c_str()) = v;
                 }
             }
-            // Handle Integers
             else if (py::isinstance<py::int_>(value)) {
                 int v = value.cast<int>();
                 if (EditorUI::DragInt(key.c_str(), &v, 1.0f, this)) {
                     m_instance.attr(key.c_str()) = v;
                 }
             }
-            // Handle Strings
             else if (py::isinstance<py::str>(value)) {
                 std::string v = value.cast<std::string>();
                 
@@ -316,7 +345,6 @@ void ScriptComponent::OnInspector() {
                 strncpy(buffer, v.c_str(), sizeof(buffer));
                 buffer[sizeof(buffer) - 1] = '\0';
                 
-                // For strings, we do the manual lifecycle because EditorUI doesn't support InputText yet
                 ImGui::InputText(key.c_str(), buffer, sizeof(buffer));
 
                 if (ImGui::IsItemActivated()) {
@@ -329,7 +357,6 @@ void ScriptComponent::OnInspector() {
                     CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialDynamicState, Serialize()));
                 }
             }
-            // Unsupported types
             else {
                 std::string typeName = py::str(value.get_type().attr("__name__"));
                 ImGui::TextDisabled("%s : [%s]", key.c_str(), typeName.c_str());
@@ -349,7 +376,7 @@ nlohmann::json ScriptComponent::Serialize() const {
     j["type"] = "ScriptComponent";
 
     // Save the core data needed to find and reload the script
-    j["scriptName"] = m_scriptName;
+    j["scriptUUID"] = (uint64_t)m_scriptUUID;
     j["className"] = m_className;
 
     // Automatically save all valid Python variables
@@ -397,8 +424,17 @@ nlohmann::json ScriptComponent::Serialize() const {
 void ScriptComponent::Deserialize(const nlohmann::json& j) {
     // Restore the script identifiers
     if (j.contains("scriptName")) m_scriptName = j["scriptName"].get<std::string>();
-    if (j.contains("className")) m_className = j["className"].get<std::string>();
-
+    
+    // Backward compatibility & UUID loading
+    if (j.contains("scriptUUID")) {
+        LoadScript(UUID(j["scriptUUID"].get<uint64_t>()), m_className);
+    } 
+    else if (j.contains("scriptName")) {
+        std::string sName = j["scriptName"].get<std::string>();
+        std::string assumedPath = "assets/scripts/" + sName + ".py";
+        LoadScript(AssetRegistry::GetUUIDForPath(assumedPath), m_className);
+    }
+    
     // If this component was created via deserialization (empty), we need to instantiate Python now
     if (!m_instance && !m_scriptName.empty() && !m_className.empty()) {
         try {

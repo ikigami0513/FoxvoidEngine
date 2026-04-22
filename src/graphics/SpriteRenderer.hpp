@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../world/Component.hpp"
+#include "core/UUID.hpp"
 #include <string>
 #include <raylib.h>
 
@@ -19,6 +20,7 @@ class SpriteRenderer : public Component {
 
         // A helper method to safely change the texture during runtime or editor mode
         void SetTexture(const std::string& path);
+        void SetTexture(UUID uuid);
 
         Texture2D GetTexture() const { return m_texture; }
 
@@ -33,7 +35,7 @@ class SpriteRenderer : public Component {
         void Deserialize(const nlohmann::json& j) override;
 
     private:
-        std::string m_texturePath;
+        UUID m_textureUUID = 0;
 
         // Raylib's native texture structure
         Texture2D m_texture;
