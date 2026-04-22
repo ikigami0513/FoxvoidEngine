@@ -11,6 +11,7 @@
 #include <world/ComponentRegistry.hpp>
 #include "graphics/TileMap.hpp"
 #include "graphics/ShapeRenderer.hpp"
+#include "graphics/ParticleSystem2d.hpp"
 
 void BindGraphics(py::module_& m) {
     m.def("set_pixel_art_mode", [](bool enable) {
@@ -173,6 +174,33 @@ void BindGraphics(py::module_& m) {
             // TileMap does not require constructor arguments
             auto* tileMap = go.AddComponent<TileMap>();
             return py::cast(tileMap, py::return_value_policy::reference);
+        }
+    );
+
+    py::class_<ParticleSystem2d, Component>(m, "ParticleSystem2d")
+        .def(py::init<>())
+        // Bind the burst method
+        .def("emit_burst", &ParticleSystem2d::EmitBurst, py::arg("count"))
+        // Bind all the public parameters so they can be tweaked from Python
+        .def_readwrite("is_emitting", &ParticleSystem2d::isEmitting)
+        .def_readwrite("emission_rate", &ParticleSystem2d::emissionRate)
+        .def_readwrite("life_min", &ParticleSystem2d::lifeMin)
+        .def_readwrite("life_max", &ParticleSystem2d::lifeMax)
+        .def_readwrite("speed_min", &ParticleSystem2d::speedMin)
+        .def_readwrite("speed_max", &ParticleSystem2d::speedMax)
+        .def_readwrite("emission_angle", &ParticleSystem2d::emissionAngle)
+        .def_readwrite("angle_spread", &ParticleSystem2d::angleSpread)
+        .def_readwrite("gravity", &ParticleSystem2d::gravity)
+        .def_readwrite("start_color", &ParticleSystem2d::startColor)
+        .def_readwrite("end_color", &ParticleSystem2d::endColor)
+        .def_readwrite("start_size", &ParticleSystem2d::startSize)
+        .def_readwrite("end_size", &ParticleSystem2d::endSize);
+
+    ComponentRegistry::Register<ParticleSystem2d>("ParticleSystem2d",
+        [](GameObject& go, py::args args) -> py::object {
+            // ParticleSystem2d does not require constructor arguments
+            auto* ps = go.AddComponent<ParticleSystem2d>();
+            return py::cast(ps, py::return_value_policy::reference);
         }
     );
 }

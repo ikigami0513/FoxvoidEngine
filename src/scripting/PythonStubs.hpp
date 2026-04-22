@@ -843,4 +843,64 @@ class Button(Component):
         """
         ...
 
+
+class ParticleSystem2d(Component):
+    """
+    A versatile 2D particle emitter for creating visual effects like fire, rain, and explosions.
+    All properties can be modified in real-time from Python to dynamically animate the emitter.
+    """
+    
+    is_emitting: bool
+    """If True, the system continuously spawns particles according to the emission_rate."""
+    
+    emission_rate: float
+    """Number of particles generated per second."""
+    
+    life_min: float
+    """Minimum lifetime of a generated particle in seconds."""
+    
+    life_max: float
+    """Maximum lifetime of a generated particle in seconds."""
+    
+    speed_min: float
+    """Minimum initial speed of a particle."""
+    
+    speed_max: float
+    """Maximum initial speed of a particle."""
+    
+    emission_angle: float
+    """The main direction the particles are fired in degrees (-90.0 is straight up)."""
+    
+    angle_spread: float
+    """The cone width in degrees where particles can randomly spawn around the emission_angle."""
+    
+    gravity: float
+    """Downward force applied to particles over time. Use negative values to make them float up."""
+    
+    start_color: Color
+    """The color of the particle when it is born."""
+    
+    end_color: Color
+    """The color of the particle when it dies (useful for fading out with alpha)."""
+    
+    start_size: float
+    """The size in pixels of the particle when it is born."""
+    
+    end_size: float
+    """The size in pixels of the particle when it dies."""
+
+    def __init__(self) -> None:
+        """Initializes a new ParticleSystem2d with default values."""
+        ...
+
+    def emit_burst(self, count: int) -> None:
+        """
+        Instantly fires a specific number of particles, ignoring the is_emitting state.
+        Perfect for instantaneous effects like explosions, hit sparks, or item collection.
+        
+        Args:
+            count: The number of particles to spawn immediately.
+        """
+        ...
+
 )";

@@ -12,6 +12,7 @@
 #include "physics/RigidBody2d.hpp"
 #include "graphics/Camera2d.hpp"
 #include "graphics/TileMap.hpp"
+#include "graphics/ParticleSystem2d.hpp"
 #include "gui/TextRenderer.hpp"
 #include "gui/Button.hpp"
 #include "world/PersistentComponent.hpp"
@@ -31,6 +32,7 @@ namespace EngineSetup {
         ComponentRegistry::RegisterCPP<Animator2d>("Animator2d");
         ComponentRegistry::RegisterCPP<Camera2d>("Camera2d");
         ComponentRegistry::RegisterCPP<TileMap>("TileMap");
+        ComponentRegistry::RegisterCPP<ParticleSystem2d>("ParticleSystem2d");
 
         ComponentRegistry::RegisterCPP<TextRenderer>("TextRenderer");
         ComponentRegistry::RegisterCPP<Button>("Button");
