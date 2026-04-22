@@ -6,7 +6,9 @@
 
 #include <filesystem>
 #include <iostream>
+#include <unordered_map>
 #include <pybind11/pybind11.h>
+#include <raylib.h>
 #include "world/Scene.hpp"
 #include "world/GameObject.hpp"
 
@@ -21,13 +23,19 @@ enum class ScriptType {
 class ProjectPanel {
     public:
         ProjectPanel() = default;
-        ~ProjectPanel() = default;
+        ~ProjectPanel();
     
         void Draw(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& assetsPath, std::string& currentScenePath);
 
     private:
         // Recursive function to read and display the folder tree
         void DrawDirectoryNode(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& path, std::string& currentScenePath);
+
+        // Helpers for the visual asset thumbnails
+        Texture2D GetOrLoadThumbnail(const std::string& path);
+        void ClearThumbnails();
+
+        void HandleDragAndDropMove(const fs::path& targetDirectory);
 
         fs::path m_currentDirectory = "";
 
@@ -53,4 +61,12 @@ class ProjectPanel {
         // Shared state for renaming and deleting items
         fs::path m_actionTarget = ""; 
         char m_renameBuffer[128] = "";
+
+        // The cache storing our resized thumbnails (Path -> Texture)
+        std::unordered_map<std::string, Texture2D> m_thumbnailCache;
+
+        // Image Preview variables
+        bool m_showImagePreview = false;
+        Texture2D m_previewTexture = {0};
+        std::string m_previewPath = "";
 };

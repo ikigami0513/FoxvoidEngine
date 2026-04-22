@@ -134,7 +134,7 @@ void CreateAssetFile(const fs::path& directory, const std::string& filename, con
 }
 
 // Helper function to handle Drag and Drop payload moving
-void HandleDragAndDropMove(const fs::path& targetDirectory) {
+void ProjectPanel::HandleDragAndDropMove(const fs::path& targetDirectory) {
     if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
         std::string sourcePathStr = (const char*)payload->Data;
         fs::path sourcePath = sourcePathStr;
@@ -157,12 +157,54 @@ void HandleDragAndDropMove(const fs::path& targetDirectory) {
                 // Refresh the registry to update the GUID-to-Path mapping
                 AssetRegistry::Refresh();
 
+                ClearThumbnails();
+
                 std::cout << "[ProjectPanel] Moved: " << sourcePath.filename() << " -> " << destinationPath.string() << std::endl;
             } catch (const fs::filesystem_error& e) {
                 std::cerr << "[ProjectPanel] Failed to move item: " << e.what() << std::endl;
             }
         }
     }
+}
+
+ProjectPanel::~ProjectPanel() {
+    ClearThumbnails();
+    if (m_previewTexture.id != 0) {
+        UnloadTexture(m_previewTexture);
+    }
+}
+
+void ProjectPanel::ClearThumbnails() {
+    for (auto& pair : m_thumbnailCache) {
+        if (pair.second.id != 0) {
+            UnloadTexture(pair.second);
+        }
+    }
+    m_thumbnailCache.clear();
+}
+
+Texture2D ProjectPanel::GetOrLoadThumbnail(const std::string& path) {
+    auto it = m_thumbnailCache.find(path);
+    if (it != m_thumbnailCache.end()) {
+        return it->second;
+    }
+
+    // Try to load the image via CPU first
+    Image img = LoadImage(path.c_str());
+    if (img.data != nullptr) {
+        // Resize to a thumbnail size to save VRAM (32x32 is sharp for Editor icons)
+        ImageResize(&img, 32, 32);
+        Texture2D tex = LoadTextureFromImage(img);
+        UnloadImage(img);
+        
+        m_thumbnailCache[path] = tex;
+        return tex;
+    }
+
+    // Return empty texture if failed
+    Texture2D empty = {0};
+    m_thumbnailCache[path] = empty;
+    return empty;
 }
 
 void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& assetsPath, std::string& currentScenePath) {
@@ -346,6 +388,8 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind1
 
                     // Sync the registry
                     AssetRegistry::Refresh();
+
+                    ClearThumbnails();
                 } catch (const fs::filesystem_error& e) {
                     std::cerr << "[ProjectPanel] Rename error: " << e.what() << std::endl;
                 }
@@ -376,6 +420,8 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind1
 
                 // Clean up the registry
                 AssetRegistry::Refresh();
+
+                ClearThumbnails();
             } catch (const fs::filesystem_error& e) {
                 std::cerr << "[ProjectPanel] Delete error: " << e.what() << std::endl;
             }
@@ -387,6 +433,47 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind1
     }
 
     ImGui::End();
+
+    if (m_showImagePreview) {
+        // Sets a comfortable default size the very first time this window opens
+        ImGui::SetNextWindowSize(ImVec2(600, 600), ImGuiCond_FirstUseEver);
+        
+        // Pass the address of m_showImagePreview to automatically add a close [X] button
+        if (ImGui::Begin("Image Preview", &m_showImagePreview)) {
+            
+            // Header information
+            ImGui::TextDisabled("File: %s", m_previewPath.c_str());
+            ImGui::SameLine(ImGui::GetWindowWidth() - 150);
+            ImGui::TextDisabled("Size: %d x %d", m_previewTexture.width, m_previewTexture.height);
+            ImGui::Separator();
+
+            // Calculate dimensions to fit the image inside the window while preserving its aspect ratio
+            ImVec2 availSize = ImGui::GetContentRegionAvail();
+            float aspect = (float)m_previewTexture.width / (float)m_previewTexture.height;
+            float drawWidth = availSize.x;
+            float drawHeight = drawWidth / aspect;
+
+            // If the scaled image is too tall, constrain it by height instead
+            if (drawHeight > availSize.y) {
+                drawHeight = availSize.y;
+                drawWidth = drawHeight * aspect;
+            }
+
+            // Perfectly center the image within the available window space
+            ImGui::SetCursorPosX((ImGui::GetWindowWidth() - drawWidth) * 0.5f);
+            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (availSize.y - drawHeight) * 0.5f);
+
+            // Render the texture
+            ImGui::Image((ImTextureID)(uintptr_t)m_previewTexture.id, ImVec2(drawWidth, drawHeight));
+        }
+        ImGui::End();
+
+        // Free the VRAM immediately if the user just closed the window via the [X] button
+        if (!m_showImagePreview && m_previewTexture.id != 0) {
+            UnloadTexture(m_previewTexture);
+            m_previewTexture.id = 0;
+        }
+    }
 }
 
 void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& path, std::string& currentScenePath) {
@@ -474,15 +561,44 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
                 }
             }
 
+            bool isImage = (extension == ".png" || extension == ".jpg" || extension == ".jpeg" || extension == ".bmp");
+            Texture2D thumbnail = {0};
+
+            if (isImage) {
+                thumbnail = GetOrLoadThumbnail(entry.path().string());
+            }
+
             std::string icon = ICON_FA_FILE;
             if (extension == ".scene") icon = ICON_FA_CUBES;
             else if (extension == ".prefab") icon = ICON_FA_BOX;
             else if (extension == ".py") icon = ICON_FA_FILE_CODE;
-            else if (extension == ".png") icon = ICON_FA_IMAGE;
+            else if (isImage) icon = ICON_FA_IMAGE;
             else if (extension == ".asset") icon = ICON_FA_DATABASE;
+            else if (extension == ".ttf" || extension == ".otf") icon = ICON_FA_FONT;
+            else if (extension == ".ogg" || extension == ".wav" || extension == ".mp3") icon = ICON_FA_MUSIC;
 
-            std::string displayName = icon + "  " + filename;
+            // If we have a visual thumbnail, we replace the FontAwesome icon with 4 empty spaces
+            // This creates a blank hole where we will manually draw the image over the UI!
+            std::string displayName = (thumbnail.id != 0 ? "    " : icon + "  ") + filename;
             ImGui::TreeNodeEx(displayName.c_str(), flags);
+            
+            // Draw the actual image over the Tree Node
+            if (thumbnail.id != 0) {
+                ImVec2 min = ImGui::GetItemRectMin(); // Top-Left of the entire row
+                float lineHeight = ImGui::GetTextLineHeight(); // Height of the text
+                float indent = ImGui::GetTreeNodeToLabelSpacing(); // Where the text actually begins
+                
+                // Calculate the square where the icon should be (just before the text)
+                ImVec2 iconMin = ImVec2(min.x + indent - lineHeight - 4, min.y + (ImGui::GetItemRectSize().y - lineHeight) / 2.0f);
+                ImVec2 iconMax = ImVec2(iconMin.x + lineHeight, iconMin.y + lineHeight);
+
+                // Ask ImGui's raw drawing API to paint the texture
+                ImGui::GetWindowDrawList()->AddImage(
+                    (ImTextureID)(uintptr_t)thumbnail.id, 
+                    iconMin, 
+                    iconMax
+                );
+            }
 
             if (ImGui::BeginPopupContextItem("FileContextMenu")) {
                 if (ImGui::MenuItem(ICON_FA_PEN " Rename")) {
@@ -534,11 +650,21 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
                         selectedObject = nullptr; 
                         currentScenePath = entry.path().string();
                         activeScene.LoadFromFile(currentScenePath, false);
-                    } else if (extension == ".asset") {
+                    } 
+                    else if (extension == ".asset") {
                         std::cout << "[Editor] Inspecting asset: " << filename << std::endl;
                         selectedObject = nullptr;
                         selectedAssetPath = entry.path().string();
                         selectedAsset = DataManager::LoadAsset(selectedAssetPath);
+                    }
+                    else if (isImage) {
+                        if (m_previewTexture.id != 0) {
+                            UnloadTexture(m_previewTexture);
+                        }
+
+                        m_previewTexture = LoadTexture(entry.path().string().c_str());
+                        m_previewPath = filename;
+                        m_showImagePreview = true;
                     }
                 }
             }
