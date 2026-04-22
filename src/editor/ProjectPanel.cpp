@@ -2,6 +2,7 @@
 #include "scripting/DataManager.hpp"
 #include <iostream>
 #include <fstream>
+#include <algorithm>
 #include <nlohmann/json.hpp>
 
 #ifndef STANDALONE_MODE
@@ -188,6 +189,10 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind1
 
     // Simple Header
     ImGui::TextDisabled("Root: %s", assetsPath.string().c_str());
+
+    // The search bar
+    ImGui::InputTextWithHint("##Search", ICON_FA_MAGNIFYING_GLASS " Search...", m_searchBuffer, IM_ARRAYSIZE(m_searchBuffer));
+
     ImGui::Separator();
 
     // Allow dropping items into the empty space of the panel to move them to the root
@@ -216,6 +221,14 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind1
     if (m_requestFolderModal) {
         ImGui::OpenPopup("New Folder");
         m_requestFolderModal = false;
+    }
+    if (m_requestRenameModal) {
+        ImGui::OpenPopup("Rename Item");
+        m_requestRenameModal = false;
+    }
+    if (m_requestDeleteModal) {
+        ImGui::OpenPopup("Delete Item");
+        m_requestDeleteModal = false;
     }
 
     // Modal: Python Script
@@ -298,6 +311,49 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind1
         ImGui::EndPopup();
     }
 
+    // Rename modal
+    if (ImGui::BeginPopupModal("Rename Item", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::InputText("New Name", m_renameBuffer, IM_ARRAYSIZE(m_renameBuffer));
+        ImGui::Spacing();
+                
+        if (ImGui::Button("Rename", ImVec2(120, 0))) {
+            // Construct the new path in the same parent directory
+            fs::path newPath = m_actionTarget.parent_path() / m_renameBuffer;
+            
+            if (!fs::exists(newPath) && !std::string(m_renameBuffer).empty()) {
+                try {
+                    fs::rename(m_actionTarget, newPath);
+                } catch (const fs::filesystem_error& e) {
+                    std::cerr << "[ProjectPanel] Rename error: " << e.what() << std::endl;
+                }
+            }
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+
+    // Delete modal
+    if (ImGui::BeginPopupModal("Delete Item", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("Are you sure you want to delete:\n%s ?", m_actionTarget.filename().string().c_str());
+        ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "This action cannot be undone.");
+        ImGui::Spacing();
+                
+        if (ImGui::Button("Delete", ImVec2(120, 0))) {
+            try {
+                // remove_all recursively deletes folders and files safely
+                fs::remove_all(m_actionTarget); 
+            } catch (const fs::filesystem_error& e) {
+                std::cerr << "[ProjectPanel] Delete error: " << e.what() << std::endl;
+            }
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+
     ImGui::End();
 }
 
@@ -330,6 +386,18 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
 
             ImGui::PushID(entry.path().string().c_str());
             if (ImGui::BeginPopupContextItem()) {
+                if (ImGui::MenuItem(ICON_FA_PEN " Rename")) {
+                    m_actionTarget = entry.path();
+                    strncpy(m_renameBuffer, filename.c_str(), sizeof(m_renameBuffer));
+                    m_requestRenameModal = true;
+                }
+                if (ImGui::MenuItem(ICON_FA_TRASH " Delete")) {
+                    m_actionTarget = entry.path();
+                    m_requestDeleteModal = true;
+                }
+
+                ImGui::Separator();
+
                 if (ImGui::MenuItem(ICON_FA_FOLDER " Create Folder")) {
                     m_currentDirectory = entry.path();
                     m_requestFolderModal = true;
@@ -359,6 +427,21 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
         } else {
             ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
             
+            std::string searchQuery = m_searchBuffer;
+            if (!searchQuery.empty()) {
+                std::string filenameLower = filename;
+                std::string searchLower = searchQuery;
+                
+                // Convert both to lowercase for case-insensitive search
+                std::transform(filenameLower.begin(), filenameLower.end(), filenameLower.begin(), ::tolower);
+                std::transform(searchLower.begin(), searchLower.end(), searchLower.begin(), ::tolower);
+                
+                // If the filename does not contain the search string, skip drawing it
+                if (filenameLower.find(searchLower) == std::string::npos) {
+                    continue; 
+                }
+            }
+
             std::string icon = ICON_FA_FILE;
             if (extension == ".scene") icon = ICON_FA_CUBES;
             else if (extension == ".prefab") icon = ICON_FA_BOX;
@@ -368,9 +451,19 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
 
             std::string displayName = icon + "  " + filename;
             ImGui::TreeNodeEx(displayName.c_str(), flags);
+
+            if (ImGui::BeginPopupContextItem("FileContextMenu")) {
+                if (ImGui::MenuItem(ICON_FA_PEN " Rename")) {
+                    m_actionTarget = entry.path();
+                    strncpy(m_renameBuffer, filename.c_str(), sizeof(m_renameBuffer));
+                    m_requestRenameModal = true;
+                }
+                if (ImGui::MenuItem(ICON_FA_TRASH " Delete")) {
+                    m_actionTarget = entry.path();
+                    m_requestDeleteModal = true;
+                }
             
-            if (!entry.is_directory() && extension == ".py") {
-                if (ImGui::BeginPopupContextItem()) {
+                if (extension == ".py") {
                     if (IsScriptableObjectFile(entry.path())) {
                         if (ImGui::MenuItem(ICON_FA_DATABASE " Create Asset from this Script")) {
                             m_currentDirectory = entry.path().parent_path();
@@ -391,8 +484,8 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
                     else {
                         ImGui::TextDisabled(ICON_FA_GEARS " Component Script");
                     }
-                    ImGui::EndPopup();
                 }
+                ImGui::EndPopup();
             }
 
             if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
