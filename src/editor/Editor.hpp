@@ -4,6 +4,8 @@
 #include <filesystem>
 #include <memory>
 #include <raylib.h>
+#include <pybind11/pybind11.h>
+
 #include "world/Scene.hpp"
 #include "world/GameObject.hpp"
 
@@ -40,6 +42,13 @@ class Editor {
 
         // Editor State
         GameObject* m_selectedObject = nullptr;
+
+        // Track the currently selected ScriptableObject
+        pybind11::object m_selectedAsset = pybind11::none();
+        
+        // Track where it's saved
+        std::string m_selectedAssetPath = ""; 
+
         bool m_focusGameWindow = false;
         bool m_showGlobalGrid = true;
         int m_selectedTileID = -1;

@@ -903,4 +903,57 @@ class ParticleSystem2d(Component):
         """
         ...
 
+
+class ScriptableObject:
+    """
+    Base class for all data-driven assets in Foxvoid Engine.
+    Inherit from this class to create custom data containers (e.g., Items, Stats, Quests).
+    The engine will automatically inspect your custom properties and generate an ImGui interface.
+    """
+    
+    asset_id: str
+    """The unique string identifier used to load this asset from disk."""
+    
+    name: str
+    """The display name of the asset."""
+    
+    def __init__(self) -> None: 
+        """Initializes an empty ScriptableObject."""
+        ...
+
+
+class DataManager:
+    """
+    Global system responsible for loading, caching, and saving ScriptableObject assets.
+    """
+
+    @staticmethod
+    def load_asset(filepath: str) -> Optional[ScriptableObject]:
+        """
+        Loads a .asset file from disk. If the asset has already been loaded, 
+        it returns the cached instance to save memory and performance.
+        
+        Args:
+            filepath: The relative path to the .asset file (e.g., 'assets/data/sword.asset').
+            
+        Returns:
+            The fully instantiated Python object, or None if loading failed.
+        """
+        ...
+
+    @staticmethod
+    def save_asset(asset: ScriptableObject, filepath: str) -> None:
+        """
+        Serializes a ScriptableObject instance and saves it to a .asset JSON file.
+        """
+        ...
+        
+    @staticmethod
+    def clear_cache() -> None:
+        """
+        Clears all loaded assets from memory. 
+        Usually called by the engine during scene transitions.
+        """
+        ...
+        
 )";

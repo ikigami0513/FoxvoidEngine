@@ -1,13 +1,32 @@
 #include "ProjectPanel.hpp"
+#include "scripting/DataManager.hpp"
 #include <iostream>
+#include <fstream>
+#include <nlohmann/json.hpp>
 
 #ifndef STANDALONE_MODE
 #include <imgui.h>
 #include <extras/IconsFontAwesome6.h>
 #endif
 
+bool IsScriptableObjectFile(const fs::path& filepath) {
+    std::ifstream file(filepath);
+    if (file.is_open()) {
+        std::string line;
+        while (std::getline(file, line)) {
+            if (line.find("class ") != std::string::npos) {
+                if (line.find("(ScriptableObject)") != std::string::npos) {
+                    return true;
+                }
+                return false;
+            }
+        }
+    }
+    return false;
+}
+
 // Helper to generate a default Python script template
-void CreatePythonScript(const fs::path& directory, const std::string& scriptName) {
+void CreatePythonScript(const fs::path& directory, const std::string& scriptName, ScriptType type) {
     // Force the .py extension
     std::string filename = scriptName;
     if (filename.find(".py") == std::string::npos) {
@@ -34,13 +53,21 @@ void CreatePythonScript(const fs::path& directory, const std::string& scriptName
 
         // Write the boilerplate code
         file << "from foxvoid import *\n\n";
-        file << "class " << className << "(Component):\n";
-        file << "    def __init__(self):\n";
-        file << "        super().__init__()\n\n";
-        file << "    def start(self):\n";
-        file << "        pass\n\n";
-        file << "    def update(self, delta_time: float):\n";
-        file << "        pass\n";
+        
+        if (type == ScriptType::Component) {
+            file << "class " << className << "(Component):\n";
+            file << "    def __init__(self):\n";
+            file << "        super().__init__()\n\n";
+            file << "    def start(self):\n";
+            file << "        pass\n\n";
+            file << "    def update(self, delta_time: float):\n";
+            file << "        pass\n";
+        } else if (type == ScriptType::ScriptableObject) {
+            file << "class " << className << "(ScriptableObject):\n";
+            file << "    def __init__(self):\n";
+            file << "        super().__init__()\n";
+            file << "        # Add your custom data properties here\n";
+        }
 
         file.close();
         std::cout << "[ProjectPanel] Created new script: " << fullPath.string() << std::endl;
@@ -50,7 +77,62 @@ void CreatePythonScript(const fs::path& directory, const std::string& scriptName
     }
 }
 
-void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, const fs::path& assetsPath, std::string& currentScenePath) {
+std::string ExtractClassNameFromFile(const fs::path& filepath) {
+    std::ifstream file(filepath);
+    if (file.is_open()) {
+        std::string line;
+        while (std::getline(file, line)) {
+            // Looking for "class ClassName(ScriptableObject):"
+            size_t classPos = line.find("class ");
+            if (classPos != std::string::npos) {
+                size_t start = classPos + 6;
+                size_t end = line.find_first_of("(: \r\n", start);
+                if (end != std::string::npos) {
+                    return line.substr(start, end - start);
+                }
+            }
+        }
+    }
+    return ""; // Fallback
+}
+
+// Helper to generate a default ScriptableObject (.asset) JSON file
+void CreateAssetFile(const fs::path& directory, const std::string& filename, const std::string& assetId, const std::string& scriptName, const std::string& className) {
+    // Force the .asset extension
+    std::string finalFilename = filename;
+    if (finalFilename.find(".asset") == std::string::npos) {
+        finalFilename += ".asset";
+    }
+
+    fs::path fullPath = directory / finalFilename;
+
+    // Check if file already exists
+    if (fs::exists(fullPath)) {
+        std::cerr << "[ProjectPanel] Error: file " << finalFilename << " already exists!" << std::endl;
+        return;
+    }
+
+    // Build the initial JSON structure representing the ScriptableObject
+    nlohmann::json j;
+    j["assetId"] = assetId;
+    j["name"] = filename; 
+    j["scriptName"] = scriptName;
+    j["className"] = className;
+    j["properties"] = nlohmann::json::object(); // Empty properties dictionary to start
+
+    std::ofstream file(fullPath);
+    if (file.is_open()) {
+        // Save with 4 spaces of indentation for readability
+        file << j.dump(4);
+        file.close();
+        std::cout << "[ProjectPanel] Created new asset: " << fullPath.string() << std::endl;
+    } else {
+        std::cerr << "[ProjectPanel] Error: Could not create file " << fullPath.string() << std::endl;
+    }
+}
+
+// UPDATED SIGNATURE
+void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& assetsPath, std::string& currentScenePath) {
     ImGui::Begin("Project");
 
     // Initialize the current directory the very first time the panel is drawn
@@ -88,26 +170,36 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, const f
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(4, 4));
 
     if (m_isTreeView) {
-        DrawDirectoryNode(activeScene, selectedObject, assetsPath, currentScenePath);
+        // UPDATED CALL
+        DrawDirectoryNode(activeScene, selectedObject, selectedAsset, selectedAssetPath, assetsPath, currentScenePath);
     } else {
-        DrawExplorerView(activeScene, selectedObject, currentScenePath);
+        // UPDATED CALL
+        DrawExplorerView(activeScene, selectedObject, selectedAsset, selectedAssetPath, currentScenePath);
     }
 
     ImGui::PopStyleVar();
 
-    // Trigger the modal at the root id stack
+    // Trigger the modals at the root id stack safely
     if (m_requestScriptModal) {
         ImGui::OpenPopup("New Python Script");
         m_requestScriptModal = false; // Reset the flag immediately
+    }
+
+    if (m_requestAssetModal) {
+        ImGui::OpenPopup("New Scriptable Object");
+        m_requestAssetModal = false; // Reset the flag immediately
     }
 
     // Modal
     if (ImGui::BeginPopupModal("New Python Script", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
         static char scriptName[64] = "NewScript";
         ImGui::InputText("Name", scriptName, IM_ARRAYSIZE(scriptName));
+        
+        ImGui::TextDisabled("Template: %s", m_pendingScriptType == ScriptType::Component ? "Component" : "Scriptable Object");
+        ImGui::Spacing();
                 
         if (ImGui::Button("Create", ImVec2(120, 0))) {
-            CreatePythonScript(m_currentDirectory, scriptName);
+            CreatePythonScript(m_currentDirectory, scriptName, m_pendingScriptType);
             ImGui::CloseCurrentPopup();
             
             // Reset buffer for the next time
@@ -124,20 +216,67 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, const f
         ImGui::EndPopup();
     }
 
+    // Modal: Scriptable Object (.asset)
+    if (ImGui::BeginPopupModal("New Scriptable Object", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        static char assetFileName[64] = "NewData";
+        static char assetId[64] = "data_01";
+
+        ImGui::InputText("File Name (.asset)", assetFileName, IM_ARRAYSIZE(assetFileName));
+        ImGui::InputText("Asset ID", assetId, IM_ARRAYSIZE(assetId));
+        
+        ImGui::Separator();
+        ImGui::TextDisabled("Python Binding");
+        
+        // We disable these fields because they are automatically filled by right-clicking the script!
+        ImGui::BeginDisabled();
+        ImGui::InputText("Module", m_assetPrefillModule, sizeof(m_assetPrefillModule));
+        ImGui::InputText("Class", m_assetPrefillClass, sizeof(m_assetPrefillClass));
+        ImGui::EndDisabled();
+                
+        if (ImGui::Button("Create", ImVec2(120, 0))) {
+            CreateAssetFile(m_currentDirectory, assetFileName, assetId, m_assetPrefillModule, m_assetPrefillClass);
+            ImGui::CloseCurrentPopup();
+            
+            // Reset buffers for the next time
+            strcpy(assetFileName, "NewData");
+            strcpy(assetId, "data_01");
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+
     ImGui::End();
 }
 
-void ProjectPanel::DrawExplorerView(Scene& activeScene, GameObject*& selectedObject, std::string& currentScenePath) {
+// UPDATED SIGNATURE
+void ProjectPanel::DrawExplorerView(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, std::string& currentScenePath) {
     // If the directory does not exist, stop right here
     if (!fs::exists(m_currentDirectory)) return;
 
     // Global Right-Click menu for the current directory
     if (ImGui::BeginPopupContextWindow("ExplorerContextPopup")) {
         if (ImGui::BeginMenu(ICON_FA_PLUS " Create")) {
-            if (ImGui::MenuItem(ICON_FA_FILE_CODE " Python Script")) {
-                m_requestScriptModal = true;
+            // Sub-menu for Python Scripts
+            if (ImGui::BeginMenu(ICON_FA_FILE_CODE " Python Script")) {
+                if (ImGui::MenuItem("Component")) {
+                    m_pendingScriptType = ScriptType::Component;
+                    m_requestScriptModal = true;
+                }
+                if (ImGui::MenuItem("Scriptable Object Class")) {
+                    m_pendingScriptType = ScriptType::ScriptableObject;
+                    m_requestScriptModal = true;
+                }
+                ImGui::EndMenu();
             }
-            ImGui::EndMenu();
+            
+            // Note: We removed the direct Asset creation from the global menu here
+            // to force the user to right-click on a script instead, preventing empty/invalid bindings.
         }
         ImGui::EndPopup();
     }
@@ -164,6 +303,7 @@ void ProjectPanel::DrawExplorerView(Scene& activeScene, GameObject*& selectedObj
             else if (extension == ".prefab") icon = ICON_FA_BOX;
             else if (extension == ".py") icon = ICON_FA_FILE_CODE;
             else if (extension == ".png") icon = ICON_FA_IMAGE;
+            else if (extension == ".asset") icon = ICON_FA_DATABASE;
         }
 
         std::string displayName = icon + "  " + filename;
@@ -185,7 +325,45 @@ void ProjectPanel::DrawExplorerView(Scene& activeScene, GameObject*& selectedObj
                     
                     // Load the new scene
                     activeScene.LoadFromFile(currentScenePath, false);
+                } else if (extension == ".asset") {
+                    // NEW: Load the Data Asset into the Inspector
+                    std::cout << "[Editor] Inspecting asset: " << filename << std::endl;
+                    
+                    selectedObject = nullptr; // Prioritize asset over hierarchy object
+                    selectedAssetPath = entry.path().string();
+                    selectedAsset = DataManager::LoadAsset(selectedAssetPath);
                 }
+            }
+        }
+
+        // Context menu specifically for Python scripts (Explorer View)
+        if (!isDir && extension == ".py") {
+            if (ImGui::BeginPopupContextItem()) {
+                
+                if (IsScriptableObjectFile(entry.path())) {
+                    if (ImGui::MenuItem(ICON_FA_DATABASE " Create Asset from this Script")) {
+                        // 1. Get the module name (filename without .py)
+                        std::string modName = fs::path(filename).stem().string();
+                        strncpy(m_assetPrefillModule, modName.c_str(), sizeof(m_assetPrefillModule));
+
+                        // 2. Read the file to find the class name
+                        std::string clsName = ExtractClassNameFromFile(entry.path());
+                        if (clsName.empty()) {
+                            // Fallback: capitalize filename if extraction failed
+                            clsName = modName;
+                            if (!clsName.empty()) clsName[0] = std::toupper(clsName[0]);
+                        }
+                        strncpy(m_assetPrefillClass, clsName.c_str(), sizeof(m_assetPrefillClass));
+
+                        // 3. Trigger the modal
+                        m_requestAssetModal = true;
+                    }
+                }
+                else {
+                    ImGui::TextDisabled(ICON_FA_GEARS " Component Script");
+                }
+                
+                ImGui::EndPopup();
             }
         }
 
@@ -208,7 +386,8 @@ void ProjectPanel::DrawExplorerView(Scene& activeScene, GameObject*& selectedObj
     }
 }
 
-void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedObject, const fs::path& path, std::string& currentScenePath) {
+// UPDATED SIGNATURE
+void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& path, std::string& currentScenePath) {
     // If the directory does not exist, stop right here
     if (!fs::exists(path)) return;
 
@@ -235,10 +414,19 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
             // Push an ID so multiple folders don't share the same popup state
             ImGui::PushID(entry.path().string().c_str());
             if (ImGui::BeginPopupContextItem()) {
-                if (ImGui::MenuItem(ICON_FA_FILE_CODE " Create Python Script")) {
-                    // Update our tracked directory to the one clicked, then open the global modal
-                    m_currentDirectory = entry.path();
-                    m_requestScriptModal = true;
+                // Sub-menu for Python Scripts in Tree View
+                if (ImGui::BeginMenu(ICON_FA_FILE_CODE " Create Python Script")) {
+                    if (ImGui::MenuItem("Component")) {
+                        m_currentDirectory = entry.path();
+                        m_pendingScriptType = ScriptType::Component;
+                        m_requestScriptModal = true;
+                    }
+                    if (ImGui::MenuItem("Scriptable Object Class")) {
+                        m_currentDirectory = entry.path();
+                        m_pendingScriptType = ScriptType::ScriptableObject;
+                        m_requestScriptModal = true;
+                    }
+                    ImGui::EndMenu();
                 }
                 ImGui::EndPopup();
             }
@@ -247,7 +435,8 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
             // Create a collapsible tree node
             if (isOpen) {
                 // Recursive call to read the contents of this subfolder
-                DrawDirectoryNode(activeScene, selectedObject, entry.path(), currentScenePath); 
+                // UPDATED CALL
+                DrawDirectoryNode(activeScene, selectedObject, selectedAsset, selectedAssetPath, entry.path(), currentScenePath); 
                 ImGui::TreePop(); // Close the node
             }
         } else {
@@ -261,10 +450,40 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
             else if (extension == ".prefab") icon = ICON_FA_BOX;
             else if (extension == ".py") icon = ICON_FA_FILE_CODE;
             else if (extension == ".png") icon = ICON_FA_IMAGE;
+            else if (extension == ".asset") icon = ICON_FA_DATABASE;
 
             std::string displayName = icon + "  " + filename;
             ImGui::TreeNodeEx(displayName.c_str(), flags);
             
+            // Context menu specifically for Python scripts (Tree View)
+            if (!entry.is_directory() && extension == ".py") {
+                if (ImGui::BeginPopupContextItem()) {
+                    
+                    if (IsScriptableObjectFile(entry.path())) {
+                        if (ImGui::MenuItem(ICON_FA_DATABASE " Create Asset from this Script")) {
+                            m_currentDirectory = entry.path().parent_path();
+                            
+                            std::string modName = fs::path(filename).stem().string();
+                            strncpy(m_assetPrefillModule, modName.c_str(), sizeof(m_assetPrefillModule));
+
+                            std::string clsName = ExtractClassNameFromFile(entry.path());
+                            if (clsName.empty()) {
+                                clsName = modName;
+                                if (!clsName.empty()) clsName[0] = std::toupper(clsName[0]);
+                            }
+                            strncpy(m_assetPrefillClass, clsName.c_str(), sizeof(m_assetPrefillClass));
+
+                            m_requestAssetModal = true;
+                        }
+                    }
+                    else {
+                        ImGui::TextDisabled(ICON_FA_GEARS " Component Script");
+                    }
+
+                    ImGui::EndPopup();
+                }
+            }
+
             // Drag and drop source
             // If the user clicks and drags this item, initialize the drag payload
             if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
@@ -297,6 +516,13 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
                         
                         // Load the new scene
                         activeScene.LoadFromFile(currentScenePath, false);
+                    } else if (extension == ".asset") {
+                        // NEW: Load the Data Asset into the Inspector
+                        std::cout << "[Editor] Inspecting asset: " << filename << std::endl;
+                        
+                        selectedObject = nullptr; // Prioritize asset over hierarchy object
+                        selectedAssetPath = entry.path().string();
+                        selectedAsset = DataManager::LoadAsset(selectedAssetPath);
                     }
                 }
             }

@@ -9,5 +9,5 @@
 
 class InspectorPanel {
     public:
-        void Draw(GameObject*& selectedObject);
+        void Draw(GameObject*& selectedObject, py::object& selectedAsset, std::string& selectedAssetPath);
 };

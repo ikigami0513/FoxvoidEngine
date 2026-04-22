@@ -11,6 +11,8 @@
 #include "../../graphics/Animation2d.hpp"
 #include <world/ComponentRegistry.hpp>
 #include "core/GameStateManager.hpp"
+#include "scripting/ScriptableObject.hpp"
+#include "scripting/DataManager.hpp"
 
 class Debug {
     public:
@@ -21,6 +23,11 @@ class Debug {
         void static Error(const std::string& msg) {
             std::cerr << "[Python] " << msg << std::endl;
         }
+};
+
+class PyScriptableObject : public ScriptableObject {
+    public:
+        using ScriptableObject::ScriptableObject;
 };
 
 void BindCore(py::module_& m) {
@@ -154,4 +161,15 @@ void BindCore(py::module_& m) {
         
         .def_static("set_string", &GameStateManager::SetString)
         .def_static("get_string", &GameStateManager::GetString, py::arg("key"), py::arg("default_val") = "");
+
+    py::class_<ScriptableObject, PyScriptableObject>(m, "ScriptableObject")
+        .def(py::init<>())
+        .def_readwrite("asset_id", &ScriptableObject::assetId)
+        .def_readwrite("name", &ScriptableObject::name);
+
+    py::class_<DataManager>(m, "DataManager")
+        // We bind them as static methods so Python can call DataManager.load_asset(...)
+        .def_static("load_asset", &DataManager::LoadAsset, py::arg("filepath"))
+        .def_static("save_asset", &DataManager::SaveAsset, py::arg("asset"), py::arg("filepath"))
+        .def_static("clear_cache", &DataManager::ClearCache);
 }

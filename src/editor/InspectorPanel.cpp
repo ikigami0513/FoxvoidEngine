@@ -1,49 +1,78 @@
 #include "InspectorPanel.hpp"
 #include "commands/CommandHistory.hpp"
 #include "commands/ChangeNameCommand.hpp"
+#include <scripting/ScriptableObject.hpp>
+#include <scripting/DataManager.hpp>
 
-void InspectorPanel::Draw(GameObject*& selectedObject) {
+void InspectorPanel::Draw(GameObject*& selectedObject, py::object& selectedAsset, std::string& selectedAssetPath) {
     ImGui::Begin("Inspector");
 
-    if (selectedObject != nullptr) {
+    // ==========================================
+    // MODE 1: SCRIPTABLE OBJECT (ASSET) INSPECTION
+    // ==========================================
+    if (!selectedAsset.is_none()) {
+        try {
+            // Cast the Python object to our C++ base class to access its methods
+            ScriptableObject* nativeObj = selectedAsset.cast<ScriptableObject*>();
+            if (nativeObj) {
+                ImGui::TextDisabled("Asset Path: %s", selectedAssetPath.c_str());
+                ImGui::Separator();
+                ImGui::Spacing();
+
+                // Call the introspection logic we built earlier
+                nativeObj->OnInspector();
+
+                ImGui::Spacing();
+                ImGui::Separator();
+                ImGui::Spacing();
+
+                // Centered Save Button
+                float windowWidth = ImGui::GetWindowSize().x;
+                float buttonWidth = 150.0f;
+                ImGui::SetCursorPosX((windowWidth - buttonWidth) * 0.5f);
+                
+                // When clicked, write the JSON back to the disk
+                if (ImGui::Button("Save Asset", ImVec2(buttonWidth, 0))) {
+                    DataManager::SaveAsset(selectedAsset, selectedAssetPath);
+                }
+            }
+        } catch (const py::error_already_set& e) {
+            ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Asset Cast Error:");
+            ImGui::TextWrapped("%s", e.what());
+        }
+    }
+    // ==========================================
+    // MODE 2: GAMEOBJECT INSPECTION
+    // ==========================================
+    else if (selectedObject != nullptr) {
         // Rename the entity
         char nameBuffer[256];
         strncpy(nameBuffer, selectedObject->name.c_str(), sizeof(nameBuffer));
         nameBuffer[sizeof(nameBuffer) - 1] = '\0'; 
             
-        // Draw the text input box (without the 'if' condition)
+        // Draw the text input box
         ImGui::InputText("Name", nameBuffer, sizeof(nameBuffer));
 
-        // Static variable to hold the original name during the entire typing process
         static std::string initialName;
 
         // The editing lifecycle
         if (ImGui::IsItemActivated()) {
-            // The user JUST clicked into the text box. Save the initial state.
             initialName = selectedObject->name;
         }
 
         if (ImGui::IsItemActive()) {
-            // The user is actively typing. Update the object for real-time visual feedback (e.g., in the Hierarchy).
             selectedObject->name = std::string(nameBuffer); 
         }
 
         if (ImGui::IsItemDeactivatedAfterEdit()) {
-            // The user finished editing (pressed Enter or clicked away).
             std::string finalName = std::string(nameBuffer);
             
-            // Verify the name actually changed (they didn't just click in and click out)
             if (initialName != finalName) {
-                // CRUCIAL TRICK: Temporarily revert the object to its old name.
-                // Why? Because when we add the command right below, it instantly calls 
-                // Execute(), which will re-apply the new finalName for us!
                 selectedObject->name = initialName;
-                
                 CommandHistory::AddCommand(std::make_unique<ChangeNameCommand>(selectedObject, initialName, finalName));
             }
         } 
         else if (ImGui::IsItemDeactivated() && ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-            // Bonus: If the user presses Escape while typing, cancel everything!
             selectedObject->name = initialName;
         }
 
@@ -57,7 +86,6 @@ void InspectorPanel::Draw(GameObject*& selectedObject) {
                 
             bool isOpen = ImGui::CollapsingHeader(comp->GetName().c_str(), ImGuiTreeNodeFlags_DefaultOpen);
 
-            // Context Menu for removing components
             if (ImGui::BeginPopupContextItem()) {
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
                 if (ImGui::Selectable("Remove Component")) {
@@ -99,8 +127,11 @@ void InspectorPanel::Draw(GameObject*& selectedObject) {
             ImGui::EndPopup();
         }
     }
+    // ==========================================
+    // MODE 3: NOTHING SELECTED
+    // ==========================================
     else {
-        ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "Select an object in the Hierarchy.");
+        ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "Select an object or an asset.");
     }
 
     ImGui::End();

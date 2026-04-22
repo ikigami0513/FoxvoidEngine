@@ -99,10 +99,20 @@ void Editor::Draw(Scene& activeScene, RenderTexture2D& gameTexture, bool& isRunn
         m_sceneViewPanel.Draw(m_sceneTexture, *m_editorCamera, activeScene, m_selectedObject, m_selectedTileID, m_selectedLayer);
         m_gameViewPanel.Draw(gameTexture, m_focusGameWindow);
 
+        // Keep track of the selected object before drawing the hierarchy
+        GameObject* prevSelectedObject = m_selectedObject;
+
         m_hierarchyPanel.Draw(activeScene, m_selectedObject);
+        
+        // UX LOGIC: If the user just clicked a new GameObject in the Hierarchy, 
+        // we must clear the selected Asset to prioritize the Scene Object in the Inspector!
+        if (m_selectedObject != prevSelectedObject && m_selectedObject != nullptr) {
+            m_selectedAsset = pybind11::none();
+        }
+
         m_console.Draw("Console");
-        m_inspectorPanel.Draw(m_selectedObject);
-        m_projectPanel.Draw(activeScene, m_selectedObject, m_assetsPath, currentScenePath);
+        m_inspectorPanel.Draw(m_selectedObject, m_selectedAsset, m_selectedAssetPath);
+        m_projectPanel.Draw(activeScene, m_selectedObject, m_selectedAsset, m_selectedAssetPath, m_assetsPath, currentScenePath);
         m_performancePanel.Draw(activeScene);
 
     rlImGuiEnd();
