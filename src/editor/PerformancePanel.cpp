@@ -22,7 +22,7 @@ void PerformancePanel::Draw(const Scene& activeScene) {
             m_isPaused = !m_isPaused;
         }
         
-        ImGui::SameLine(ImGui::GetContentRegionAvail().x - 120);
+        ImGui::SameLine(ImGui::GetContentRegionAvail().x - 240);
         
         ImGui::SetNextItemWidth(120);
         if (ImGui::Combo("Target FPS", &m_targetFPS, "30\0 60\0 120\0 144\0 Unlimited\0\0")) {
