@@ -9,6 +9,8 @@
 #include "world/Scene.hpp"
 #include "world/GameObject.hpp"
 
+#include "editor/EditorViewMode.hpp"
+
 // Editor Panels
 #include "editor/EditorConsole.hpp"
 #include "editor/HierarchyPanel.hpp"
@@ -23,6 +25,7 @@
 #include "editor/GameStatePanel.hpp"
 #include "editor/ProjectHubPanel.hpp"
 #include "editor/PerformancePanel.hpp"
+#include "editor/CodeEditorPanel.hpp"
 
 class Editor {
     public:
@@ -49,7 +52,10 @@ class Editor {
         // Track where it's saved
         std::string m_selectedAssetPath = ""; 
 
-        bool m_focusGameWindow = false;
+        std::string m_imguiIniPath;
+
+        EditorViewMode m_currentViewMode = EditorViewMode::Scene;
+
         bool m_showGlobalGrid = true;
         int m_selectedTileID = -1;
         int m_selectedLayer = 0;
@@ -76,4 +82,5 @@ class Editor {
         MainMenuBar m_mainMenuBar;
         TilePalettePanel m_tilePalettePanel;
         PerformancePanel m_performancePanel;
+        CodeEditorPanel m_codeEditorPanel;
 };

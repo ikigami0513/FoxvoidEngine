@@ -25,6 +25,9 @@ Editor::Editor(int windowWidth, int windowHeight) {
     rlImGuiSetup(true); 
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
+    m_imguiIniPath = (std::filesystem::current_path() / "imgui.ini").string();
+    ImGui::GetIO().IniFilename = m_imguiIniPath.c_str();
+        
     // Load Fonts
     ImGuiIO& io = ImGui::GetIO();
     float baseFontSize = 28.0f;
@@ -95,10 +98,11 @@ void Editor::Draw(Scene& activeScene, RenderTexture2D& gameTexture, bool& isRunn
         TileMap* activeTileMap = m_selectedObject ? m_selectedObject->GetComponent<TileMap>() : nullptr;
         m_tilePalettePanel.Draw(m_selectedTileID, m_selectedLayer, activeTileMap);
 
-        m_toolbarPanel.Draw(activeScene, m_selectedObject, isPlaying, sceneBackup, m_focusGameWindow);
+        m_toolbarPanel.Draw(activeScene, m_selectedObject, isPlaying, sceneBackup, m_currentViewMode);
         
         m_sceneViewPanel.Draw(m_sceneTexture, *m_editorCamera, activeScene, m_selectedObject, m_selectedTileID, m_selectedLayer);
-        m_gameViewPanel.Draw(gameTexture, m_focusGameWindow);
+        m_gameViewPanel.Draw(gameTexture, m_currentViewMode);
+        m_codeEditorPanel.Draw(m_currentViewMode);
 
         // Keep track of the selected object before drawing the hierarchy
         GameObject* prevSelectedObject = m_selectedObject;
@@ -113,7 +117,7 @@ void Editor::Draw(Scene& activeScene, RenderTexture2D& gameTexture, bool& isRunn
 
         m_console.Draw("Console");
         m_inspectorPanel.Draw(m_selectedObject, m_selectedAsset, m_selectedAssetPath);
-        m_projectPanel.Draw(activeScene, m_selectedObject, m_selectedAsset, m_selectedAssetPath, m_assetsPath, currentScenePath);
+        m_projectPanel.Draw(activeScene, m_selectedObject, m_selectedAsset, m_selectedAssetPath, m_assetsPath, currentScenePath, m_codeEditorPanel, m_currentViewMode);
         m_performancePanel.Draw(activeScene);
 
     rlImGuiEnd();

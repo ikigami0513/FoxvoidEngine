@@ -12,6 +12,9 @@
 #include "world/Scene.hpp"
 #include "world/GameObject.hpp"
 
+#include "editor/EditorViewMode.hpp"
+class CodeEditorPanel;
+
 namespace fs = std::filesystem;
 
 // Define the types of scripts we can generate
@@ -25,11 +28,11 @@ class ProjectPanel {
         ProjectPanel() = default;
         ~ProjectPanel();
     
-        void Draw(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& assetsPath, std::string& currentScenePath);
+        void Draw(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& assetsPath, std::string& currentScenePath, CodeEditorPanel& codeEditorPanel, EditorViewMode& currentViewMode);
 
     private:
         // Recursive function to read and display the folder tree
-        void DrawDirectoryNode(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& path, std::string& currentScenePath);
+        void DrawDirectoryNode(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& path, std::string& currentScenePath, CodeEditorPanel& codeEditorPanel, EditorViewMode& currentViewMode);
 
         // Helpers for the visual asset thumbnails
         Texture2D GetOrLoadThumbnail(const std::string& path);

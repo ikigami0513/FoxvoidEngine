@@ -1,16 +1,16 @@
 #include "GameViewPanel.hpp"
 #include "core/Mouse.hpp"
+#include "editor/EditorViewMode.hpp"
 
-void GameViewPanel::Draw(RenderTexture2D& gameTexture, bool& focusGameWindow) {
+void GameViewPanel::Draw(RenderTexture2D& gameTexture, EditorViewMode& currentViewMode) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     
     // The name of the window matters for ImGui docking
     ImGui::Begin("Game View");
 
     // If the flag was set by the Toolbar, we force focus on this window
-    if (focusGameWindow) {
+    if (currentViewMode == EditorViewMode::Game) {
         ImGui::SetWindowFocus();
-        focusGameWindow = false; // Reset the flag immediately
     }
     
     ImVec2 windowSize = ImGui::GetContentRegionAvail();

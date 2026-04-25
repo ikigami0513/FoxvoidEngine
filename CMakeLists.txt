@@ -57,6 +57,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(imguizmo)
 
+# 4. Fetch ImGuiColorTextEdit (Advanced code editor for ImGui)
+FetchContent_Declare(
+    imgui_color_text_edit
+    GIT_REPOSITORY https://github.com/BalazsJako/ImGuiColorTextEdit.git
+    GIT_TAG        master
+)
+FetchContent_MakeAvailable(imgui_color_text_edit)
+
 # --- PYTHON & PYBIND11 SETUP ---
 
 # 1. Find the Python installation on the host system
@@ -110,6 +118,7 @@ set(IMGUI_SOURCES
     ${imgui_SOURCE_DIR}/imgui_widgets.cpp
     ${rlimgui_SOURCE_DIR}/rlImGui.cpp
     ${imguizmo_SOURCE_DIR}/ImGuizmo.cpp
+    ${imgui_color_text_edit_SOURCE_DIR}/TextEditor.cpp
 )
 
 # =========================================================================
@@ -133,6 +142,7 @@ target_include_directories(FoxvoidEngine PRIVATE
     ${rlimgui_SOURCE_DIR}
     ${imguizmo_SOURCE_DIR}
     ${pfd_SOURCE_DIR}
+    ${imgui_color_text_edit_SOURCE_DIR}
 )
 
 # =========================================================================

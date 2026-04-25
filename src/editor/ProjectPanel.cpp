@@ -4,12 +4,15 @@
 #include <fstream>
 #include <algorithm>
 #include <nlohmann/json.hpp>
+#include <cstdlib>
 
 #ifndef STANDALONE_MODE
 #include <imgui.h>
 #include <extras/IconsFontAwesome6.h>
 #endif
 #include <core/AssetRegistry.hpp>
+
+#include "editor/CodeEditorPanel.hpp"
 
 bool IsScriptableObjectFile(const fs::path& filepath) {
     std::ifstream file(filepath);
@@ -207,7 +210,7 @@ Texture2D ProjectPanel::GetOrLoadThumbnail(const std::string& path) {
     return empty;
 }
 
-void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& assetsPath, std::string& currentScenePath) {
+void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& assetsPath, std::string& currentScenePath, CodeEditorPanel& codeEditorPanel, EditorViewMode& currentViewMode) {
     ImGui::Begin("Project");
 
     if (m_currentDirectory.empty()) {
@@ -244,6 +247,27 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind1
     // Simple Header
     ImGui::TextDisabled("Root: %s", assetsPath.string().c_str());
 
+    // VS Code launch button 
+
+    ImGui::Separator();
+
+    if (ImGui::Button(ICON_FA_CODE " Open VS Code")) {
+        // The project root is the parent folder of "assets"
+        std::string projectRoot = assetsPath.parent_path().string();
+        
+        // Build the system command to open the folder in VS Code
+        // (We use quotes around the path to handle spaces in folder names)
+        #ifdef __APPLE__
+            std::string command = "open -a \"Visual Studio Code\" \"" + projectRoot + "\"";
+        #else
+            // Works for both Windows and Linux if 'code' is in the system PATH
+            std::string command = "code \"" + projectRoot + "\"";
+        #endif
+        
+        std::system(command.c_str());
+        std::cout << "[Editor] Launching external IDE for project: " << projectRoot << std::endl;
+    }
+
     // The search bar
     ImGui::InputTextWithHint("##Search", ICON_FA_MAGNIFYING_GLASS " Search...", m_searchBuffer, IM_ARRAYSIZE(m_searchBuffer));
 
@@ -259,7 +283,7 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind1
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(4, 4));
 
     // Only draw the Tree View now
-    DrawDirectoryNode(activeScene, selectedObject, selectedAsset, selectedAssetPath, assetsPath, currentScenePath);
+    DrawDirectoryNode(activeScene, selectedObject, selectedAsset, selectedAssetPath, assetsPath, currentScenePath, codeEditorPanel, currentViewMode);
 
     ImGui::PopStyleVar();
 
@@ -476,7 +500,7 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind1
     }
 }
 
-void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& path, std::string& currentScenePath) {
+void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& path, std::string& currentScenePath, CodeEditorPanel& codeEditorPanel, EditorViewMode& currentViewMode) {
     if (!fs::exists(path)) return;
 
     for (const auto& entry : fs::directory_iterator(path)) {
@@ -540,7 +564,7 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
             ImGui::PopID();
 
             if (isOpen) {
-                DrawDirectoryNode(activeScene, selectedObject, selectedAsset, selectedAssetPath, entry.path(), currentScenePath); 
+                DrawDirectoryNode(activeScene, selectedObject, selectedAsset, selectedAssetPath, entry.path(), currentScenePath, codeEditorPanel, currentViewMode); 
                 ImGui::TreePop();
             }
         } else {
@@ -665,6 +689,9 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
                         m_previewTexture = LoadTexture(entry.path().string().c_str());
                         m_previewPath = filename;
                         m_showImagePreview = true;
+                    }
+                    else if (extension == ".py") {
+                        codeEditorPanel.OpenFile(entry.path(), currentViewMode);
                     }
                 }
             }

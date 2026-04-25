@@ -2,7 +2,7 @@
 #include <iostream>
 #include "core/GameStateManager.hpp"
 
-void ToolbarPanel::Draw(Scene& activeScene, GameObject*& selectedObject, bool& isPlaying, nlohmann::json& sceneBackup, bool& focusGameWindow) {
+void ToolbarPanel::Draw(Scene& activeScene, GameObject*& selectedObject, bool& isPlaying, nlohmann::json& sceneBackup, EditorViewMode& currentViewMode) {
     ImGui::Begin("Toolbar");
 
     // Change button color and text based on the current state
@@ -24,8 +24,8 @@ void ToolbarPanel::Draw(Scene& activeScene, GameObject*& selectedObject, bool& i
             // Start the game logic
             activeScene.Start();
 
-            // Set the flag to true so the Game view can grab focus on its next draw call
-            focusGameWindow = true;
+            // Set the flag to switch to the Game view
+            currentViewMode = EditorViewMode::Game;
         }
         ImGui::PopStyleColor();
     } else {
