@@ -147,6 +147,18 @@ void Animator2d::OnInspector() {
 
     ImGui::Separator();
 
+    // Static variables hold the temporary state of the form inputs.
+    // We declare them here so the "Edit" button below can populate them!
+    static char nameBuffer[64] = "";
+    static char framesBuffer[256] = "";
+    static float duration = 0.1f;
+    static bool loop = true;
+    static bool flipX = false;
+    static bool flipY = false;
+    static std::vector<int> pickerFrames; // Holds the visual picker's temporary sequence
+
+    bool openPickerModal = false;
+
     // Display a list of all registered animations
     if (ImGui::TreeNode("Registered Animations")) {
         // We use an iterator to safely erase elements while looping through the map
@@ -159,7 +171,7 @@ void Animator2d::OnInspector() {
 
             // Create a selectable list item for each animation
             // Clicking it will force the Animator to play this animation
-            if (ImGui::Selectable(animName.c_str(), isCurrent, 0, ImVec2(ImGui::GetContentRegionAvail().x - 30, 0))) {
+            if (ImGui::Selectable(animName.c_str(), isCurrent, 0, ImVec2(ImGui::GetContentRegionAvail().x - 65, 0))) {
                 // Capture the state BEFORE changing the animation
                 nlohmann::json initialState = Serialize();
                 
@@ -179,6 +191,27 @@ void Animator2d::OnInspector() {
                                   it->second.flipX ? "X " : "",
                                   it->second.flipY ? "Y" : (!it->second.flipX ? "None" : ""));
             }
+
+            // Edit Button
+            // Loads the selected animation's data into the form at the bottom
+            ImGui::SameLine();
+            if (ImGui::Button(ICON_FA_PEN)) {
+                strncpy(nameBuffer, animName.c_str(), sizeof(nameBuffer));
+                
+                // Convert the frame array back to a comma-separated string
+                std::string fStr;
+                for (size_t i = 0; i < it->second.frames.size(); ++i) {
+                    fStr += std::to_string(it->second.frames[i]);
+                    if (i < it->second.frames.size() - 1) fStr += ", ";
+                }
+                strncpy(framesBuffer, fStr.c_str(), sizeof(framesBuffer));
+                
+                duration = it->second.frameDuration;
+                loop = it->second.loop;
+                flipX = it->second.flipX;
+                flipY = it->second.flipY;
+            }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Edit this animation");
 
             // Deletion: Trash icon button at the end of the line
             ImGui::SameLine();
@@ -214,22 +247,28 @@ void Animator2d::OnInspector() {
 
     ImGui::Separator();
 
-    // Form to add a new animation
-    if (ImGui::TreeNode("Add New Animation")) {
-        // Static variables hold the temporary state of the form inputs
-        static char nameBuffer[64] = "";
-        static char framesBuffer[256] = "";
-        static float duration = 0.1f;
-        static bool loop = true;
-        static bool flipX = false;
-        static bool flipY = false;
-
+    // Form to add or edit an animation
+    // We use TreeNodeEx to keep it open by default
+    if (ImGui::TreeNodeEx("Add / Edit Animation", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::InputText("Name", nameBuffer, IM_ARRAYSIZE(nameBuffer));
         
         // Tooltip to explain the expected format
         ImGui::InputText("Frames", framesBuffer, IM_ARRAYSIZE(framesBuffer));
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Enter frame indices separated by commas (e.g., 0, 1, 2, 3)");
+        }
+
+        // Visual Picker Button
+        ImGui::SameLine();
+        if (ImGui::Button(ICON_FA_IMAGE " Pick")) {
+            // Parse the current buffer text into the visual picker's array
+            pickerFrames.clear();
+            std::stringstream ss(framesBuffer);
+            std::string item;
+            while (std::getline(ss, item, ',')) {
+                try { pickerFrames.push_back(std::stoi(item)); } catch (...) {}
+            }
+            openPickerModal = true;
         }
 
         ImGui::DragFloat("Duration", &duration, 0.01f, 0.01f, 5.0f, "%.2f sec");
@@ -239,7 +278,7 @@ void Animator2d::OnInspector() {
         ImGui::SameLine();
         ImGui::Checkbox("Flip Y", &flipY);
 
-        if (ImGui::Button("Create Animation", ImVec2(-1, 0))) {
+        if (ImGui::Button("Save Animation", ImVec2(-1, 0))) {
             std::string animName(nameBuffer);
             
             if (!animName.empty()) {
@@ -250,18 +289,16 @@ void Animator2d::OnInspector() {
                 // Parse the comma-separated string into integers
                 while (std::getline(ss, item, ',')) {
                     try {
-                        // std::stoi converts string to integer, ignoring surrounding whitespaces
                         parsedFrames.push_back(std::stoi(item));
                     } catch (...) {
-                        // Ignore any invalid inputs (like letters or extra commas)
                         std::cerr << "[Animator] Invalid frame skipped: " << item << std::endl;
                     }
                 }
 
-                // Only create the animation if at least one valid frame was provided
                 if (!parsedFrames.empty()) {
                     nlohmann::json initialState = Serialize();
                     
+                    // AddAnimation overwrites existing keys, making it perfect for editing too!
                     AddAnimation(animName, parsedFrames, duration, loop, flipX, flipY);
                     
                     CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
@@ -271,12 +308,120 @@ void Animator2d::OnInspector() {
                     framesBuffer[0] = '\0';
                     duration = 0.1f;
                     loop = true;
+                    flipX = false;
+                    flipY = false;
                 } else {
-                    std::cerr << "[Animator] Cannot create animation without frames." << std::endl;
+                    std::cerr << "[Animator] Cannot save animation without frames." << std::endl;
                 }
             }
         }
         ImGui::TreePop();
+    }
+
+    if (openPickerModal) {
+        ImGui::OpenPopup("AnimatorFramePickerModal");
+    }
+
+    // Visual frame picker modal
+    if (ImGui::BeginPopupModal("AnimatorFramePickerModal", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        SpriteSheetRenderer* sheet = owner->GetComponent<SpriteSheetRenderer>();
+        
+        if (!sheet || sheet->GetTexture().id == 0) {
+            ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), ICON_FA_TRIANGLE_EXCLAMATION " No valid SpriteSheetRenderer found!");
+            ImGui::Spacing();
+            if (ImGui::Button("Close", ImVec2(120, 0))) ImGui::CloseCurrentPopup();
+        } else {
+            ImGui::Text("Click frames in order to build your sequence.");
+            
+            // Build the sequence string for display
+            std::string seqStr;
+            for(size_t i = 0; i < pickerFrames.size(); ++i) {
+                seqStr += std::to_string(pickerFrames[i]) + (i < pickerFrames.size() - 1 ? ", " : "");
+            }
+            ImGui::TextColored(ImVec4(0.9f, 0.45f, 0.1f, 1.0f), "Sequence: %s", seqStr.empty() ? "Empty" : seqStr.c_str());
+            
+            if (ImGui::Button(ICON_FA_TRASH " Clear Sequence")) {
+                pickerFrames.clear();
+            }
+
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            Texture2D tex = sheet->GetTexture();
+            int cols = sheet->GetColumns();
+            int rows = sheet->GetRows();
+
+            float zoom = 2.0f; 
+            if (tex.width * zoom > 600) zoom = 600.0f / tex.width; 
+            if (zoom < 1.0f) zoom = 1.0f;
+
+            ImVec2 imageSize(tex.width * zoom, tex.height * zoom);
+            ImVec2 p = ImGui::GetCursorScreenPos();
+            
+            ImGui::Image((ImTextureID)(uintptr_t)tex.id, imageSize);
+            ImDrawList* drawList = ImGui::GetWindowDrawList();
+            
+            float cellWidth = imageSize.x / cols;
+            float cellHeight = imageSize.y / rows;
+
+            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                ImVec2 mousePos = ImGui::GetMousePos();
+                int col = (mousePos.x - p.x) / cellWidth;
+                int row = (mousePos.y - p.y) / cellHeight;
+                
+                if (col >= 0 && col < cols && row >= 0 && row < rows) {
+                    int clickedFrame = row * cols + col;
+                    pickerFrames.push_back(clickedFrame);
+                }
+            }
+
+            for (int y = 0; y < rows; ++y) {
+                for (int x = 0; x < cols; ++x) {
+                    int frameIdx = y * cols + x;
+                    ImVec2 cellMin(p.x + x * cellWidth, p.y + y * cellHeight);
+                    ImVec2 cellMax(cellMin.x + cellWidth, cellMin.y + cellHeight);
+
+                    drawList->AddRect(cellMin, cellMax, IM_COL32(255, 255, 255, 50));
+
+                    for (size_t i = 0; i < pickerFrames.size(); ++i) {
+                        if (pickerFrames[i] == frameIdx) {
+                            drawList->AddRectFilled(cellMin, cellMax, IM_COL32(230, 115, 25, 120));
+                            std::string stepStr = std::to_string(i + 1);
+                            ImVec2 textSize = ImGui::CalcTextSize(stepStr.c_str());
+                            ImVec2 textPos(
+                                cellMin.x + (cellWidth - textSize.x) * 0.5f,
+                                cellMin.y + (cellHeight - textSize.y) * 0.5f
+                            );
+                            drawList->AddText(ImVec2(textPos.x + 1, textPos.y + 1), IM_COL32(0, 0, 0, 255), stepStr.c_str());
+                            drawList->AddText(textPos, IM_COL32(255, 255, 255, 255), stepStr.c_str());
+                        }
+                    }
+                }
+            }
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        if (ImGui::Button("Apply", ImVec2(120, 0))) {
+            if (pickerFrames.empty()) pickerFrames.push_back(0); 
+            
+            // Rebuild the text buffer from our visual selection
+            std::string res;
+            for(size_t i = 0; i < pickerFrames.size(); ++i) {
+                res += std::to_string(pickerFrames[i]) + (i < pickerFrames.size() - 1 ? ", " : "");
+            }
+            strncpy(framesBuffer, res.c_str(), sizeof(framesBuffer));
+            
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
     }
 }
 #endif

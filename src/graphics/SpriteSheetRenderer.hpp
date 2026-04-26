@@ -37,6 +37,9 @@ class SpriteSheetRenderer : public Component {
         // Returns the total number of frames in the spritesheet
         int GetFrameCount() const { return m_columns * m_rows; }
 
+        int GetColumns() const { return m_columns; }
+        int GetRows() const { return m_rows; }
+
         std::string GetName() const override;
 
 #ifndef STANDALONE_MODE

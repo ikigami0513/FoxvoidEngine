@@ -43,4 +43,7 @@ private:
     // Helpers to easily edit the vector in ImGui text input
     std::string GetFramesAsString() const;
     void ParseFramesFromString(const std::string& str);
+
+    // Temporary backup for the visual picker (Cancel logic)
+    std::vector<int> m_pickerBackupFrames;
 };
