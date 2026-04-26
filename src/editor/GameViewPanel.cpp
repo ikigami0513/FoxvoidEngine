@@ -11,6 +11,7 @@ void GameViewPanel::Draw(RenderTexture2D& gameTexture, EditorViewMode& currentVi
     // If the flag was set by the Toolbar, we force focus on this window
     if (currentViewMode == EditorViewMode::Game) {
         ImGui::SetWindowFocus();
+        currentViewMode = EditorViewMode::None;
     }
     
     ImVec2 windowSize = ImGui::GetContentRegionAvail();

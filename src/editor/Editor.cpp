@@ -54,7 +54,7 @@ Editor::~Editor() {
     UnloadRenderTexture(m_sceneTexture);
 }
 
-void Editor::Draw(Scene& activeScene, RenderTexture2D& gameTexture, bool& isRunning, bool& isPlaying, std::string& currentScenePath, nlohmann::json& sceneBackup) {
+void Editor::Draw(Scene& activeScene, RenderTexture2D& gameTexture, bool& isRunning, std::string& currentScenePath, nlohmann::json& sceneBackup) {
     // Hub interception
     // If no project is loaded, only draw the Hub. Stop the rest of the editor rendering.
     if (!m_isProjectLoaded) {
@@ -98,9 +98,9 @@ void Editor::Draw(Scene& activeScene, RenderTexture2D& gameTexture, bool& isRunn
         TileMap* activeTileMap = m_selectedObject ? m_selectedObject->GetComponent<TileMap>() : nullptr;
         m_tilePalettePanel.Draw(m_selectedTileID, m_selectedLayer, activeTileMap);
 
-        m_toolbarPanel.Draw(activeScene, m_selectedObject, isPlaying, sceneBackup, m_currentViewMode);
+        m_toolbarPanel.Draw(activeScene, m_selectedObject, sceneBackup, m_currentViewMode);
         
-        m_sceneViewPanel.Draw(m_sceneTexture, *m_editorCamera, activeScene, m_selectedObject, m_selectedTileID, m_selectedLayer);
+        m_sceneViewPanel.Draw(m_sceneTexture, *m_editorCamera, activeScene, m_selectedObject, m_selectedTileID, m_selectedLayer, m_currentViewMode);
         m_gameViewPanel.Draw(gameTexture, m_currentViewMode);
         m_codeEditorPanel.Draw(m_currentViewMode);
 

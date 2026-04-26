@@ -9,7 +9,12 @@
 #include <graphics/TileMap.hpp>
 #include "commands/TileMapPaintCommand.hpp"
 
-void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject, int selectedTileID, int selectedLayer) {
+void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject, int selectedTileID, int selectedLayer, EditorViewMode& currentViewMode) {
+    if (currentViewMode == EditorViewMode::Scene) {
+        ImGui::SetNextWindowFocus();
+        currentViewMode = EditorViewMode::None;
+    }
+    
     // Remove inner margins (padding) so the render texture touches the window borders
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::Begin("Scene View");

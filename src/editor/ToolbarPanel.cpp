@@ -1,16 +1,20 @@
 #include "ToolbarPanel.hpp"
 #include <iostream>
 #include "core/GameStateManager.hpp"
+#include "core/Engine.hpp"
 
-void ToolbarPanel::Draw(Scene& activeScene, GameObject*& selectedObject, bool& isPlaying, nlohmann::json& sceneBackup, EditorViewMode& currentViewMode) {
+void ToolbarPanel::Draw(Scene& activeScene, GameObject*& selectedObject, nlohmann::json& sceneBackup, EditorViewMode& currentViewMode) {
     ImGui::Begin("Toolbar");
 
     // Change button color and text based on the current state
-    if (!isPlaying) {
+    if (!Engine::Get()->IsPlaying()) {
         // Green Play Button
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.2f, 1.0f));
         if (ImGui::Button("PLAY")) {
-            isPlaying = true;
+            Engine::Get()->SetPlaying(true);
+            // Set the flag to switch to the Game view
+            currentViewMode = EditorViewMode::Game;
+            
             std::cout << "[Editor] Entered PLAY mode." << std::endl;
             
             selectedObject = nullptr;
@@ -23,16 +27,15 @@ void ToolbarPanel::Draw(Scene& activeScene, GameObject*& selectedObject, bool& i
 
             // Start the game logic
             activeScene.Start();
-
-            // Set the flag to switch to the Game view
-            currentViewMode = EditorViewMode::Game;
         }
         ImGui::PopStyleColor();
     } else {
         // Red Stop Button
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
         if (ImGui::Button("STOP")) {
-            isPlaying = false;
+            Engine::Get()->SetPlaying(false);
+            currentViewMode = EditorViewMode::Scene;
+
             std::cout << "[Editor] Entered EDIT mode." << std::endl;
             
             selectedObject = nullptr;

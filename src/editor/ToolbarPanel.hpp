@@ -12,5 +12,5 @@
 // Panel for Play / Stop and Save / Load controls
 class ToolbarPanel {
     public:
-        void Draw(Scene& activeScene, GameObject*& selectedObject, bool& isPlaying, nlohmann::json& sceneBackup, EditorViewMode& currentViewMode);
+        void Draw(Scene& activeScene, GameObject*& selectedObject, nlohmann::json& sceneBackup, EditorViewMode& currentViewMode);
 };

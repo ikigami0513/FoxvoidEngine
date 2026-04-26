@@ -185,7 +185,7 @@ void Engine::Render() {
         ClearBackground(DARKGRAY);
 
         if (m_editor) {
-            m_editor->Draw(m_activeScene, m_gameTexture, m_isRunning, m_isPlaying, m_currentScenePath, m_sceneBackup);
+            m_editor->Draw(m_activeScene, m_gameTexture, m_isRunning, m_currentScenePath, m_sceneBackup);
         }
 
     EndDrawing();
@@ -207,6 +207,10 @@ void Engine::Render() {
 void Engine::LoadScene(const std::string& scenePath) {
     std::cout << "[Engine] Scene change requested: " << scenePath << std::endl;
     m_pendingScenePath = scenePath;
+}
+
+void Engine::SetPlaying(bool playing) {
+    m_isPlaying = playing;
 }
 
 bool Engine::IsPlaying() const { 

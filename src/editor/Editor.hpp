@@ -33,7 +33,7 @@ class Editor {
         ~Editor();
 
         // The main function that orchestrates all editor rendering
-        void Draw(Scene& activeScene, RenderTexture2D& gameTexture, bool& isRunning, bool& isPlaying, std::string& currentScenePath, nlohmann::json& sceneBackup);
+        void Draw(Scene& activeScene, RenderTexture2D& gameTexture, bool& isRunning, std::string& currentScenePath, nlohmann::json& sceneBackup);
 
     private:
         void ApplyModernTheme();

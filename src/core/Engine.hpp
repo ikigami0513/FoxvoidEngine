@@ -39,6 +39,7 @@ class Engine {
         // Requests a scene change for the start of the next frame
         void LoadScene(const std::string& scenePath);
 
+        void SetPlaying(bool playing);
         bool IsPlaying() const;
 
     private:
