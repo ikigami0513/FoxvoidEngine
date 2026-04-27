@@ -6,6 +6,7 @@
 #include <sstream>
 
 #ifndef STANDALONE_MODE
+#include <rlImGui.h>
 #include <editor/commands/CommandHistory.hpp>
 #include <editor/commands/ModifyComponentCommand.hpp>
 #include <extras/IconsFontAwesome6.h>
@@ -16,7 +17,8 @@ Animator2d::Animator2d()
       m_timer(0.0f), 
       m_currentAnimation(""), 
       m_playbackDirection(1),
-      m_playbackSpeed(1.0F),
+      m_playbackSpeed(1.0f),
+      m_playState(PlayState::Stopped),
       m_spriteRenderer(nullptr) 
 {
 }
@@ -26,8 +28,9 @@ void Animator2d::AddAnimation(const std::string& name, const std::vector<int>& f
 }
 
 void Animator2d::Play(const std::string& name) {
-    // Prevent restarting the same animation if it's already playing
-    if (m_currentAnimation == name) {
+    // If it's already the current animation and it's paused, just resume
+    if (m_currentAnimation == name && m_playState != PlayState::Stopped) {
+        Resume();
         return;
     }
 
@@ -37,7 +40,8 @@ void Animator2d::Play(const std::string& name) {
         m_currentFrameIndex = 0;
         m_timer = 0.0f;
         m_playbackDirection = 1; // Always reset direction when playing a new animation
-        
+        m_playState = PlayState::Playing;
+
         // Immediately update the sprite to show the first frame of the new animation
         UpdateSprite();
     } else {
@@ -45,9 +49,48 @@ void Animator2d::Play(const std::string& name) {
     }
 }
 
+void Animator2d::Pause() {
+    if (m_playState == PlayState::Playing) {
+        m_playState = PlayState::Paused;
+    }
+}
+
+void Animator2d::Resume() {
+    if (m_playState == PlayState::Paused && !m_currentAnimation.empty()) {
+        m_playState = PlayState::Playing;
+    }
+}
+
+void Animator2d::Stop() {
+    m_playState = PlayState::Stopped;
+    m_currentFrameIndex = 0; // Reset to the first frame
+    m_timer = 0.0f;
+    UpdateSprite();
+}
+
+bool Animator2d::IsPlaying() const {
+    return m_playState == PlayState::Playing;
+}
+
+bool Animator2d::IsFinished() const {
+    // If stopped or no animation, we consider it "finished"
+    if (m_playState == PlayState::Stopped || m_currentAnimation.empty()) return true;
+    
+    auto it = m_animations.find(m_currentAnimation);
+    if (it != m_animations.end()) {
+        const AnimationData& anim = it->second;
+        // Looping animations technically never finish
+        if (anim.loopMode != LoopMode::Once) return false;
+        
+        // It's finished if we are on the last frame
+        return m_currentFrameIndex >= (int)anim.frames.size() - 1;
+    }
+    return true;
+}
+
 void Animator2d::Update(float deltaTime) {
     // Do nothing if no animation is currently set
-    if (m_currentAnimation.empty()) {
+    if (m_playState != PlayState::Playing || m_currentAnimation.empty()) {
         return;
     }
 
@@ -93,6 +136,7 @@ void Animator2d::Update(float deltaTime) {
             }
             else { // Once
                 m_currentFrameIndex = anim.frames.size() - 1;
+                m_playState = PlayState::Stopped;
             }
         }
         // We reached the beginning of the animation (moving backward in PingPong)
@@ -108,6 +152,7 @@ void Animator2d::Update(float deltaTime) {
             }
             else { // Once
                 m_currentFrameIndex = 0;
+                m_playState = PlayState::Stopped;
             }
         }
 
@@ -168,6 +213,46 @@ void Animator2d::OnInspector() {
     // Read-only properties do not need Undo/Redo tracking
     // Display current state
     ImGui::Text("Current Animation: %s", m_currentAnimation.empty() ? "None" : m_currentAnimation.c_str());
+    
+    // Playback UI Controls
+    const char* stateStr = (m_playState == PlayState::Playing) ? "Playing" : 
+                           (m_playState == PlayState::Paused) ? "Paused" : "Stopped";
+    ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "State: %s", stateStr);
+
+    ImGui::Spacing();
+
+    // Play / Resume Button
+    if (m_playState == PlayState::Playing) {
+        ImGui::BeginDisabled();
+        ImGui::Button(ICON_FA_PLAY, ImVec2(30, 30));
+        ImGui::EndDisabled();
+    } else {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.2f, 1.0f)); // Green
+        if (ImGui::Button(ICON_FA_PLAY, ImVec2(30, 30))) {
+            if (m_playState == PlayState::Paused) Resume();
+            else if (!m_currentAnimation.empty()) Play(m_currentAnimation);
+        }
+        ImGui::PopStyleColor();
+    }
+
+    ImGui::SameLine();
+
+    // Pause Button
+    if (m_playState != PlayState::Playing) ImGui::BeginDisabled();
+    if (ImGui::Button(ICON_FA_PAUSE, ImVec2(30, 30))) Pause();
+    if (m_playState != PlayState::Playing) ImGui::EndDisabled();
+
+    ImGui::SameLine();
+
+    // Stop Button
+    if (m_playState == PlayState::Stopped) ImGui::BeginDisabled();
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f)); // Red
+    if (ImGui::Button(ICON_FA_STOP, ImVec2(30, 30))) Stop();
+    ImGui::PopStyleColor();
+    if (m_playState == PlayState::Stopped) ImGui::EndDisabled();
+
+    ImGui::Spacing();
+    
     ImGui::Text("Frame Index: %d", m_currentFrameIndex);
     ImGui::Text("Timer: %.3f", m_timer);
 
@@ -355,6 +440,107 @@ void Animator2d::OnInspector() {
                 }
             }
         }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Live Preview
+        ImGui::TextColored(ImVec4(0.4f, 0.8f, 0.4f, 1.0f), ICON_FA_EYE " Live Preview");
+        
+        std::vector<int> previewFrames;
+        std::stringstream ss(framesBuffer);
+        std::string item;
+        while (std::getline(ss, item, ',')) {
+            try { previewFrames.push_back(std::stoi(item)); } catch (...) {}
+        }
+
+        if (!previewFrames.empty()) {
+            SpriteSheetRenderer* sheet = owner->GetComponent<SpriteSheetRenderer>();
+            if (sheet && sheet->GetTexture().id != 0) {
+                // Local static variables for the UI animation timer
+                static float previewTimer = 0.0f;
+                static int previewLocalIndex = 0;
+                static int previewDirection = 1;
+
+                // Animate based on ImGui's DeltaTime and the current playback speed
+                if (duration > 0.0f) {
+                    previewTimer += ImGui::GetIO().DeltaTime * m_playbackSpeed;
+                    if (previewTimer >= duration) {
+                        previewTimer -= duration;
+                        previewLocalIndex += previewDirection;
+                        
+                        // Loop mode logic simulation for the preview
+                        if (previewLocalIndex >= (int)previewFrames.size()) {
+                            if (loopModeIdx == 1) previewLocalIndex = 0; // Loop
+                            else if (loopModeIdx == 2) { // PingPong
+                                previewDirection = -1; 
+                                previewLocalIndex = std::max(0, (int)previewFrames.size() - 2); 
+                            } 
+                            else previewLocalIndex = previewFrames.size() - 1; // Once
+                        } else if (previewLocalIndex < 0) {
+                            if (loopModeIdx == 2) { // PingPong
+                                previewDirection = 1; 
+                                previewLocalIndex = std::min((int)previewFrames.size() - 1, 1); 
+                            }
+                            else previewLocalIndex = 0;
+                        }
+                    }
+                }
+
+                // Safety fallback
+                if (previewLocalIndex >= previewFrames.size() || previewLocalIndex < 0) previewLocalIndex = 0;
+
+                int currentFrame = previewFrames[previewLocalIndex];
+                Texture2D tex = sheet->GetTexture();
+                int cols = sheet->GetColumns();
+                int rows = sheet->GetRows();
+
+                if (cols > 0 && rows > 0) {
+                    // Calculate UV coordinates
+                    int col = currentFrame % cols;
+                    int row = currentFrame / cols;
+
+                    float frameWidth = (float)tex.width / cols;
+                    float frameHeight = (float)tex.height / rows;
+
+                    // This bypasses the negative width bug in rlImGuiImageRect
+                    float u0 = (col * frameWidth) / tex.width;
+                    float v0 = (row * frameHeight) / tex.height;
+                    float u1 = ((col + 1) * frameWidth) / tex.width;
+                    float v1 = ((row + 1) * frameHeight) / tex.height;
+
+                    // Define the source rectangle (negative width/height flips the image natively in Raylib!)
+                    Rectangle sourceRec = { 
+                        col * frameWidth, 
+                        row * frameHeight, 
+                        flipX ? -frameWidth : frameWidth, 
+                        flipY ? -frameHeight : frameHeight 
+                    };
+
+                    // Swap the UV coordinates directly if flipped!
+                    // This guarantees the exact same frame is drawn, just mirrored.
+                    ImVec2 uv0 = ImVec2(flipX ? u1 : u0, flipY ? v1 : v0);
+                    ImVec2 uv1 = ImVec2(flipX ? u0 : u1, flipY ? v0 : v1);
+
+                    // Render setup
+                    float previewHeight = 120.0f; // Fixed height for UI consistency
+                    float previewWidth = previewHeight * (frameWidth / frameHeight);
+
+                    // Center the image in the panel
+                    float availX = ImGui::GetContentRegionAvail().x;
+                    ImGui::SetCursorPosX((availX - previewWidth) * 0.5f);
+
+                    // Draw!
+                    ImGui::Image((ImTextureID)(uintptr_t)tex.id, ImVec2(previewWidth, previewHeight), uv0, uv1);
+                }
+            } else {
+                ImGui::TextDisabled("Add a valid SpriteSheetRenderer to see the preview.");
+            }
+        } else {
+            ImGui::TextDisabled("Enter frames to preview the animation.");
+        }
+
         ImGui::TreePop();
     }
 
@@ -478,6 +664,7 @@ nlohmann::json Animator2d::Serialize() const {
     j["timer"] = m_timer;
     j["playbackDirection"] = m_playbackDirection;
     j["playbackSpeed"] = m_playbackSpeed;
+    j["playState"] = static_cast<int>(m_playState);
 
     // Save all registered animations
     nlohmann::json animsJson;
@@ -507,6 +694,7 @@ void Animator2d::Deserialize(const nlohmann::json& j) {
     if (j.contains("playbackDirection")) m_playbackDirection = j["playbackDirection"].get<int>();
     
     m_playbackSpeed = j.value("playbackSpeed", 1.0f);
+    m_playState = static_cast<PlayState>(j.value("playState", 2));
 
     // Safely load all registered animations
     if (j.contains("animations")) {

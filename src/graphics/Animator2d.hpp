@@ -14,6 +14,12 @@ enum class LoopMode {
     PingPong = 2
 };
 
+enum class PlayState {
+    Playing,
+    Paused,
+    Stopped
+};
+
 // Struct to hold individual animation data
 struct AnimationData {
     std::vector<int> frames;
@@ -39,6 +45,19 @@ class Animator2d : public Component {
         // Switches to a new animation if it exists and isn't already playing
         void Play(const std::string& name);
 
+        // Playback Controls
+        void Pause();
+        void Resume();
+        void Stop();
+
+        // Status Queries
+        bool IsPlaying() const;
+        bool IsFinished() const;
+
+        // Speed Accessors
+        void SetPlaybackSpeed(float speed) { m_playbackSpeed = speed; }
+        float GetPlaybackSpeed() const { return m_playbackSpeed; }
+
         std::string GetName() const override;
 
 #ifndef STANDALONE_MODE
@@ -63,6 +82,8 @@ class Animator2d : public Component {
 
         // Global speed multiplier for this animator
         float m_playbackSpeed;
+
+        PlayState m_playState;
         
         // Cached pointer to the renderer to avoid querying it every frame
         SpriteSheetRenderer* m_spriteRenderer;

@@ -96,12 +96,24 @@ void BindGraphics(py::module_& m) {
         }
     );
 
+    py::enum_<LoopMode>(m, "LoopMode")
+        .value("Once", LoopMode::Once)
+        .value("Loop", LoopMode::Loop)
+        .value("PingPong", LoopMode::PingPong)
+        .export_values();
+
     py::class_<Animator2d, Component>(m, "Animator2d")
         .def(py::init<>())
         .def("add_animation", &Animator2d::AddAnimation, 
             py::arg("name"), py::arg("frames"), py::arg("frame_duration"), py::arg("loop"),
             py::arg("flip_x") = false, py::arg("flip_y") = false)
-        .def("play", &Animator2d::Play);
+        .def("play", &Animator2d::Play)
+        .def("pause", &Animator2d::Pause)
+        .def("resume", &Animator2d::Resume)
+        .def("stop", &Animator2d::Stop)
+        .def("is_playing", &Animator2d::IsPlaying)
+        .def("is_finished", &Animator2d::IsFinished)
+        .def_property("playback_speed", &Animator2d::GetPlaybackSpeed, &Animator2d::SetPlaybackSpeed);
 
     ComponentRegistry::Register<Animator2d>("Animator2d", 
         [](GameObject& go, py::args args) -> py::object {
