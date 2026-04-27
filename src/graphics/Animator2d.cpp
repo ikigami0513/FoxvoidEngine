@@ -16,6 +16,7 @@ Animator2d::Animator2d()
       m_timer(0.0f), 
       m_currentAnimation(""), 
       m_playbackDirection(1),
+      m_playbackSpeed(1.0F),
       m_spriteRenderer(nullptr) 
 {
 }
@@ -68,7 +69,7 @@ void Animator2d::Update(float deltaTime) {
         return;
     }
 
-    m_timer += deltaTime;
+    m_timer += deltaTime * m_playbackSpeed;
 
     // If enough time has passed, move to the next frame
     if (m_timer >= anim.frameDuration) {
@@ -172,6 +173,10 @@ void Animator2d::OnInspector() {
 
     // Debug info to see the Ping-Pong effect
     ImGui::Text("Direction: %s", m_playbackDirection == 1 ? "Forward" : "Backward");
+
+    ImGui::Spacing();
+
+    EditorUI::DragFloat("Playback Speed", &m_playbackSpeed, 0.05f, this, 0.0f, 10.0f);
 
     ImGui::Separator();
 
@@ -472,6 +477,7 @@ nlohmann::json Animator2d::Serialize() const {
     j["currentFrameIndex"] = m_currentFrameIndex;
     j["timer"] = m_timer;
     j["playbackDirection"] = m_playbackDirection;
+    j["playbackSpeed"] = m_playbackSpeed;
 
     // Save all registered animations
     nlohmann::json animsJson;
@@ -498,6 +504,9 @@ void Animator2d::Deserialize(const nlohmann::json& j) {
     if (j.contains("currentAnimation")) m_currentAnimation = j["currentAnimation"].get<std::string>();
     if (j.contains("currentFrameIndex")) m_currentFrameIndex = j["currentFrameIndex"].get<int>();
     if (j.contains("timer")) m_timer = j["timer"].get<float>();
+    if (j.contains("playbackDirection")) m_playbackDirection = j["playbackDirection"].get<int>();
+    
+    m_playbackSpeed = j.value("playbackSpeed", 1.0f);
 
     // Safely load all registered animations
     if (j.contains("animations")) {

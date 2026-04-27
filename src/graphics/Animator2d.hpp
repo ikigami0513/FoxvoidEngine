@@ -60,6 +60,9 @@ class Animator2d : public Component {
 
         // Tracks if we are reading frames forward (1) or backward (-1)
         int m_playbackDirection;
+
+        // Global speed multiplier for this animator
+        float m_playbackSpeed;
         
         // Cached pointer to the renderer to avoid querying it every frame
         SpriteSheetRenderer* m_spriteRenderer;
