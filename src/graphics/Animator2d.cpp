@@ -15,12 +15,13 @@ Animator2d::Animator2d()
     : m_currentFrameIndex(0), 
       m_timer(0.0f), 
       m_currentAnimation(""), 
+      m_playbackDirection(1),
       m_spriteRenderer(nullptr) 
 {
 }
 
-void Animator2d::AddAnimation(const std::string& name, const std::vector<int>& frames, float frameDuration, bool loop, bool flipX, bool flipY) {
-    m_animations[name] = { frames, frameDuration, loop, flipX, flipY };
+void Animator2d::AddAnimation(const std::string& name, const std::vector<int>& frames, float frameDuration, LoopMode loopMode, bool flipX, bool flipY) {
+    m_animations[name] = { frames, frameDuration, loopMode, flipX, flipY };
 }
 
 void Animator2d::Play(const std::string& name) {
@@ -34,6 +35,7 @@ void Animator2d::Play(const std::string& name) {
         m_currentAnimation = name;
         m_currentFrameIndex = 0;
         m_timer = 0.0f;
+        m_playbackDirection = 1; // Always reset direction when playing a new animation
         
         // Immediately update the sprite to show the first frame of the new animation
         UpdateSprite();
@@ -72,16 +74,39 @@ void Animator2d::Update(float deltaTime) {
     if (m_timer >= anim.frameDuration) {
         // Subtract the duration to keep the remainder for precise timing (smooth animations)
         m_timer -= anim.frameDuration; 
-        m_currentFrameIndex++;
 
-        // Check if we reached the end of the animation sequence
-        if (m_currentFrameIndex >= anim.frames.size()) {
-            if (anim.loop) {
-                // Loop back to the first frame
-                m_currentFrameIndex = 0; 
-            } else {
-                // Stay clamped on the last frame
-                m_currentFrameIndex = anim.frames.size() - 1; 
+        // Move forward or backward based on the current direction
+        m_currentFrameIndex += m_playbackDirection;
+
+        // Loop mode logic
+        
+        // We reached the end of the animation (moving forward)
+        if (m_currentFrameIndex >= (int)anim.frames.size()) {
+            if (anim.loopMode == LoopMode::Loop) {
+                m_currentFrameIndex = 0;
+            }
+            else if (anim.loopMode == LoopMode::PingPong) {
+                m_playbackDirection = -1; // Reverse direction
+                // Go to the second-to-last frame (avoiding out of bounds if size is 1)
+                m_currentFrameIndex = std::max(0, (int)anim.frames.size() - 2);
+            }
+            else { // Once
+                m_currentFrameIndex = anim.frames.size() - 1;
+            }
+        }
+        // We reached the beginning of the animation (moving backward in PingPong)
+        else if (m_currentFrameIndex < 0) {
+            if (anim.loopMode == LoopMode::PingPong) {
+                m_playbackDirection = 1; // Reverse back to forward
+                // Go to the second frame
+                m_currentFrameIndex = std::min((int)anim.frames.size() - 1, 1);
+            }
+            else if (anim.loopMode == LoopMode::Loop) {
+                // Failsafe (usually handled by moving forward, but good to have)
+                m_currentFrameIndex = anim.frames.size() - 1;
+            }
+            else { // Once
+                m_currentFrameIndex = 0;
             }
         }
 
@@ -145,6 +170,9 @@ void Animator2d::OnInspector() {
     ImGui::Text("Frame Index: %d", m_currentFrameIndex);
     ImGui::Text("Timer: %.3f", m_timer);
 
+    // Debug info to see the Ping-Pong effect
+    ImGui::Text("Direction: %s", m_playbackDirection == 1 ? "Forward" : "Backward");
+
     ImGui::Separator();
 
     // Static variables hold the temporary state of the form inputs.
@@ -152,7 +180,7 @@ void Animator2d::OnInspector() {
     static char nameBuffer[64] = "";
     static char framesBuffer[256] = "";
     static float duration = 0.1f;
-    static bool loop = true;
+    static int loopModeIdx = 1; // 0=Once, 1=Loop, 2=PingPong
     static bool flipX = false;
     static bool flipY = false;
     static std::vector<int> pickerFrames; // Holds the visual picker's temporary sequence
@@ -184,10 +212,13 @@ void Animator2d::OnInspector() {
             
             // Show a small tooltip with animation details when hovering
             if (ImGui::IsItemHovered()) {
+                const char* loopStr = (it->second.loopMode == LoopMode::Once) ? "Once" : 
+                                      (it->second.loopMode == LoopMode::PingPong) ? "PingPong" : "Loop";
+
                 ImGui::SetTooltip("Frames: %zu | Duration: %.2fs | Loop: %s | Flip: %s%s", 
                                   it->second.frames.size(), 
                                   it->second.frameDuration, 
-                                  it->second.loop ? "Yes" : "No",
+                                  loopStr,
                                   it->second.flipX ? "X " : "",
                                   it->second.flipY ? "Y" : (!it->second.flipX ? "None" : ""));
             }
@@ -207,7 +238,7 @@ void Animator2d::OnInspector() {
                 strncpy(framesBuffer, fStr.c_str(), sizeof(framesBuffer));
                 
                 duration = it->second.frameDuration;
-                loop = it->second.loop;
+                loopModeIdx = static_cast<int>(it->second.loopMode);
                 flipX = it->second.flipX;
                 flipY = it->second.flipY;
             }
@@ -272,7 +303,10 @@ void Animator2d::OnInspector() {
         }
 
         ImGui::DragFloat("Duration", &duration, 0.01f, 0.01f, 5.0f, "%.2f sec");
-        ImGui::Checkbox("Loop", &loop);
+        
+        // Combo box for Loop Mode instead of a Checkbox
+        const char* loopModes[] = { "Once", "Loop", "PingPong" };
+        ImGui::Combo("Mode", &loopModeIdx, loopModes, IM_ARRAYSIZE(loopModes));
 
         ImGui::Checkbox("Flip X", &flipX);
         ImGui::SameLine();
@@ -299,7 +333,8 @@ void Animator2d::OnInspector() {
                     nlohmann::json initialState = Serialize();
                     
                     // AddAnimation overwrites existing keys, making it perfect for editing too!
-                    AddAnimation(animName, parsedFrames, duration, loop, flipX, flipY);
+                    LoopMode selectedMode = static_cast<LoopMode>(loopModeIdx);
+                    AddAnimation(animName, parsedFrames, duration, selectedMode, flipX, flipY);
                     
                     CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
 
@@ -307,7 +342,7 @@ void Animator2d::OnInspector() {
                     nameBuffer[0] = '\0';
                     framesBuffer[0] = '\0';
                     duration = 0.1f;
-                    loop = true;
+                    loopModeIdx = 1;
                     flipX = false;
                     flipY = false;
                 } else {
@@ -436,6 +471,7 @@ nlohmann::json Animator2d::Serialize() const {
     j["currentAnimation"] = m_currentAnimation;
     j["currentFrameIndex"] = m_currentFrameIndex;
     j["timer"] = m_timer;
+    j["playbackDirection"] = m_playbackDirection;
 
     // Save all registered animations
     nlohmann::json animsJson;
@@ -443,7 +479,7 @@ nlohmann::json Animator2d::Serialize() const {
         nlohmann::json animData;
         animData["frames"] = pair.second.frames;
         animData["frameDuration"] = pair.second.frameDuration;
-        animData["loop"] = pair.second.loop;
+        animData["loopMode"] = static_cast<int>(pair.second.loopMode);
         animData["flipX"] = pair.second.flipX;
         animData["flipY"] = pair.second.flipY;
         
@@ -472,7 +508,18 @@ void Animator2d::Deserialize(const nlohmann::json& j) {
             AnimationData data;
             data.frames = it.value()["frames"].get<std::vector<int>>();
             data.frameDuration = it.value()["frameDuration"].get<float>();
-            data.loop = it.value()["loop"].get<bool>();
+            
+            // Backward Compatibility
+            // If the old scene file has a 'loop' boolean, convert it smoothly
+            if (it.value().contains("loopMode")) {
+                data.loopMode = static_cast<LoopMode>(it.value()["loopMode"].get<int>());
+            } else if (it.value().contains("loop")) {
+                bool oldLoop = it.value()["loop"].get<bool>();
+                data.loopMode = oldLoop ? LoopMode::Loop : LoopMode::Once;
+            } else {
+                data.loopMode = LoopMode::Loop; // Default fallback
+            }
+
             data.flipX = it.value().value("flipX", false);
             data.flipY = it.value().value("flipY", false);
 

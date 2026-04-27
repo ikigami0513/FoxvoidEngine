@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../world/Component.hpp"
+#include "world/Component.hpp"
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -8,11 +8,17 @@
 // Forward declarations to avoid cyclic includes and speed up compilation
 class SpriteSheetRenderer;
 
+enum class LoopMode {
+    Once = 0,
+    Loop = 1,
+    PingPong = 2
+};
+
 // Struct to hold individual animation data
 struct AnimationData {
     std::vector<int> frames;
     float frameDuration;
-    bool loop;
+    LoopMode loopMode;
     bool flipX;
     bool flipY;
 };
@@ -28,7 +34,7 @@ class Animator2d : public Component {
         void Render() override;
 
         // Registers a new animation state
-        void AddAnimation(const std::string& name, const std::vector<int>& frames, float frameDuration, bool loop, bool flipX = false, bool flipY = false);
+        void AddAnimation(const std::string& name, const std::vector<int>& frames, float frameDuration, LoopMode loopMode, bool flipX = false, bool flipY = false);
 
         // Switches to a new animation if it exists and isn't already playing
         void Play(const std::string& name);
@@ -51,6 +57,9 @@ class Animator2d : public Component {
         
         int m_currentFrameIndex;
         float m_timer;
+
+        // Tracks if we are reading frames forward (1) or backward (-1)
+        int m_playbackDirection;
         
         // Cached pointer to the renderer to avoid querying it every frame
         SpriteSheetRenderer* m_spriteRenderer;
