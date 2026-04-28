@@ -97,6 +97,12 @@ class GameObject {
             }
         }
 
+        void OnAnimationEvent(const std::string& eventName) {
+            for (auto& component : components) {
+                component->OnAnimationEvent(eventName);
+            }
+        }
+
         // Safely removes a component from the entity
         void RemoveComponent(Component* compToRemove) {
             if (!compToRemove) return;

@@ -21,6 +21,9 @@ class [[gnu::visibility("default")]] ScriptComponent : public Component {
         void Update(float deltaTime) override;
         void OnCollision(const Collision2D& collision) override;
         
+        // Receive animation events and pass them to python
+        void OnAnimationEvent(const std::string& eventName) override;
+
         // Core method to load a script safely via UUID
         void LoadScript(UUID scriptUUID, const std::string& className);
 

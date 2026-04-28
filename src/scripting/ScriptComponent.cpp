@@ -158,6 +158,20 @@ void ScriptComponent::OnCollision(const Collision2D& collision) {
     }
 }
 
+void ScriptComponent::OnAnimationEvent(const std::string& eventName) {
+    if (!m_instance) return;
+
+    try {
+        // Look for 'on_animation_event' in the Python script
+        if (py::hasattr(m_instance, "on_animation_event")) {
+            // Call the python method passing the event name string
+            m_instance.attr("on_animation_event")(eventName);
+        }
+    } catch (const py::error_already_set& e) {
+        std::cerr << "[ScriptComponent] OnAnimationEvent Error:\n" << e.what() << std::endl;
+    }
+}
+
 void ScriptComponent::HotReload() {
     std::cout << "[ScriptEngine] File changed. Hot reloading: " << m_scriptName << "..." << std::endl;
 

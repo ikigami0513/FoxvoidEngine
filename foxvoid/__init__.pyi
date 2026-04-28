@@ -151,9 +151,24 @@ class Component:
         """The owning GameObject of this component (Read-only)."""
         ...
 
-    def start(self) -> None: ...
-    def update(self, delta_time: float) -> None: ...
-    def on_collision(self, collision: Collision2D) -> None: ...
+    def start(self) -> None: 
+        """Called once when the component is initialized."""
+        ...
+        
+    def update(self, delta_time: float) -> None: 
+        """Called every frame for logic and physics."""
+        ...
+        
+    def on_collision(self, collision: 'Collision2D') -> None: 
+        """Called when this object's collider intersects with another."""
+        ...
+        
+    def on_animation_event(self, event_name: str) -> None:
+        """
+        Called automatically by an attached Animator2d when a specific frame is reached.
+        Override this method in your script to handle animation events (e.g., footsteps, attacks).
+        """
+        ...
 
 
 class Transform2d(Component):
@@ -444,6 +459,13 @@ class Animation2d(Component):
         ...
 
 
+class LoopMode(Enum):
+    """Defines how an animation should behave when it reaches the end."""
+    Once = 0
+    Loop = 1
+    PingPong = 2
+
+
 class Animator2d(Component):
     """
     Manages and plays 2D frame-based animations using an attached SpriteSheetRenderer.
@@ -453,7 +475,16 @@ class Animator2d(Component):
         """Initializes an empty Animator2d."""
         ...
 
-    def add_animation(self, name: str, frames: list[int], frame_duration: float, loop: bool, flip_x: bool = False, flip_y: bool = False) -> None:
+    @property
+    def playback_speed(self) -> float:
+        """The global speed multiplier for the animator (1.0 is normal speed)."""
+        ...
+
+    @playback_speed.setter
+    def playback_speed(self, value: float) -> None:
+        ...
+
+    def add_animation(self, name: str, frames: list[int], frame_duration: float, loop: bool, flip_x: bool = False, flip_y: bool = False, events: dict[int, List[str]] = {}) -> None:
         """
         Registers a new animation state.
         
@@ -468,6 +499,29 @@ class Animator2d(Component):
         """
         Switches the current playback to the specified animation.
         Does nothing if the animation is already playing.
+        """
+        ...
+
+    def pause(self) -> None:
+        """Pauses the current animation. It can be resumed later."""
+        ...
+
+    def resume(self) -> None:
+        """Resumes a paused animation from where it left off."""
+        ...
+
+    def stop(self) -> None:
+        """Stops the animation and resets it to the first frame."""
+        ...
+
+    def is_playing(self) -> bool:
+        """Returns True if an animation is currently playing and not paused/stopped."""
+        ...
+
+    def is_finished(self) -> bool:
+        """
+        Returns True if the current non-looping animation has reached its final frame,
+        or if the animator is currently stopped.
         """
         ...
 

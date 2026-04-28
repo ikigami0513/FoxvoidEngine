@@ -105,8 +105,14 @@ void BindGraphics(py::module_& m) {
     py::class_<Animator2d, Component>(m, "Animator2d")
         .def(py::init<>())
         .def("add_animation", &Animator2d::AddAnimation, 
-            py::arg("name"), py::arg("frames"), py::arg("frame_duration"), py::arg("loop"),
-            py::arg("flip_x") = false, py::arg("flip_y") = false)
+            py::arg("name"), 
+            py::arg("frames"), 
+            py::arg("frame_duration"), 
+            py::arg("loop"),
+            py::arg("flip_x") = false, 
+            py::arg("flip_y") = false,
+            py::arg("events") = std::unordered_map<int, std::vector<std::string>>()
+        )
         .def("play", &Animator2d::Play)
         .def("pause", &Animator2d::Pause)
         .def("resume", &Animator2d::Resume)

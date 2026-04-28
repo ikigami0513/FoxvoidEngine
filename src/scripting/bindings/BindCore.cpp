@@ -40,7 +40,8 @@ void BindCore(py::module_& m) {
         .def_property_readonly("game_object", [](Component& c) { return c.owner; }, py::return_value_policy::reference)
         .def("start", &Component::Start)
         .def("update", &Component::Update, py::arg("delta_time"))
-        .def("on_collision", &Component::OnCollision, py::arg("collision"));
+        .def("on_collision", &Component::OnCollision, py::arg("collision"))
+        .def("on_animation_events", &Component::OnAnimationEvent, py::arg("event_name"));
 
     py::class_<GameObject>(m, "GameObject")
         .def_readwrite("name", &GameObject::name)

@@ -39,6 +39,10 @@ class Component {
 
         virtual void OnCollision(const Collision2D& collision) {}
 
+        // Called whan an Animator2d triggers a specific frame event.
+        // Can be overridden by scripts, audio players, or particle emitters.
+        virtual void OnAnimationEvent(const std::string& eventName) {}
+
         // Returns the name of the component for the Inspecteur header
         virtual std::string GetName() const { return "Component"; }
 

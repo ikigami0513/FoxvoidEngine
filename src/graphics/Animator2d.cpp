@@ -23,8 +23,8 @@ Animator2d::Animator2d()
 {
 }
 
-void Animator2d::AddAnimation(const std::string& name, const std::vector<int>& frames, float frameDuration, LoopMode loopMode, bool flipX, bool flipY) {
-    m_animations[name] = { frames, frameDuration, loopMode, flipX, flipY };
+void Animator2d::AddAnimation(const std::string& name, const std::vector<int>& frames, float frameDuration, LoopMode loopMode, bool flipX, bool flipY, const std::unordered_map<int, std::vector<std::string>>& events) {
+    m_animations[name] = { frames, frameDuration, loopMode, flipX, flipY, events };
 }
 
 void Animator2d::Play(const std::string& name) {
@@ -119,6 +119,9 @@ void Animator2d::Update(float deltaTime) {
         // Subtract the duration to keep the remainder for precise timing (smooth animations)
         m_timer -= anim.frameDuration; 
 
+        // Save the previous frame before modifying it
+        int previousFrame = m_currentFrameIndex;
+
         // Move forward or backward based on the current direction
         m_currentFrameIndex += m_playbackDirection;
 
@@ -157,6 +160,19 @@ void Animator2d::Update(float deltaTime) {
         }
 
         UpdateSprite();
+
+        // Animation Events Trigger
+        // Only trigger the event if we actually landed on a different frame
+        if (m_currentFrameIndex != previousFrame) {
+            auto eventIt = anim.events.find(m_currentFrameIndex);
+
+            // Did we find events for this specific frame index ?
+            if (eventIt != anim.events.end()) {
+                for (const std::string& evtName : eventIt->second) {
+                    owner->OnAnimationEvent(evtName);
+                }
+            }
+        }
     }
 }
 
@@ -275,6 +291,9 @@ void Animator2d::OnInspector() {
     static bool flipY = false;
     static std::vector<int> pickerFrames; // Holds the visual picker's temporary sequence
 
+    // Buffer to hold temporary events while editing
+    static std::unordered_map<int, std::vector<std::string>> formEvents;
+
     bool openPickerModal = false;
 
     // Display a list of all registered animations
@@ -331,6 +350,7 @@ void Animator2d::OnInspector() {
                 loopModeIdx = static_cast<int>(it->second.loopMode);
                 flipX = it->second.flipX;
                 flipY = it->second.flipY;
+                formEvents = it->second.events;
             }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Edit this animation");
 
@@ -402,6 +422,66 @@ void Animator2d::OnInspector() {
         ImGui::SameLine();
         ImGui::Checkbox("Flip Y", &flipY);
 
+        ImGui::Spacing();
+        ImGui::SeparatorText("Animation Events");
+
+        static int newEventFrame = 0;
+        static char newEventName[64] = "";
+
+        float inputWidth = 150.0f;
+        
+        ImGui::SetNextItemWidth(inputWidth);
+        ImGui::InputInt("Frame##evt", &newEventFrame);
+
+        if (newEventFrame < 0) newEventFrame = 0;
+
+        ImGui::SetNextItemWidth(inputWidth);
+        ImGui::InputText("Event Name##evt", newEventName, IM_ARRAYSIZE(newEventName));
+
+        if (ImGui::Button(ICON_FA_PLUS " Add Event")) {
+            if (strlen(newEventName) > 0) {
+                formEvents[newEventFrame].push_back(std::string(newEventName));
+                newEventName[0] = '\0'; // Clear input
+            }
+        }
+
+        ImGui::Spacing();
+
+        // List existing events in the form
+        if (!formEvents.empty()) {
+            ImGui::BeginChild("EventsList", ImVec2(0, 100), true);
+            for (auto it = formEvents.begin(); it != formEvents.end(); ) {
+                int frameIdx = it->first;
+                auto& evts = it->second;
+                
+                ImGui::TextColored(ImVec4(0.9f, 0.45f, 0.1f, 1.0f), "Frame %d:", frameIdx);
+                
+                for (size_t i = 0; i < evts.size(); ) {
+                    ImGui::BulletText("%s", evts[i].c_str());
+                    ImGui::SameLine();
+                    
+                    ImGui::PushID((std::to_string(frameIdx) + "_" + std::to_string(i)).c_str());
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+                    if (ImGui::Button(ICON_FA_TRASH)) {
+                        evts.erase(evts.begin() + i);
+                    } else {
+                        ++i;
+                    }
+                    ImGui::PopStyleColor();
+                    ImGui::PopID();
+                }
+                
+                // Cleanup empty keys from the map
+                if (evts.empty()) {
+                    it = formEvents.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+            ImGui::EndChild();
+        }
+        ImGui::Spacing();
+
         if (ImGui::Button("Save Animation", ImVec2(-1, 0))) {
             std::string animName(nameBuffer);
             
@@ -424,7 +504,7 @@ void Animator2d::OnInspector() {
                     
                     // AddAnimation overwrites existing keys, making it perfect for editing too!
                     LoopMode selectedMode = static_cast<LoopMode>(loopModeIdx);
-                    AddAnimation(animName, parsedFrames, duration, selectedMode, flipX, flipY);
+                    AddAnimation(animName, parsedFrames, duration, selectedMode, flipX, flipY, formEvents);
                     
                     CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
 
@@ -435,6 +515,7 @@ void Animator2d::OnInspector() {
                     loopModeIdx = 1;
                     flipX = false;
                     flipY = false;
+                    formEvents.clear();
                 } else {
                     std::cerr << "[Animator] Cannot save animation without frames." << std::endl;
                 }
@@ -675,6 +756,12 @@ nlohmann::json Animator2d::Serialize() const {
         animData["loopMode"] = static_cast<int>(pair.second.loopMode);
         animData["flipX"] = pair.second.flipX;
         animData["flipY"] = pair.second.flipY;
+
+        nlohmann::json eventsJson;
+        for (const auto& evtPair : pair.second.events) {
+            eventsJson[std::to_string(evtPair.first)] = evtPair.second;
+        }
+        animData["events"] = eventsJson;
         
         // Use the animation name as the key in the JSON object
         animsJson[pair.first] = animData;
@@ -719,6 +806,17 @@ void Animator2d::Deserialize(const nlohmann::json& j) {
 
             data.flipX = it.value().value("flipX", false);
             data.flipY = it.value().value("flipY", false);
+
+            if (it.value().contains("events")) {
+                for (auto evtIt = it.value()["events"].begin(); evtIt != it.value()["events"].end(); ++evtIt) {
+                    try {
+                        int frameIdx = std::stoi(evtIt.key());
+                        data.events[frameIdx] = evtIt.value().get<std::vector<std::string>>();
+                    } catch (const std::exception& e) {
+                        std::cerr << "[Animator2d] Failed to parse event frame index: " << evtIt.key() << std::endl;
+                    }
+                }
+            }
 
             // Re-insert into our unordered_map using the JSON key as the animation name
             m_animations[it.key()] = data;

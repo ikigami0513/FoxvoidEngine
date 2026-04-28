@@ -27,6 +27,7 @@ struct AnimationData {
     LoopMode loopMode;
     bool flipX;
     bool flipY;
+    std::unordered_map<int, std::vector<std::string>> events;
 };
 
 class Animator2d : public Component {
@@ -40,7 +41,7 @@ class Animator2d : public Component {
         void Render() override;
 
         // Registers a new animation state
-        void AddAnimation(const std::string& name, const std::vector<int>& frames, float frameDuration, LoopMode loopMode, bool flipX = false, bool flipY = false);
+        void AddAnimation(const std::string& name, const std::vector<int>& frames, float frameDuration, LoopMode loopMode, bool flipX = false, bool flipY = false, const std::unordered_map<int, std::vector<std::string>>& events = {});
 
         // Switches to a new animation if it exists and isn't already playing
         void Play(const std::string& name);
