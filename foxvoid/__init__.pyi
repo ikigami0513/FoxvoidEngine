@@ -1134,3 +1134,14 @@ class Mask(Component):
 
     def __init__(self) -> None: ...
         
+
+class Checkbox(Component):
+    """
+    A toggleable UI element. Triggers on_gui_click() when pressed.
+    """
+    is_on: bool
+    use_sprite: bool
+    color_on: 'Color'
+    color_off: 'Color'
+
+    def __init__(self) -> None: ...

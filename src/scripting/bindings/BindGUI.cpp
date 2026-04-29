@@ -8,6 +8,7 @@
 #include "gui/VBoxContainer.hpp"
 #include "gui/HBoxContainer.hpp"
 #include "gui/Mask.hpp"
+#include "gui/Checkbox.hpp"
 
 void BindGUI(py::module_& m) {
     py::class_<TextRenderer, Component>(m, "TextRenderer")
@@ -127,6 +128,20 @@ void BindGUI(py::module_& m) {
         [](GameObject& go, py::args args) -> py::object {
             auto* m = go.AddComponent<Mask>();
             return py::cast(m, py::return_value_policy::reference);
+        }
+    );
+
+    py::class_<Checkbox, Component>(m, "Checkbox")
+        .def(py::init<>())
+        .def_readwrite("is_on", &Checkbox::isOn)
+        .def_readwrite("use_sprite", &Checkbox::useSprite)
+        .def_readwrite("color_on", &Checkbox::colorOn)
+        .def_readwrite("color_off", &Checkbox::colorOff);
+
+    ComponentRegistry::Register<Checkbox>("Checkbox",
+        [](GameObject& go, py::args args) -> py::object {
+            auto* cb = go.AddComponent<Checkbox>();
+            return py::cast(cb, py::return_value_policy::reference);
         }
     );
 }
