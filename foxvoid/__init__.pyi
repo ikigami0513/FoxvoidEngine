@@ -1045,4 +1045,28 @@ class RectTransform(Component):
         :return: A Rectangle object containing (x, y, width, height) ready for Raylib drawing.
         """
         ...
+
+
+class ImageRenderer(Component):
+    """
+    Renders an image/texture. Uses RectTransform if is_hud is True (Screen Space), 
+    or Transform2d if is_hud is False (World Space).
+    """
+    
+    # Color tint applied to the image
+    color: Color
+    
+    # Determines if the image is drawn in UI space or world space
+    is_hud: bool
+
+    def __init__(self, texture_path: str = "") -> None:
+        """Initializes the ImageRenderer, optionally loading a texture immediately."""
+        ...
+
+    def set_texture(self, path: str) -> None:
+        """
+        Updates the displayed texture from a file path.
+        Example: self.image.set_texture("assets/textures/menu_bg.png")
+        """
+        ...
         

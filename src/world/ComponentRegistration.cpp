@@ -19,6 +19,7 @@
 #include "audio/AudioSource.hpp"
 
 #include "gui/RectTransform.hpp"
+#include "gui/ImageRenderer.hpp"
 
 namespace EngineSetup {
     void RegisterNativeComponents() {
@@ -39,6 +40,7 @@ namespace EngineSetup {
         ComponentRegistry::RegisterCPP<RectTransform>("RectTransform");
         ComponentRegistry::RegisterCPP<TextRenderer>("TextRenderer");
         ComponentRegistry::RegisterCPP<Button>("Button");
+        ComponentRegistry::RegisterCPP<ImageRenderer>("ImageRenderer");
 
         ComponentRegistry::RegisterCPP<PersistentComponent>("PersistentComponent");
 

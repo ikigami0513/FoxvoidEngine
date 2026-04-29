@@ -4,6 +4,7 @@
 #include "world/ComponentRegistry.hpp"
 #include "gui/Button.hpp"
 #include "gui/RectTransform.hpp"
+#include "gui/ImageRenderer.hpp"
 
 void BindGUI(py::module_& m) {
     py::class_<TextRenderer, Component>(m, "TextRenderer")
@@ -56,10 +57,26 @@ void BindGUI(py::module_& m) {
         .def_readwrite("pivot", &RectTransform::pivot)
         .def("get_screen_rect", &RectTransform::GetScreenRect);
 
-        ComponentRegistry::Register<RectTransform>("RectTransform",
-            [](GameObject& go, py::args args) -> py::object {
-                auto* rt = go.AddComponent<RectTransform>();
-                return py::cast(rt, py::return_value_policy::reference);
-            }
-        );
+    ComponentRegistry::Register<RectTransform>("RectTransform",
+        [](GameObject& go, py::args args) -> py::object {
+            auto* rt = go.AddComponent<RectTransform>();
+            return py::cast(rt, py::return_value_policy::reference);
+        }
+    );
+
+    py::class_<ImageRenderer, Component>(m, "ImageRenderer")
+        .def(py::init<const std::string&>(), py::arg("texture_path") = "")
+        .def_readwrite("color", &ImageRenderer::color)
+        .def_readwrite("is_hud", &ImageRenderer::isHUD)
+        .def("set_texture", py::overload_cast<const std::string&>(&ImageRenderer::SetTexture), py::arg("path"));
+
+    ComponentRegistry::Register<ImageRenderer>("ImageRenderer",
+        [](GameObject& go, py::args args) -> py::object {
+            std::string path = "";
+            if (args.size() >= 1) path = args[0].cast<std::string>();
+            
+            auto* ir = go.AddComponent<ImageRenderer>(path);
+            return py::cast(ir, py::return_value_policy::reference);
+        }
+    );
 }
