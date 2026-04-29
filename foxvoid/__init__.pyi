@@ -181,6 +181,12 @@ class Component:
         """
         ...
 
+    def on_gui_click(self, button_name: str) -> None:
+        """
+        Called when a Button component on the same GameObject is clicked
+        """
+        ...
+
 
 class Transform2d(Component):
     """Component managing spatial position, rotation, and scale."""

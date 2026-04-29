@@ -103,6 +103,13 @@ class GameObject {
             }
         }
 
+        // Relays the GUI click event to all attached components
+        void OnGUIClick(const std::string& buttonName) {
+            for (auto& component : components) {
+                component->OnGUIClick(buttonName);
+            }
+        }
+
         // Safely removes a component from the entity
         void RemoveComponent(Component* compToRemove) {
             if (!compToRemove) return;

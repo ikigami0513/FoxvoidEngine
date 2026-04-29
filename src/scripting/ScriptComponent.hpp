@@ -24,6 +24,8 @@ class [[gnu::visibility("default")]] ScriptComponent : public Component {
         // Receive animation events and pass them to python
         void OnAnimationEvent(const std::string& eventName) override;
 
+        void OnGUIClick(const std::string& buttonName) override;
+
         // Core method to load a script safely via UUID
         void LoadScript(UUID scriptUUID, const std::string& className);
 

@@ -43,6 +43,9 @@ class Component {
         // Can be overridden by scripts, audio players, or particle emitters.
         virtual void OnAnimationEvent(const std::string& eventName) {}
 
+        // Called when a GUI button attached to the same GameObject is clicked
+        virtual void OnGUIClick(const std::string& buttonName) {}
+
         // Returns the name of the component for the Inspecteur header
         virtual std::string GetName() const { return "Component"; }
 

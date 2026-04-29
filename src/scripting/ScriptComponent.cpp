@@ -5,6 +5,7 @@
 #include <sstream>
 
 #include "core/AssetRegistry.hpp"
+#include "world/GameObject.hpp"
 
 #ifndef STANDALONE_MODE
 #include "editor/EditorUI.hpp"
@@ -169,6 +170,19 @@ void ScriptComponent::OnAnimationEvent(const std::string& eventName) {
         }
     } catch (const py::error_already_set& e) {
         std::cerr << "[ScriptComponent] OnAnimationEvent Error:\n" << e.what() << std::endl;
+    }
+}
+
+void ScriptComponent::OnGUIClick(const std::string& buttonName) {
+    // Ensute the Python instance is alive and has the method
+    if (m_instance && py::hasattr(m_instance, "on_gui_click")) {
+        try {
+            // Call the Python method: def on_gui_click(self, button_name: str):
+            m_instance.attr("on_gui_click")(buttonName);
+        } catch (py::error_already_set& e) {
+            std::cerr << "[ScriptComponent] Python error in on_gui_click (" << owner->name << "):\n" 
+                      << e.what() << std::endl;
+        }
     }
 }
 

@@ -71,6 +71,8 @@ void Button::Update(float deltaTime) {
         } else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
             m_state = ButtonState::Hovered;
             m_wasClicked = true; 
+
+            owner->OnGUIClick(owner->name);
         } else {
             m_state = ButtonState::Hovered;
         }
