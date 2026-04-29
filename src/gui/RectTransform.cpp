@@ -17,28 +17,40 @@ RectTransform::RectTransform()
 }
 
 Rectangle RectTransform::GetScreenRect() const {
-    // 1. Get the current screen (or window) dimensions
-    float screenWidth = 1280.0f;
-    float screenHeight = 720.0f;
+    // Default to the whole screen size and origin (0, 0)
+    float parentX = 0.0f;
+    float parentY = 0.0f;
+    float parentWidth = 1280.0f; 
+    float parentHeight = 720.0f;
 
     if (Engine::Get()) {
-        screenWidth = (float)Engine::Get()->GetTargetWidth();
-        screenHeight = (float)Engine::Get()->GetTargetHeight();
-    }
-    else {
-        screenWidth = (float)GetScreenWidth();
-        screenHeight = (float)GetScreenHeight();
+        parentWidth = (float)Engine::Get()->GetTargetWidth();
+        parentHeight = (float)Engine::Get()->GetTargetHeight();
     }
 
-    // 2. Calculate the exact pixel coordinate of our Anchor on the screen
-    float anchorPixelX = screenWidth * anchor.x;
-    float anchorPixelY = screenHeight * anchor.y;
+    // If we have a parent, and that parent has a RectTransform,
+    // our coordinates become relative to the parent's rectangle.
+    if (owner && owner->GetParent()) {
+        if (RectTransform* parentRect = owner->GetParent()->GetComponent<RectTransform>()) {
+            // Recursive call. This climbs up the tree until it hits a root object
+            Rectangle pRect = parentRect->GetScreenRect();
 
-    // 3. Add our local position offset to find where our Pivot point should be
+            parentX = pRect.x;
+            parentY = pRect.y;
+            parentWidth = pRect.width;
+            parentHeight = pRect.height;
+        }
+    }
+
+    // 1. Calculate the exact pixel coordinate of our Anchor relative to the Parent
+    float anchorPixelX = parentX + (parentWidth * anchor.x);
+    float anchorPixelY = parentY + (parentHeight * anchor.y);
+
+    // 2. Add our local position offset
     float pivotPixelX = anchorPixelX + position.x;
     float pivotPixelY = anchorPixelY + position.y;
 
-    // 4. Subtract the pivot offset to find the absolute Top-Left corner for Raylib drawing
+    // 3. Subtract the pivot offset to find the absolute Top-Left corner for Raylib
     float topLeftX = pivotPixelX - (size.x * pivot.x);
     float topLeftY = pivotPixelY - (size.y * pivot.y);
 
