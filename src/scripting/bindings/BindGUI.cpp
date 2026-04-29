@@ -9,6 +9,7 @@
 #include "gui/HBoxContainer.hpp"
 #include "gui/Mask.hpp"
 #include "gui/Checkbox.hpp"
+#include "gui/Slider.hpp"
 
 void BindGUI(py::module_& m) {
     py::class_<TextRenderer, Component>(m, "TextRenderer")
@@ -142,6 +143,22 @@ void BindGUI(py::module_& m) {
         [](GameObject& go, py::args args) -> py::object {
             auto* cb = go.AddComponent<Checkbox>();
             return py::cast(cb, py::return_value_policy::reference);
+        }
+    );
+
+    py::class_<Slider, Component>(m, "Slider")
+        .def(py::init<>())
+        .def_readwrite("value", &Slider::value)
+        .def_readwrite("min_value", &Slider::minValue)
+        .def_readwrite("max_value", &Slider::maxValue)
+        .def_readwrite("track_color", &Slider::trackColor)
+        .def_readwrite("handle_color", &Slider::handleColor)
+        .def_readwrite("active_handle_color", &Slider::activeHandleColor);
+
+    ComponentRegistry::Register<Slider>("Slider",
+        [](GameObject& go, py::args args) -> py::object {
+            auto* s = go.AddComponent<Slider>();
+            return py::cast(s, py::return_value_policy::reference);
         }
     );
 }

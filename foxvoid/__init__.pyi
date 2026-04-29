@@ -1145,3 +1145,19 @@ class Checkbox(Component):
     color_off: 'Color'
 
     def __init__(self) -> None: ...
+
+
+class Slider(Component):
+    """
+    An interactive UI element that allows selecting a numerical value 
+    by dragging a handle along a track. Triggers on_gui_click() dynamically.
+    """
+    value: float
+    min_value: float
+    max_value: float
+    
+    track_color: 'Color'
+    handle_color: 'Color'
+    active_handle_color: 'Color'
+
+    def __init__(self) -> None: ...

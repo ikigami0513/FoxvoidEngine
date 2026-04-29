@@ -24,6 +24,7 @@
 #include "gui/HBoxContainer.hpp"
 #include "gui/Mask.hpp"
 #include "gui/Checkbox.hpp"
+#include "gui/Slider.hpp"
 
 namespace EngineSetup {
     void RegisterNativeComponents() {
@@ -49,6 +50,7 @@ namespace EngineSetup {
         ComponentRegistry::RegisterCPP<HBoxContainer>("HBoxContainer");
         ComponentRegistry::RegisterCPP<Mask>("Mask");
         ComponentRegistry::RegisterCPP<Checkbox>("Checkbox");
+        ComponentRegistry::RegisterCPP<Slider>("Slider");
 
         ComponentRegistry::RegisterCPP<PersistentComponent>("PersistentComponent");
 
