@@ -4,6 +4,8 @@
 #include <core/AssetRegistry.hpp>
 #include <iostream>
 #include <filesystem>
+#include "RectTransform.hpp"
+#include <core/AssetManager.hpp>
 
 #ifndef STANDALONE_MODE
 #include "editor/EditorUI.hpp"
@@ -11,18 +13,10 @@
 #include "editor/commands/ModifyComponentCommand.hpp"
 #include <imgui.h>
 #endif
-#include "RectTransform.hpp"
 
 TextRenderer::TextRenderer()
     : text("New Text"), fontSize(20.0f), spacing(1.0f), color(BLACK), isHUD(true),
       m_isFontLoaded(false), m_customFont{0} {}
-
-TextRenderer::~TextRenderer() {
-    // Free the GPU memory when the component is destroyed
-    if (m_isFontLoaded) {
-        UnloadFont(m_customFont);
-    }
-}
 
 // Converts a path from UI/Drag&Drop into a UUID, then loads it
 void TextRenderer::SetFontPath(const std::string& path) {
@@ -38,29 +32,21 @@ void TextRenderer::SetFontPath(const std::string& path) {
 
 // The core loading logic using UUID
 void TextRenderer::SetFontPath(UUID uuid) {
-    // Unload the previous font if one was loaded
-    if (m_isFontLoaded) {
-        UnloadFont(m_customFont);
-        m_isFontLoaded = false;
-    }
-
     m_fontUUID = uuid;
 
     if (m_fontUUID != 0) {
         std::string resolvedPath = AssetRegistry::GetPathForUUID(m_fontUUID).string();
         
         if (!resolvedPath.empty() && std::filesystem::exists(resolvedPath)) {
-            // We load the font at a high resolution (128) so it stays crisp even if 'fontSize' is large.
-            // Raylib will automatically scale it down perfectly during DrawTextEx.
-            m_customFont = LoadFontEx(resolvedPath.c_str(), 128, 0, 250);
-            
-            // Use Point filtering for crisp pixel-art fonts, or Bilinear for smooth modern fonts.
-            SetTextureFilter(m_customFont.texture, TEXTURE_FILTER_BILINEAR); 
-            
+            // AssetManager handles the loading and caching automatically
+            m_customFont = AssetManager::GetFont(resolvedPath);
             m_isFontLoaded = true;
         } else {
-            std::cerr << "[TextRenderer] Error: Could not resolve UUID " << (uint64_t)m_fontUUID << " to a valid path!" << std::endl;
+            std::cerr << "[TextRenderer] Error: Could not resolve UUID " << (uint64_t)m_fontUUID << std::endl;
+            m_isFontLoaded = false;
         }
+    } else {
+        m_isFontLoaded = false;
     }
 }
 

@@ -25,6 +25,7 @@
 #include "gui/Mask.hpp"
 #include "gui/Checkbox.hpp"
 #include "gui/Slider.hpp"
+#include "gui/TextInput.hpp"
 
 namespace EngineSetup {
     void RegisterNativeComponents() {
@@ -51,6 +52,7 @@ namespace EngineSetup {
         ComponentRegistry::RegisterCPP<Mask>("Mask");
         ComponentRegistry::RegisterCPP<Checkbox>("Checkbox");
         ComponentRegistry::RegisterCPP<Slider>("Slider");
+        ComponentRegistry::RegisterCPP<TextInput>("TextInput");
 
         ComponentRegistry::RegisterCPP<PersistentComponent>("PersistentComponent");
 

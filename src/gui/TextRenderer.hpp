@@ -14,7 +14,6 @@ class TextRenderer : public Component {
         bool isHUD; // If true, renders in Screen Space, If false, renders in World Space.
 
         TextRenderer();
-        ~TextRenderer() override;
 
         void Render() override;
         void RenderHUD() override;

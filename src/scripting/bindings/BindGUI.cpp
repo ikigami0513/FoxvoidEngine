@@ -10,6 +10,7 @@
 #include "gui/Mask.hpp"
 #include "gui/Checkbox.hpp"
 #include "gui/Slider.hpp"
+#include "gui/TextInput.hpp"
 
 void BindGUI(py::module_& m) {
     py::class_<TextRenderer, Component>(m, "TextRenderer")
@@ -159,6 +160,25 @@ void BindGUI(py::module_& m) {
         [](GameObject& go, py::args args) -> py::object {
             auto* s = go.AddComponent<Slider>();
             return py::cast(s, py::return_value_policy::reference);
+        }
+    );
+
+    py::class_<TextInput, Component>(m, "TextInput")
+        .def(py::init<>())
+        .def_readwrite("text", &TextInput::text)
+        .def_readwrite("max_length", &TextInput::maxLength)
+        .def_readwrite("font_size", &TextInput::fontSize)
+        .def_readwrite("spacing", &TextInput::spacing)
+        .def_readwrite("text_color", &TextInput::textColor)
+        .def_readwrite("bg_color", &TextInput::bgColor)
+        .def_readwrite("focused_bg_color", &TextInput::focusedBgColor)
+        .def("is_focused", &TextInput::IsFocused)
+        .def("set_font", py::overload_cast<const std::string&>(&TextInput::SetFont), py::arg("path"));
+
+    ComponentRegistry::Register<TextInput>("TextInput",
+        [](GameObject& go, py::args args) -> py::object {
+            auto* input = go.AddComponent<TextInput>();
+            return py::cast(input, py::return_value_policy::reference);
         }
     );
 }

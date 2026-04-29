@@ -1161,3 +1161,28 @@ class Slider(Component):
     active_handle_color: 'Color'
 
     def __init__(self) -> None: ...
+
+
+class TextInput(Component):
+    """
+    An interactive text field. Captures keyboard input when clicked.
+    Triggers on_gui_click() when the user presses 'Enter'.
+    """
+    text: str
+    max_length: int
+    font_size: int
+    spacing: float
+    
+    text_color: 'Color'
+    bg_color: 'Color'
+    focused_bg_color: 'Color'
+
+    def __init__(self) -> None: ...
+    def is_focused(self) -> bool: ...
+
+    def set_font(self, path: str) -> None:
+        """
+        Updates the font used by the text input.
+        Example: self.input.set_font("assets/fonts/arial.ttf")
+        """
+        ...
