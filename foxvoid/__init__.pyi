@@ -1115,4 +1115,16 @@ class HBoxContainer(Component):
     vertical_alignment: float
 
     def __init__(self) -> None: ...
+
+
+class Mask(Component):
+    """
+    Clips (hides) all child UI elements that render outside of 
+    this GameObject's RectTransform bounds.
+    """
+    
+    # Allows turning the clipping effect on or off
+    is_active: bool
+
+    def __init__(self) -> None: ...
         

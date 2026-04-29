@@ -137,6 +137,17 @@ class Vector2:
     def __init__(self, x: float = 0.0, y: float = 0.0) -> None: ...
 
 
+class Rectangle:
+    """A standard Raylib Rectangle containing x, y, width and height"""
+    x: float
+    y: float
+    width: float
+    height: float
+
+    def __init__(self, x: float = 0.0, y: float = 0.0, width: float = 0.0, height: float = 0.0):
+        ...
+
+
 class Collision2D:
     """Contains information about a physics collision event."""
     
@@ -159,9 +170,24 @@ class Component:
         """The owning GameObject of this component (Read-only)."""
         ...
 
-    def start(self) -> None: ...
-    def update(self, delta_time: float) -> None: ...
-    def on_collision(self, collision: Collision2D) -> None: ...
+    def start(self) -> None: 
+        """Called once when the component is initialized."""
+        ...
+        
+    def update(self, delta_time: float) -> None: 
+        """Called every frame for logic and physics."""
+        ...
+        
+    def on_collision(self, collision: 'Collision2D') -> None: 
+        """Called when this object's collider intersects with another."""
+        ...
+        
+    def on_animation_event(self, event_name: str) -> None:
+        """
+        Called automatically by an attached Animator2d when a specific frame is reached.
+        Override this method in your script to handle animation events (e.g., footsteps, attacks).
+        """
+        ...
 
 
 class Transform2d(Component):
@@ -452,6 +478,13 @@ class Animation2d(Component):
         ...
 
 
+class LoopMode(Enum):
+    """Defines how an animation should behave when it reaches the end."""
+    Once = 0
+    Loop = 1
+    PingPong = 2
+
+
 class Animator2d(Component):
     """
     Manages and plays 2D frame-based animations using an attached SpriteSheetRenderer.
@@ -461,7 +494,16 @@ class Animator2d(Component):
         """Initializes an empty Animator2d."""
         ...
 
-    def add_animation(self, name: str, frames: list[int], frame_duration: float, loop: bool, flip_x: bool = False, flip_y: bool = False) -> None:
+    @property
+    def playback_speed(self) -> float:
+        """The global speed multiplier for the animator (1.0 is normal speed)."""
+        ...
+
+    @playback_speed.setter
+    def playback_speed(self, value: float) -> None:
+        ...
+
+    def add_animation(self, name: str, frames: list[int], frame_duration: float, loop: bool, flip_x: bool = False, flip_y: bool = False, events: dict[int, List[str]] = {}) -> None:
         """
         Registers a new animation state.
         
@@ -476,6 +518,29 @@ class Animator2d(Component):
         """
         Switches the current playback to the specified animation.
         Does nothing if the animation is already playing.
+        """
+        ...
+
+    def pause(self) -> None:
+        """Pauses the current animation. It can be resumed later."""
+        ...
+
+    def resume(self) -> None:
+        """Resumes a paused animation from where it left off."""
+        ...
+
+    def stop(self) -> None:
+        """Stops the animation and resets it to the first frame."""
+        ...
+
+    def is_playing(self) -> bool:
+        """Returns True if an animation is currently playing and not paused/stopped."""
+        ...
+
+    def is_finished(self) -> bool:
+        """
+        Returns True if the current non-looping animation has reached its final frame,
+        or if the animator is currently stopped.
         """
         ...
 
@@ -790,6 +855,12 @@ class ButtonState:
     Pressed: 'ButtonState'
 
 
+class ButtonTransition(Enum):
+    None_ = 0
+    ColorTint = 1
+    SpriteSwap = 2
+
+
 class Button(Component):
     """
     Component that provides a clickable interaction area.
@@ -808,6 +879,8 @@ class Button(Component):
     Determines how mouse coordinates are calculated.
     Ensure this matches the 'is_hud' property of your visual renderer (Text/Shape).
     """
+
+    transition: ButtonTransition
     
     normal_color: Color
     """Color applied to an attached ShapeRenderer when inactive."""
@@ -955,5 +1028,112 @@ class DataManager:
         Usually called by the engine during scene transitions.
         """
         ...
+
+
+class RectTransform(Component):
+    """
+    Component responsible for UI layout, managing anchors, pivots, and screen-space coordinates.
+    Replaces Transform2d for HUD elements.
+    """
+    
+    # The width and height of the UI element in pixels
+    size: Vector2
+    
+    # The pixel offset relative to the calculated anchor point
+    position: Vector2
+    
+    # Normalized screen anchor point (0.0 to 1.0)
+    # (0,0) is top-left, (1,1) is bottom-right, (0.5, 0.5) is center
+    anchor: Vector2
+    
+    # Normalized pivot point on the element itself (0.0 to 1.0)
+    # Determines which part of the element corresponds to the 'position'
+    pivot: Vector2
+
+    def __init__(self) -> None:
+        """Initializes a new RectTransform with default centered values."""
+        ...
+
+    def get_screen_rect(self) -> Rectangle:
+        """
+        Calculates the absolute pixel coordinates of the element on the screen.
+        
+        :return: A Rectangle object containing (x, y, width, height) ready for Raylib drawing.
+        """
+        ...
+
+
+class ImageRenderer(Component):
+    """
+    Renders an image/texture. Uses RectTransform if is_hud is True (Screen Space), 
+    or Transform2d if is_hud is False (World Space).
+    """
+    
+    # Color tint applied to the image
+    color: Color
+    
+    # Determines if the image is drawn in UI space or world space
+    is_hud: bool
+
+    def __init__(self, texture_path: str = "") -> None:
+        """Initializes the ImageRenderer, optionally loading a texture immediately."""
+        ...
+
+    def set_texture(self, path: str) -> None:
+        """
+        Updates the displayed texture from a file path.
+        Example: self.image.set_texture("assets/textures/menu_bg.png")
+        """
+        ...
+
+
+class VBoxContainer(Component):
+    """
+    Automatically aligns child UI elements vertically based on their RectTransforms.
+    Perfect for lists, menus, and inventories.
+    """
+    
+    # Space between each child element in pixels
+    spacing: float
+    
+    # Inner margins at the top and bottom
+    padding_top: float
+    padding_bottom: float
+    
+    # Forces horizontal alignment of children (0.0 = Left, 0.5 = Center, 1.0 = Right)
+    horizontal_alignment: float
+
+    def __init__(self) -> None: ...
+
+
+class HBoxContainer(Component):
+    """
+    Automatically aligns child UI elements horizontally based on their RectTransforms.
+    Perfect for toolbars, dialog buttons, and side-by-side layouts.
+    """
+    
+    # Space between each child element in pixels
+    spacing: float
+    
+    # Inner margins at the left and right
+    padding_left: float
+    padding_right: float
+    
+    # Forces vertical alignment of children (0.0 = Top, 0.5 = Center, 1.0 = Bottom)
+    vertical_alignment: float
+
+    def __init__(self) -> None: ...
+
+
+class Mask(Component):
+    """
+    Clips (hides) all child UI elements that render outside of 
+    this GameObject's RectTransform bounds.
+    """
+    
+    # Allows turning the clipping effect on or off
+    is_active: bool
+
+    def __init__(self) -> None: ...
         
 )";

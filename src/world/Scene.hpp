@@ -18,6 +18,7 @@
 #include "physics/PhysicsEngine.hpp"
 #include "graphics/Camera2d.hpp"
 #include "PersistentComponent.hpp"
+#include <gui/Mask.hpp>
 
 class Scene {
     public:
@@ -110,7 +111,9 @@ class Scene {
 
         void RenderHUD() {
             for (auto& go : m_gameObjects) {
-                go->RenderHUD();
+                if (go->GetParent() == nullptr) {
+                    RenderHUDHierarchical(go.get());
+                }
             }
         }
 
@@ -399,6 +402,37 @@ class Scene {
         }
 
     private:
+        // Recursive function to draw the HUD hierarchy
+        void RenderHUDHierarchical(GameObject* node) {
+            bool isMasking = false;
+            
+            // 1. Check if this node is a Mask
+            Mask* mask = node->GetComponent<Mask>();
+            if (mask && mask->isActive) {
+                // We need the RectTransform to know WHERE to cut
+                if (RectTransform* rt = node->GetComponent<RectTransform>()) {
+                    Rectangle rect = rt->GetScreenRect();
+                    
+                    // Raylib requires integers for Scissor Mode
+                    BeginScissorMode((int)rect.x, (int)rect.y, (int)rect.width, (int)rect.height);
+                    isMasking = true;
+                }
+            }
+
+            // 2. Render this specific node
+            node->RenderHUD();
+
+            // 3. Render all children recursively (Painter's Algorithm: children are drawn on top)
+            for (GameObject* child : node->GetChildren()) {
+                RenderHUDHierarchical(child);
+            }
+
+            // 4. Close the mask if we opened one, so it doesn't affect siblings
+            if (isMasking) {
+                EndScissorMode();
+            }
+        }
+
         // The scene owns the GameObjects
         std::vector<std::unique_ptr<GameObject>> m_gameObjects;
 

@@ -7,6 +7,7 @@
 #include "gui/ImageRenderer.hpp"
 #include "gui/VBoxContainer.hpp"
 #include "gui/HBoxContainer.hpp"
+#include "gui/Mask.hpp"
 
 void BindGUI(py::module_& m) {
     py::class_<TextRenderer, Component>(m, "TextRenderer")
@@ -115,6 +116,17 @@ void BindGUI(py::module_& m) {
         [](GameObject& go, py::args args) -> py::object {
             auto* hbox = go.AddComponent<HBoxContainer>();
             return py::cast(hbox, py::return_value_policy::reference);
+        }
+    );
+
+    py::class_<Mask, Component>(m, "Mask")
+        .def(py::init<>())
+        .def_readwrite("is_active", &Mask::isActive);
+
+    ComponentRegistry::Register<Mask>("Mask",
+        [](GameObject& go, py::args args) -> py::object {
+            auto* m = go.AddComponent<Mask>();
+            return py::cast(m, py::return_value_policy::reference);
         }
     );
 }
