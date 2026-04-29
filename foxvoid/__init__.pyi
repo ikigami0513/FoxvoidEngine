@@ -129,6 +129,17 @@ class Vector2:
     def __init__(self, x: float = 0.0, y: float = 0.0) -> None: ...
 
 
+class Rectangle:
+    """A standard Raylib Rectangle containing x, y, width and height"""
+    x: float
+    y: float
+    width: float
+    height: float
+
+    def __init__(self, x: float = 0.0, y: float = 0.0, width: float = 0.0, height: float = 0.0):
+        ...
+
+
 class Collision2D:
     """Contains information about a physics collision event."""
     
@@ -999,6 +1010,39 @@ class DataManager:
         """
         Clears all loaded assets from memory. 
         Usually called by the engine during scene transitions.
+        """
+        ...
+
+
+class RectTransform(Component):
+    """
+    Component responsible for UI layout, managing anchors, pivots, and screen-space coordinates.
+    Replaces Transform2d for HUD elements.
+    """
+    
+    # The width and height of the UI element in pixels
+    size: Vector2
+    
+    # The pixel offset relative to the calculated anchor point
+    position: Vector2
+    
+    # Normalized screen anchor point (0.0 to 1.0)
+    # (0,0) is top-left, (1,1) is bottom-right, (0.5, 0.5) is center
+    anchor: Vector2
+    
+    # Normalized pivot point on the element itself (0.0 to 1.0)
+    # Determines which part of the element corresponds to the 'position'
+    pivot: Vector2
+
+    def __init__(self) -> None:
+        """Initializes a new RectTransform with default centered values."""
+        ...
+
+    def get_screen_rect(self) -> Rectangle:
+        """
+        Calculates the absolute pixel coordinates of the element on the screen.
+        
+        :return: A Rectangle object containing (x, y, width, height) ready for Raylib drawing.
         """
         ...
         

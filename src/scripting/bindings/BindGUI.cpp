@@ -3,6 +3,7 @@
 #include "world/Component.hpp"
 #include "world/ComponentRegistry.hpp"
 #include "gui/Button.hpp"
+#include "gui/RectTransform.hpp"
 
 void BindGUI(py::module_& m) {
     py::class_<TextRenderer, Component>(m, "TextRenderer")
@@ -46,4 +47,19 @@ void BindGUI(py::module_& m) {
             return py::cast(b, py::return_value_policy::reference);
         }
     );
+
+    py::class_<RectTransform, Component>(m, "RectTransform")
+        .def(py::init<>())
+        .def_readwrite("size", &RectTransform::size)
+        .def_readwrite("position", &RectTransform::position)
+        .def_readwrite("anchor", &RectTransform::anchor)
+        .def_readwrite("pivot", &RectTransform::pivot)
+        .def("get_screen_rect", &RectTransform::GetScreenRect);
+
+        ComponentRegistry::Register<RectTransform>("RectTransform",
+            [](GameObject& go, py::args args) -> py::object {
+                auto* rt = go.AddComponent<RectTransform>();
+                return py::cast(rt, py::return_value_policy::reference);
+            }
+        );
 }

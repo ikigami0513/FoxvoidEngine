@@ -33,6 +33,10 @@ class Engine {
         // Returns a reference to the active scene to allow GameObject instantiation
         Scene& GetActiveScene() { return m_activeScene; }
 
+        // Getters for internal game resolution
+        int GetTargetWidth() const { return m_windowWidth; }
+        int GetTargetHeight() const { return m_windowHeight; }
+
         // Allows updating the engine's internal resolution at runtime
         void UpdateResolution(int width, int height);
 

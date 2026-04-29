@@ -3,6 +3,7 @@
 #include "world/Component.hpp"
 #include "world/GameObject.hpp"
 #include "physics/Transform2d.hpp"
+#include "gui/RectTransform.hpp"
 #include <raylib.h>
 
 #ifndef STANDALONE_MODE
@@ -52,6 +53,14 @@ class ShapeRenderer : public Component {
         void RenderHUD() override {
             if (!isHUD || !owner) return;
 
+            // UI Elements should prefer RectTransform
+            if (RectTransform* rectTransform = owner->GetComponent<RectTransform>()) {
+                Rectangle rec = rectTransform->GetScreenRect();
+                DrawRectangleRec(rec, color);
+                return;
+            }
+
+            // Fallback: Legacy Transform2d support for older scenes
             Transform2d* transform = owner->GetComponent<Transform2d>();
             
             if (transform != nullptr) {

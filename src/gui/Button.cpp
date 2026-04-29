@@ -17,36 +17,46 @@ Button::Button()
 void Button::Update(float deltaTime) {
     if (!owner) return;
     
-    auto transform = owner->GetComponent<Transform2d>();
-    if (!transform) return;
-
     m_wasClicked = false;
+    Rectangle bounds = {0.0f, 0.0f, 0.0f, 0.0f};
+    bool isScreenSpace = isHUD;
 
-    // Centered Bounding Box
-    // Because ShapeRenderer draws from the center, we must shift the hitbox 
-    // backwards by half its width and height so the click area matches the visual shape.
-    float scaledWidth = width * transform->scale.x;
-    float scaledHeight = height * transform->scale.y;
-    
-    auto position = transform->GetGlobalPosition();
-    Rectangle bounds = {
-        position.x - (scaledWidth / 2.0f),
-        position.y - (scaledHeight / 2.0f),
-        scaledWidth,
-        scaledHeight
-    };
+    // 1. Calculate Hitbox based on the available transform component
+    if (RectTransform* rectTransform = owner->GetComponent<RectTransform>()) {
+        
+        // MODERN UI: The hitbox perfectly matches the calculated screen rectangle
+        bounds = rectTransform->GetScreenRect();
+        isScreenSpace = true; // RectTransform is always Screen Space
 
-    // Use the Engine's virtual mouse position
+    } else if (Transform2d* transform = owner->GetComponent<Transform2d>()) {
+        
+        // LEGACY WORLD: Calculate bounds from the center of the Transform2d
+        float scaledWidth = width * transform->scale.x;
+        float scaledHeight = height * transform->scale.y;
+        auto position = transform->GetGlobalPosition();
+        bounds = {
+            position.x - (scaledWidth / 2.0f),
+            position.y - (scaledHeight / 2.0f),
+            scaledWidth,
+            scaledHeight
+        };
+
+    } else {
+        // Cannot click a button that has no spatial representation
+        return; 
+    }
+
+    // 2. Get Virtual Mouse Position
     Vector2 mousePos = Mouse::GetPosition();
     
-    if (!isHUD) {
+    if (!isScreenSpace) {
         if (Engine::Get()) {
             Camera2D cam = Engine::Get()->GetActiveScene().GetMainCamera(GetScreenWidth(), GetScreenHeight());
             mousePos = GetScreenToWorld2D(mousePos, cam);
         }
     }
 
-    // Check interactions
+    // 3. Check Interactions
     if (CheckCollisionPointRec(mousePos, bounds)) {
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
             m_state = ButtonState::Pressed;
@@ -60,7 +70,8 @@ void Button::Update(float deltaTime) {
         m_state = ButtonState::Normal;
     }
 
-    // Update the color of a ShapeRenderer if one is attached
+    // 4. Update Visuals (Legacy coupling)
+    // We keep this for now so existing buttons with ShapeRenderers still change colors.
     if (auto shape = owner->GetComponent<ShapeRenderer>()) {
         switch (m_state) {
             case ButtonState::Normal:  shape->color = normalColor; break;
@@ -68,7 +79,7 @@ void Button::Update(float deltaTime) {
             case ButtonState::Pressed: shape->color = pressedColor; break;
         }
     }
-}  
+}
 
 bool Button::IsClicked() const {
     return m_wasClicked;
@@ -80,9 +91,18 @@ std::string Button::GetName() const {
 
 #ifndef STANDALONE_MODE
 void Button::OnInspector() {
-    EditorUI::DragFloat("Hitbox Width", &width, 1.0f, this, 0.0f, 2000.0f);
-    EditorUI::DragFloat("Hitbox Height", &height, 1.0f, this, 0.0f, 2000.0f);
-    
+    // Check if we are using the modern UI system
+    if (owner->GetComponent<RectTransform>()) {
+        ImGui::TextColored(ImVec4(0.4f, 0.8f, 0.4f, 1.0f), "Driven by RectTransform");
+        ImGui::TextDisabled("Hitbox automatically matches UI size.");
+    } else {
+        // Legacy manual controls
+        EditorUI::DragFloat("Hitbox Width", &width, 1.0f, this, 0.0f, 2000.0f);
+        EditorUI::DragFloat("Hitbox Height", &height, 1.0f, this, 0.0f, 2000.0f);
+        ImGui::Separator();
+        EditorUI::Checkbox("Is HUD (Screen Space)", &isHUD, this);
+    }
+
     ImGui::Separator();
     
     EditorUI::ColorEdit4("Normal Color", &normalColor, this);

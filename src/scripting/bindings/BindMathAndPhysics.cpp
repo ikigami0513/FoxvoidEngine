@@ -18,6 +18,15 @@ void BindMathAndPhysics(py::module_& m) {
         .def_readwrite("x", &Vector2::x)
         .def_readwrite("y", &Vector2::y);
 
+    py::class_<Rectangle>(m, "Rectangle")
+        .def(py::init<>())
+        .def(py::init<float, float, float, float>(), 
+             py::arg("x"), py::arg("y"), py::arg("width"), py::arg("height"))
+        .def_readwrite("x", &Rectangle::x)
+        .def_readwrite("y", &Rectangle::y)
+        .def_readwrite("width", &Rectangle::width)
+        .def_readwrite("height", &Rectangle::height);
+
     py::class_<Transform2d, Component>(m, "Transform2d")
         .def(py::init<float, float>(), py::arg("x") = 0.0f, py::arg("y") = 0.0f)
         

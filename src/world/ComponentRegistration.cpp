@@ -18,6 +18,8 @@
 #include "world/PersistentComponent.hpp"
 #include "audio/AudioSource.hpp"
 
+#include "gui/RectTransform.hpp"
+
 namespace EngineSetup {
     void RegisterNativeComponents() {
         // Register all native components to the C++ Engine.
@@ -34,6 +36,7 @@ namespace EngineSetup {
         ComponentRegistry::RegisterCPP<TileMap>("TileMap");
         ComponentRegistry::RegisterCPP<ParticleSystem2d>("ParticleSystem2d");
 
+        ComponentRegistry::RegisterCPP<RectTransform>("RectTransform");
         ComponentRegistry::RegisterCPP<TextRenderer>("TextRenderer");
         ComponentRegistry::RegisterCPP<Button>("Button");
 

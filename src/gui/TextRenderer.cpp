@@ -11,6 +11,7 @@
 #include "editor/commands/ModifyComponentCommand.hpp"
 #include <imgui.h>
 #endif
+#include "RectTransform.hpp"
 
 TextRenderer::TextRenderer()
     : text("New Text"), fontSize(20.0f), spacing(1.0f), color(BLACK), isHUD(true),
@@ -83,12 +84,26 @@ void TextRenderer::RenderHUD() {
     // If it's a world element, we don't draw it in the HUD pass
     if (!isHUD || !owner) return;
 
-    auto transform = owner->GetComponent<Transform2d>();
-    if (!transform) return;
-
-    // The Transform position now acts as X/Y coordinates on the screen, completely ignoring the camera!
     Font f = m_isFontLoaded ? m_customFont : GetFontDefault();
-    DrawTextEx(f, text.c_str(), transform->GetGlobalPosition(), fontSize, spacing, color);
+
+    // UI Elements should prefer RectTransform
+    if (RectTransform* rectTransform = owner->GetComponent<RectTransform>()) {
+        
+        // Get the absolute screen coordinates
+        Rectangle rec = rectTransform->GetScreenRect();
+        
+        // The text starts drawing exactly at the top-left corner of the calculated RectTransform
+        Vector2 drawPos = { rec.x, rec.y };
+        
+        DrawTextEx(f, text.c_str(), drawPos, fontSize, spacing, color);
+        return; // Stop here!
+    }
+
+    // Fallback: Legacy Transform2d support
+    Transform2d* transform = owner->GetComponent<Transform2d>();
+    if (transform != nullptr) {
+        DrawTextEx(f, text.c_str(), transform->GetGlobalPosition(), fontSize, spacing, color);
+    }
 }
 
 std::string TextRenderer::GetName() const {
