@@ -1,6 +1,7 @@
 #pragma once
 
 #include "world/Component.hpp"
+#include "core/UUID.hpp"
 #include <raylib.h>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -11,16 +12,31 @@ enum class ButtonState {
     Pressed
 };
 
+enum class ButtonTransition {
+    None,
+    ColorTint,
+    SpriteSwap
+};
+
 class Button : public Component {
     public:
+        // Legacy Hitbox (Used if no RectTransform is present)
         float width;
         float height;
         bool isHUD;
 
-        // Visual feedback colors (modifies a GuiRect if one is attached)
+        // Transition Settings
+        ButtonTransition transition;
+
+        // Visual feedback colors (ColorTint mode)
         Color normalColor;
         Color hoverColor;
         Color pressedColor;
+
+        // Visual feedback sprites (SpriteSwap mode)
+        UUID normalSpriteUUID;
+        UUID hoverSpriteUUID;
+        UUID pressedSpriteUUID;
 
         Button();
         ~Button() override = default;
@@ -44,5 +60,9 @@ class Button : public Component {
 
     private:
         ButtonState m_state;
+        ButtonState m_lastState;
         bool m_wasClicked;
+
+        // Helper to apply the visual changes based on the current state and transition mode
+        void ApplyTransition();
 };

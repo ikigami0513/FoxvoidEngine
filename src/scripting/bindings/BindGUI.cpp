@@ -30,11 +30,19 @@ void BindGUI(py::module_& m) {
         .value("Pressed", ButtonState::Pressed)
         .export_values();
 
+    py::enum_<ButtonTransition>(m, "ButtonTransition")
+        .value("None", ButtonTransition::None)
+        .value("ColorTint", ButtonTransition::ColorTint)
+        .value("SpriteSwap", ButtonTransition::SpriteSwap)
+        .export_values();
+
     py::class_<Button, Component>(m, "Button")
         .def(py::init<>())
         .def_readwrite("width", &Button::width)
         .def_readwrite("height", &Button::height)
         .def_readwrite("is_hud", &Button::isHUD)
+        .def_readwrite("transition", &Button::transition)
+        // Colors
         .def_readwrite("normal_color", &Button::normalColor)
         .def_readwrite("hover_color", &Button::hoverColor)
         .def_readwrite("pressed_color", &Button::pressedColor)

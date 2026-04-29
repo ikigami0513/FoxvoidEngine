@@ -847,6 +847,12 @@ class ButtonState:
     Pressed: 'ButtonState'
 
 
+class ButtonTransition(Enum):
+    None_ = 0
+    ColorTint = 1
+    SpriteSwap = 2
+
+
 class Button(Component):
     """
     Component that provides a clickable interaction area.
@@ -865,6 +871,8 @@ class Button(Component):
     Determines how mouse coordinates are calculated.
     Ensure this matches the 'is_hud' property of your visual renderer (Text/Shape).
     """
+
+    transition: ButtonTransition
     
     normal_color: Color
     """Color applied to an attached ShapeRenderer when inactive."""
