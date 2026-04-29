@@ -1096,4 +1096,23 @@ class VBoxContainer(Component):
     horizontal_alignment: float
 
     def __init__(self) -> None: ...
+
+
+class HBoxContainer(Component):
+    """
+    Automatically aligns child UI elements horizontally based on their RectTransforms.
+    Perfect for toolbars, dialog buttons, and side-by-side layouts.
+    """
+    
+    # Space between each child element in pixels
+    spacing: float
+    
+    # Inner margins at the left and right
+    padding_left: float
+    padding_right: float
+    
+    # Forces vertical alignment of children (0.0 = Top, 0.5 = Center, 1.0 = Bottom)
+    vertical_alignment: float
+
+    def __init__(self) -> None: ...
         

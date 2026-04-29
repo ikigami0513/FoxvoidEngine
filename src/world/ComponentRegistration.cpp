@@ -21,6 +21,7 @@
 #include "gui/RectTransform.hpp"
 #include "gui/ImageRenderer.hpp"
 #include "gui/VBoxContainer.hpp"
+#include "gui/HBoxContainer.hpp"
 
 namespace EngineSetup {
     void RegisterNativeComponents() {
@@ -43,6 +44,7 @@ namespace EngineSetup {
         ComponentRegistry::RegisterCPP<Button>("Button");
         ComponentRegistry::RegisterCPP<ImageRenderer>("ImageRenderer");
         ComponentRegistry::RegisterCPP<VBoxContainer>("VBoxContainer");
+        ComponentRegistry::RegisterCPP<HBoxContainer>("HBoxContainer");
 
         ComponentRegistry::RegisterCPP<PersistentComponent>("PersistentComponent");
 

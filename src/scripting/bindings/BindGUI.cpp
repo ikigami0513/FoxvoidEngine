@@ -6,6 +6,7 @@
 #include "gui/RectTransform.hpp"
 #include "gui/ImageRenderer.hpp"
 #include "gui/VBoxContainer.hpp"
+#include "gui/HBoxContainer.hpp"
 
 void BindGUI(py::module_& m) {
     py::class_<TextRenderer, Component>(m, "TextRenderer")
@@ -100,6 +101,20 @@ void BindGUI(py::module_& m) {
         [](GameObject& go, py::args args) -> py::object {
             auto* vbox = go.AddComponent<VBoxContainer>();
             return py::cast(vbox, py::return_value_policy::reference);
+        }
+    );
+
+    py::class_<HBoxContainer, Component>(m, "HBoxContainer")
+        .def(py::init<>())
+        .def_readwrite("spacing", &HBoxContainer::spacing)
+        .def_readwrite("padding_left", &HBoxContainer::paddingLeft)
+        .def_readwrite("padding_right", &HBoxContainer::paddingRight)
+        .def_readwrite("vertical_alignment", &HBoxContainer::verticalAlignment);
+
+    ComponentRegistry::Register<HBoxContainer>("HBoxContainer",
+        [](GameObject& go, py::args args) -> py::object {
+            auto* hbox = go.AddComponent<HBoxContainer>();
+            return py::cast(hbox, py::return_value_policy::reference);
         }
     );
 }
