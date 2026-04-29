@@ -1077,4 +1077,23 @@ class ImageRenderer(Component):
         Example: self.image.set_texture("assets/textures/menu_bg.png")
         """
         ...
+
+
+class VBoxContainer(Component):
+    """
+    Automatically aligns child UI elements vertically based on their RectTransforms.
+    Perfect for lists, menus, and inventories.
+    """
+    
+    # Space between each child element in pixels
+    spacing: float
+    
+    # Inner margins at the top and bottom
+    padding_top: float
+    padding_bottom: float
+    
+    # Forces horizontal alignment of children (0.0 = Left, 0.5 = Center, 1.0 = Right)
+    horizontal_alignment: float
+
+    def __init__(self) -> None: ...
         

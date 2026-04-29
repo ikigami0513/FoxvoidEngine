@@ -5,6 +5,7 @@
 #include "gui/Button.hpp"
 #include "gui/RectTransform.hpp"
 #include "gui/ImageRenderer.hpp"
+#include "gui/VBoxContainer.hpp"
 
 void BindGUI(py::module_& m) {
     py::class_<TextRenderer, Component>(m, "TextRenderer")
@@ -85,6 +86,20 @@ void BindGUI(py::module_& m) {
             
             auto* ir = go.AddComponent<ImageRenderer>(path);
             return py::cast(ir, py::return_value_policy::reference);
+        }
+    );
+
+    py::class_<VBoxContainer, Component>(m, "VBoxContainer")
+        .def(py::init<>())
+        .def_readwrite("spacing", &VBoxContainer::spacing)
+        .def_readwrite("padding_top", &VBoxContainer::paddingTop)
+        .def_readwrite("padding_bottom", &VBoxContainer::paddingBottom)
+        .def_readwrite("horizontal_alignment", &VBoxContainer::horizontalAlignment);
+
+    ComponentRegistry::Register<VBoxContainer>("VBoxContainer",
+        [](GameObject& go, py::args args) -> py::object {
+            auto* vbox = go.AddComponent<VBoxContainer>();
+            return py::cast(vbox, py::return_value_policy::reference);
         }
     );
 }
