@@ -32,14 +32,8 @@ void SpriteSheetRenderer::SetTexture(const std::string& path) {
 }
 
 void SpriteSheetRenderer::SetTexture(UUID uuid) {
-    // If a texture is already loaded, free its GPU memory first
-    if (m_texture.id != 0) {
-        UnloadTexture(m_texture);
-        m_texture.id = 0;
-    }
-    
     m_textureUUID = uuid;
-    
+
     // Only try to load if the UUID is valid (not 0)
     if (m_textureUUID != 0) {
         // Resolve the UUID back to its CURRENT path on the hard drive
@@ -48,8 +42,13 @@ void SpriteSheetRenderer::SetTexture(UUID uuid) {
         if (!resolvedPath.empty()) {
             m_texture = AssetManager::GetTexture(resolvedPath);
         } else {
-            std::cerr << "[SpriteSheetRenderer] Error: Could not resolve UUID " << (uint64_t)m_textureUUID << " to a valid path!" << std::endl;
+            std::cerr << "[SpriteRenderer] Error: Could not resolve UUID " << (uint64_t)m_textureUUID << " to a valid path!" << std::endl;
+            m_texture.id = 0; // Invalidate the local texture if path fails
         }
+    }
+    else {
+        // If the UUID is 0 (cleared), just clear the local struct to stop rendering
+        m_texture.id = 0;
     }
 }
 

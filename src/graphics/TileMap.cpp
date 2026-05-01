@@ -39,11 +39,6 @@ void TileMap::LoadTileset(const std::string& path) {
 }
 
 void TileMap::LoadTileset(UUID uuid) {
-    if (m_tilesetTexture.id != 0) {
-        UnloadTexture(m_tilesetTexture);
-        m_tilesetTexture.id = 0;
-    }
-
     m_tilesetUUID = uuid;
 
     if (m_tilesetUUID != 0) {
@@ -54,7 +49,12 @@ void TileMap::LoadTileset(UUID uuid) {
             m_tilesetTexture = Graphics::LoadTextureFiltered(resolvedPath);
         } else {
             std::cerr << "[TileMap] Error: Could not resolve UUID " << (uint64_t)m_tilesetUUID << " to a valid path!" << std::endl;
+            m_tilesetTexture.id = 0;
         }
+    }
+    else {
+        // If the UUID is 0 (cleared), just clear the local struct to stop rendering
+        m_tilesetTexture.id = 0;
     }
 }
 
