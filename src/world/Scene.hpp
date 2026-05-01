@@ -469,6 +469,18 @@ class Scene {
             return RAYWHITE; 
         }
 
+        // Searches for a GameObject by its exact name across the entire scene
+        GameObject* FindObjectByName(const std::string& name) {
+            // Iterate through the list of GameObjects in the scene
+            for (const auto& go : m_gameObjects) {
+                if (go && go->name == name) {
+                    return go.get();
+                }
+            }
+
+            return nullptr;
+        }
+
     private:
         bool m_isRunning = false;
 

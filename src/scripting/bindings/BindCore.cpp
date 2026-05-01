@@ -13,6 +13,7 @@
 #include "core/GameStateManager.hpp"
 #include "scripting/ScriptableObject.hpp"
 #include "scripting/DataManager.hpp"
+#include "world/Scene.hpp"
 
 class Debug {
     public:
@@ -140,6 +141,17 @@ void BindCore(py::module_& m) {
                 std::cerr << "[Python] Cannot load scene: Engine is null!" << std::endl;
             }
         });
+
+    py::class_<Scene>(m, "Scene")
+        .def_static("find_object_by_name", 
+            [](const std::string& name) -> GameObject* {
+                if (Engine::Get()) {
+                    return Engine::Get()->GetActiveScene().FindObjectByName(name);
+                }
+                return nullptr;
+            },
+            py::return_value_policy::reference, py::arg("name")
+        );
 
     py::class_<PersistentComponent, Component>(m, "PersistentComponent")
         .def(py::init<>());

@@ -790,6 +790,32 @@ class SceneManager:
         ...
 
 
+class Scene:
+    """
+    Represents the currently active game scene, containing all active GameObjects.
+    Provides global access and search utilities.
+    """
+
+    @staticmethod
+    def find_object_by_name(name: str) -> Optional[GameObject]:
+        """
+        Searches for a GameObject by its exact name across the entire active scene.
+        This is a global search and will find the object regardless of its parent.
+        
+        Args:
+            name (str): The exact name of the GameObject to search for.
+            
+        Returns:
+            Optional[GameObject]: The found GameObject instance, or None if no object matches the name.
+            
+        Example:
+            camera = Scene.find_object_by_name("Main Camera")
+            if camera:
+                print("Camera found!")
+        """
+        ...
+
+
 class Globals:
     """Access global game variables managed in the Editor."""
     @staticmethod
