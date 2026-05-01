@@ -507,7 +507,7 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
         const auto& filename = entry.path().filename().string();
         std::string extension = entry.path().extension().string();
 
-        if (entry.is_directory() && filename == "__pycache__") continue;
+        if (entry.is_directory() && filename == "__pycache__" || filename == "foxvoid") continue;
         if (!entry.is_directory() && extension == ".pyc" || extension == ".meta") continue;
         if (!filename.empty() && filename[0] == '.') continue;
 
