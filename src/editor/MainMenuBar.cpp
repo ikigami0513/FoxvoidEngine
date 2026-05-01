@@ -340,6 +340,39 @@ void MainMenuBar::RunBuildThread(std::string startSceneStr, std::string outputDi
                 std::filesystem::copy(projectRoot / "assets", buildDir / "assets", std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
                 std::filesystem::copy_file(projectRoot / "project.json", buildDir / "project.json", std::filesystem::copy_options::overwrite_existing);
                 
+                // Rename the executable based on the Project Name
+                std::string projectName = ProjectSettings::GetProjectName();
+                
+                // Replace spaces with underscores for a safe OS executable name
+                std::string safeProjectName = projectName;
+                std::replace(safeProjectName.begin(), safeProjectName.end(), ' ', '_');
+
+                std::filesystem::path originalExe;
+                std::filesystem::path newExe;
+
+                // Handle cross-platform extension and potential CMake Release subfolders
+#if defined(_WIN32)
+                originalExe = buildDir / "FoxvoidStandalone.exe";
+                if (!std::filesystem::exists(originalExe)) {
+                    // Fallback for Visual Studio CMake generators
+                    originalExe = buildDir / "Release" / "FoxvoidStandalone.exe"; 
+                }
+                newExe = buildDir / (safeProjectName + ".exe");
+#else
+                originalExe = buildDir / "FoxvoidStandalone";
+                newExe = buildDir / safeProjectName;
+#endif
+
+                // Perform the rename/move operation
+                if (std::filesystem::exists(originalExe)) {
+                    // We use copy + remove instead of rename to safely handle moving out of the Release/ folder
+                    std::filesystem::copy_file(originalExe, newExe, std::filesystem::copy_options::overwrite_existing);
+                    std::filesystem::remove(originalExe);
+                } else {
+                    std::lock_guard<std::mutex> lock(m_buildMutex);
+                    m_buildLogs.push_back("[Warning] Could not find the executable to rename.");
+                }
+
                 {
                     std::lock_guard<std::mutex> lock(m_buildMutex);
                     m_buildStatusMsg = "SUCCESS! Game exported to: " + outputDirStr;
