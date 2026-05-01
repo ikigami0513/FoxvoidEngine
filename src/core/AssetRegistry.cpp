@@ -8,9 +8,74 @@ std::unordered_map<uint64_t, fs::path> AssetRegistry::s_Registry;
 std::unordered_map<std::string, uint64_t> AssetRegistry::s_PathToUUID;
 fs::path AssetRegistry::s_AssetsDirectory = "";
 
+// Initialize VFS statics
+bool AssetRegistry::s_IsPacked = false;
+std::unordered_map<std::string, PakEntry> AssetRegistry::s_PakToc;
+fs::path AssetRegistry::s_PakFilePath = "";
+
 void AssetRegistry::Initialize(const fs::path& assetsDirectory) {
     s_AssetsDirectory = assetsDirectory;
-    Refresh();
+
+    // The pak file is expected to be next to the assets directory (or project.json)
+    s_PakFilePath = assetsDirectory.parent_path() / "data.pak";
+
+    // VFS boot logic
+    if (fs::exists(s_PakFilePath)) {
+        s_IsPacked = true;
+        std::cout << "[AssetRegistry] VFS Mode Active: Reading from data.pak" << std::endl;
+
+        std::ifstream pakFile(s_PakFilePath, std::ios::binary);
+        if (pakFile.is_open()) {
+            uint32_t numFiles = 0;
+            pakFile.read(reinterpret_cast<char*>(&numFiles), sizeof(uint32_t));
+
+            std::vector<PakEntry> toc(numFiles);
+            pakFile.read(reinterpret_cast<char*>(toc.data()), numFiles * sizeof(PakEntry));
+
+            for (const auto& entry : toc) {
+                // Convert relative path back to absolute standardized path for the engine's internal map
+                std::string absolutePath = fs::absolute(assetsDirectory.parent_path() / entry.path).lexically_normal().string();
+                
+                s_PakToc[absolutePath] = entry;
+                s_PathToUUID[absolutePath] = entry.uuid; // Allows GetUUIDForPath to still work!
+
+                s_Registry[entry.uuid] = absolutePath;
+            }
+            pakFile.close();
+            std::cout << "[AssetRegistry] Loaded " << numFiles << " virtual files into memory." << std::endl;
+        }
+    }
+    else {
+        s_IsPacked = false;
+        Refresh(); // Fallback to standard Editor mode
+    }
+}
+
+bool AssetRegistry::IsPacked() {
+    return s_IsPacked;
+}
+
+std::vector<unsigned char> AssetRegistry::GetFileData(const std::string& path) {
+    if (!s_IsPacked) return {}; // Failsafe
+
+    std::string normalizedPath = fs::absolute(path).lexically_normal().string();
+    auto it = s_PakToc.find(normalizedPath);
+
+    if (it != s_PakToc.end()) {
+        std::ifstream pakFile(s_PakFilePath, std::ios::binary);
+        if (pakFile.is_open()) {
+            // Jump instantly to the exact byte where our file starts in the .pak
+            pakFile.seekg(it->second.offset);
+            
+            // Read exactly the size of our file
+            std::vector<unsigned char> buffer(it->second.size);
+            pakFile.read(reinterpret_cast<char*>(buffer.data()), it->second.size);
+            
+            return buffer;
+        }
+    }
+    std::cerr << "[VFS] File not found in archive: " << path << std::endl;
+    return {};
 }
 
 void AssetRegistry::Refresh() {
@@ -103,6 +168,12 @@ UUID AssetRegistry::GetUUIDForPath(const fs::path& path) {
     
     if (it != s_PathToUUID.end()) {
         return UUID(it->second);
+    }
+
+    // If we are in packed mode, DO NOT try to auto-register files from the hard drive!
+    if (s_IsPacked) {
+        std::cerr << "[VFS] Cannot resolve UUID dynamically in Standalone mode for: " << path << std::endl;
+        return UUID(0);
     }
 
     // Just-In-Time (JIT) registration

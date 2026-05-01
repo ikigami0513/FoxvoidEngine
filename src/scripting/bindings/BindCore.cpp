@@ -14,6 +14,8 @@
 #include "scripting/ScriptableObject.hpp"
 #include "scripting/DataManager.hpp"
 #include "world/Scene.hpp"
+#include <scripting/VFSLoader.hpp>
+#include <scripting/VFSFinder.hpp>
 
 class Debug {
     public:
@@ -32,6 +34,16 @@ class PyScriptableObject : public ScriptableObject {
 };
 
 void BindCore(py::module_& m) {
+    // VFS Internal Bindings
+    py::class_<VFSLoader>(m, "VFSLoader")
+        .def(py::init<std::string, std::string>())
+        .def("create_module", &VFSLoader::create_module)
+        .def("exec_module", &VFSLoader::exec_module);
+
+    py::class_<VFSFinder>(m, "VFSFinder")
+        .def(py::init<>())
+        .def("find_spec", &VFSFinder::find_spec);
+
     py::class_<Debug>(m, "Debug")
         .def_static("log", &Debug::Log)
         .def_static("error", &Debug::Error);

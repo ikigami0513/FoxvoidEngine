@@ -24,19 +24,4 @@ class MainMenuBar {
 
         // Multi-threading and progress tracking for the Build system
         bool m_openBuildProgressPopup = false;
-
-        std::atomic<bool> m_isBuilding{false};
-        std::atomic<int> m_buildProgress{0}; // Tracks completion percentage (0 to 100, or -1 for error)
-
-        std::mutex m_buildMutex;
-        std::string m_buildStatusMsg = "";
-
-        // Console logs container
-        std::vector<std::string> m_buildLogs;
-
-        // The function that will run in the background thread
-        void RunBuildThread(std::string startSceneStr, std::string outputDirStr, std::filesystem::path projectRoot, std::string engineRoot);
-
-        // Helper to execute command, read output, and parse progress
-        int ExecuteCommandWithOutput(const std::string& cmd, int baseProgress, int maxProgress);
 };

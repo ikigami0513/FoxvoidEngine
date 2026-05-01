@@ -1,24 +1,45 @@
 #include "Graphics.hpp"
+#include "core/AssetRegistry.hpp"
+#include <vector>
+#include <filesystem>
+#include <iostream>
 
 // We default to false.
 bool Graphics::pixelArtMode = false; 
 
 Texture2D Graphics::LoadTextureFiltered(const std::string& path) {
-    // Load the raw texture from disk to GPU
-    Texture2D texture = LoadTexture(path.c_str());
+    Texture2D texture = {0}; // Empty texture fallback
+
+    if (AssetRegistry::IsPacked()) {
+        // 1. Fetch the raw bytes from the .pak file
+        std::vector<unsigned char> fileData = AssetRegistry::GetFileData(path);
+        
+        if (!fileData.empty()) {
+            // 2. Raylib needs the file extension to know how to decode the bytes (PNG, JPG, etc.)
+            std::string ext = std::filesystem::path(path).extension().string();
+            
+            // 3. Load from RAM!
+            Image img = LoadImageFromMemory(ext.c_str(), fileData.data(), fileData.size());
+            texture = LoadTextureFromImage(img);
+            UnloadImage(img);
+        }
+    } else {
+        // Standard Editor Mode: Load directly from the physical hard drive
+        texture = LoadTexture(path.c_str());
+    }
 
     // Prevent Texture Edge Bleeding
-    // Forces the GPU to stop sampling pixels outside the actual image dimensions.
-    // This removes the dark/transparent artifacts on the edges of scaled sprites.
-    SetTextureWrap(texture, TEXTURE_WRAP_CLAMP);
+    if (texture.id != 0) {
+        SetTextureWrap(texture, TEXTURE_WRAP_CLAMP);
 
-    // Apply the correct filter based on the global engine setting
-    if (pixelArtMode) {
-        // Nearest-neighbor: Keeps pixels sharp and blocky (Perfect for Pixel Art)
-        SetTextureFilter(texture, TEXTURE_FILTER_POINT);
+        // Apply the correct filter
+        if (pixelArtMode) {
+            SetTextureFilter(texture, TEXTURE_FILTER_POINT);
+        } else {
+            SetTextureFilter(texture, TEXTURE_FILTER_BILINEAR);
+        }
     } else {
-        // Bilinear: Smooths out the pixels when scaled
-        SetTextureFilter(texture, TEXTURE_FILTER_BILINEAR);
+        std::cerr << "[Graphics] Failed to load texture: " << path << std::endl;
     }
 
     return texture;

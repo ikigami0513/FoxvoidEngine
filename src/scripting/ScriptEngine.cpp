@@ -27,6 +27,20 @@ void ScriptEngine::Initialize() {
             // This allows us to just say "import main" to load "assets/scripts/main.py"
             sys.attr("path").attr("append")("assets/scripts");
 
+#ifdef STANDALONE_MODE
+            // VFS FULL C++ LOADER
+            // We import our own engine module
+            py::module_ foxvoid = py::module_::import("foxvoid");
+            
+            // Instantiate the C++ VFSFinder
+            py::object finder = foxvoid.attr("VFSFinder")();
+            
+            // Insert it at index 0 of sys.meta_path so it has highest priority
+            sys.attr("meta_path").attr("insert")(0, finder);
+            
+            std::cout << "[ScriptEngine] Full C++ VFS Loader injected into Python." << std::endl;
+#endif
+
             std::cout << "[ScriptEngine] Python (pybind11) Initialized." << std::endl;
         } catch (const py::error_already_set& e) {
             std::cerr << "[ScriptEngine] Failed to initialize Python:\n" << e.what() << std::endl;

@@ -58,9 +58,8 @@ void ScriptComponent::LoadScript(UUID scriptUUID, const std::string& className) 
     m_scriptName = path.stem().string();
     m_scriptFilePath = path.string();
 
-    // CORRECTIF MAGIQUE : Si la classe est vide (vieille sauvegarde), on la déduit du fichier !
     if (m_className.empty()) {
-        m_className = m_scriptName; // Fallback par défaut
+        m_className = m_scriptName;
         std::ifstream file(m_scriptFilePath);
         if (file.is_open()) {
             std::string line;

@@ -51,6 +51,9 @@ class AudioSource : public Component {
         
         // Store the UUID instead of the hardcoded path
         UUID m_musicUUID = 0;
+
+        // Buffer to keep the music data alive in memory while it streams from the VFS
+        std::vector<unsigned char> m_musicBuffer;
         
         bool m_isMusicLoaded;
         float m_musicVolume;

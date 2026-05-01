@@ -1,5 +1,8 @@
 #include "AssetManager.hpp"
-#include "../graphics/Graphics.hpp"
+#include "graphics/Graphics.hpp"
+#include "core/AssetRegistry.hpp"
+#include <filesystem>
+#include <vector>
 #include <iostream>
 
 std::unordered_map<std::string, Texture2D> AssetManager::s_textures;
@@ -29,28 +32,50 @@ Texture2D AssetManager::GetTexture(const std::string& filepath) {
 }
 
 Font AssetManager::GetFont(const std::string& filepath) {
-    // 1. Check if the font is already loaded in memory
+    // 1. Check if the font is already loaded in our cache
     auto it = s_fonts.find(filepath);
     if (it != s_fonts.end()) {
         return it->second;
     }
 
-    // 2. Load the font at a high resolution (128) for crisp scaling
-    Font font = LoadFontEx(filepath.c_str(), 128, 0, 250);
-    
-    // 3. Verify it loaded correctly (Raylib returns texture ID 0 on failure)
-    if (font.texture.id != 0) {
-        // Use Bilinear filtering for smooth modern fonts
-        SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR); 
+    Font newFont = {0};
+
+    // 2. Check if we are running in Standalone (VFS mode) or Editor mode
+    if (AssetRegistry::IsPacked()) {
+        // Fetch the raw bytes from the data.pak archive
+        std::vector<unsigned char> fileData = AssetRegistry::GetFileData(filepath);
         
-        // Cache it for future use
-        s_fonts[filepath] = font;
-        std::cout << "[AssetManager] Loaded Font: " << filepath << std::endl;
-        return font;
+        if (!fileData.empty()) {
+            // Raylib needs the extension to know how to decode the font format (.ttf or .otf)
+            std::string ext = std::filesystem::path(filepath).extension().string();
+            
+            // Load from RAM. We match the LoadFontEx parameters here:
+            // 128 = base font size (high res for crisp scaling)
+            // nullptr = default character map
+            // 250 = glyph count
+            newFont = LoadFontFromMemory(ext.c_str(), fileData.data(), fileData.size(), 128, nullptr, 250);
+        } else {
+            std::cerr << "[AssetManager] Failed to load font from VFS: " << filepath << std::endl;
+        }
+    } 
+    else {
+        // Standard Editor Mode: Load directly from the physical disk
+        newFont = LoadFontEx(filepath.c_str(), 128, 0, 250);
     }
 
-    // Fallback if loading failed
-    std::cerr << "[AssetManager] Error: Failed to load font at " << filepath << std::endl;
+    // 3. Verify it loaded correctly (Raylib returns texture ID 0 on failure)
+    if (newFont.texture.id != 0) {
+        // Use Bilinear filtering for smooth modern fonts instead of pixelated edges
+        SetTextureFilter(newFont.texture, TEXTURE_FILTER_BILINEAR); 
+        
+        // Cache it for future use so we don't re-parse the file/memory again
+        s_fonts[filepath] = newFont;
+        std::cout << "[AssetManager] Loaded Font into VRAM: " << filepath << std::endl;
+        return newFont;
+    }
+
+    // Fallback if loading failed (corrupted file, wrong path, etc.)
+    std::cerr << "[AssetManager] Error: Failed to load font at " << filepath << ", falling back to default." << std::endl;
     return GetFontDefault();
 }
 

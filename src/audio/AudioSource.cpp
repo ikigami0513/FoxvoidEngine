@@ -58,10 +58,31 @@ void AudioSource::LoadSFX(const std::string& name, UUID uuid) {
     std::string resolvedPath = AssetRegistry::GetPathForUUID(uuid).string();
 
     if (!resolvedPath.empty()) {
-        Sound newSound = LoadSound(resolvedPath.c_str());
-        if (newSound.frameCount > 0) { // Raylib way to check if load was successful
+        Sound newSound = {0};
+
+        // Check if we are reading from the packed VFS or the physical disk
+        if (AssetRegistry::IsPacked()) {
+            std::vector<unsigned char> fileData = AssetRegistry::GetFileData(resolvedPath);
+            if (!fileData.empty()) {
+                std::string ext = std::filesystem::path(resolvedPath).extension().string();
+                
+                // Raylib requires us to parse the memory block into a Wave struct first
+                Wave wave = LoadWaveFromMemory(ext.c_str(), fileData.data(), fileData.size());
+                
+                // Then upload it to the audio device as a Sound
+                newSound = LoadSoundFromWave(wave);
+                
+                // We can safely free the Wave from RAM, the audio device has a copy
+                UnloadWave(wave); 
+            }
+        } else {
+            // Standard Editor loading
+            newSound = LoadSound(resolvedPath.c_str());
+        }
+
+        if (newSound.frameCount > 0) { 
             m_sfx[name] = newSound;
-            m_sfxUUIDs[name] = uuid; // Track the UUID
+            m_sfxUUIDs[name] = uuid; 
         } else {
             std::cerr << "[AudioSource] Failed to load SFX: " << resolvedPath << std::endl;
         }
@@ -92,7 +113,9 @@ void AudioSource::LoadMusic(const std::string& path) {
 // Core Music loading using UUID
 void AudioSource::LoadMusic(UUID uuid) {
     if (m_isMusicLoaded) {
+        StopMusicStream(m_currentMusic); // Good practice to stop before unloading
         UnloadMusicStream(m_currentMusic);
+        m_musicBuffer.clear(); // Free the old song's memory
         m_isMusicLoaded = false;
     }
 
@@ -102,12 +125,27 @@ void AudioSource::LoadMusic(UUID uuid) {
         std::string resolvedPath = AssetRegistry::GetPathForUUID(m_musicUUID).string();
 
         if (!resolvedPath.empty()) {
-            m_currentMusic = LoadMusicStream(resolvedPath.c_str());
+            
+            // Check if we are reading from the packed VFS or the physical disk
+            if (AssetRegistry::IsPacked()) {
+                // We store the data in the class member so it stays alive while playing!
+                m_musicBuffer = AssetRegistry::GetFileData(resolvedPath);
+                
+                if (!m_musicBuffer.empty()) {
+                    std::string ext = std::filesystem::path(resolvedPath).extension().string();
+                    m_currentMusic = LoadMusicStreamFromMemory(ext.c_str(), m_musicBuffer.data(), m_musicBuffer.size());
+                }
+            } else {
+                // Standard Editor loading
+                m_currentMusic = LoadMusicStream(resolvedPath.c_str());
+            }
+
             if (m_currentMusic.frameCount > 0) {
                 m_isMusicLoaded = true;
-                SetMusicVolume(m_musicVolume); // Apply current volume setting
+                SetMusicVolume(m_musicVolume); 
             } else {
                 std::cerr << "[AudioSource] Failed to load Music: " << resolvedPath << std::endl;
+                m_musicBuffer.clear(); // Clean up the RAM if the parsing failed
             }
         } else {
             std::cerr << "[AudioSource] Error: Could not resolve Music UUID " << (uint64_t)m_musicUUID << std::endl;

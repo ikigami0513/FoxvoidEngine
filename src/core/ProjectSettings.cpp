@@ -30,6 +30,7 @@ bool ProjectSettings::Load(const fs::path& projectFilePath) {
         s_projectRoot = projectFilePath.parent_path();
         std::cout << "[ProjectSettings] Successfully loaded project: " << GetProjectName() << std::endl;
 
+#ifdef STANDALONE_MODE
         // Python Stubs Auto-Generation
         // Ensure the Python type hinting file (__init__.pyi) is always up to date 
         // when a project is loaded, so the IDE has the latest Engine API definitions.
@@ -69,6 +70,7 @@ bool ProjectSettings::Load(const fs::path& projectFilePath) {
                 std::cout << "[ProjectSettings] Successfully updated Python stubs at: " << pyiFile << std::endl;
             }
         }
+#endif
 
         return true;
     } catch (const std::exception& e) {

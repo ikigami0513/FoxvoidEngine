@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <unordered_map>
 #include <string>
+#include "PakEntry.hpp"
 
 namespace fs = std::filesystem;
 
@@ -21,6 +22,12 @@ class [[gnu::visibility("default")]] AssetRegistry {
         // Returns the UUID associated with a file path. Returns 0 (invalid) if not found.
         static UUID GetUUIDForPath(const fs::path& path);
 
+        // Checks if the game is running from a data.pak file
+        static bool IsPacked();
+
+        // Extracts a file directly from the .pak into RAM
+        static std::vector<unsigned char> GetFileData(const std::string& path);
+
     private:
         static void ProcessDirectory(const fs::path& directory);
         static UUID LoadOrGenerateMetaFile(const fs::path& assetPath);
@@ -30,4 +37,8 @@ class [[gnu::visibility("default")]] AssetRegistry {
         static std::unordered_map<std::string, uint64_t> s_PathToUUID;
         
         static fs::path s_AssetsDirectory;
+
+        static bool s_IsPacked;
+        static std::unordered_map<std::string, PakEntry> s_PakToc;
+        static fs::path s_PakFilePath;
 };

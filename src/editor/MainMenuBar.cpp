@@ -7,6 +7,8 @@
 #include "core/ProjectSettings.hpp"
 #include <portable-file-dialogs.h>
 #include <extras/IconsFontAwesome6.h>
+#include <core/AssetRegistry.hpp>
+#include "Build.hpp"
 
 void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& isRunning, GameObject*& selectedObject, InputSettingsPanel& inputPanel, GameStatePanel& gameStatePanel, bool& showGlobalGrid) {
     // Global Shortcuts
@@ -202,14 +204,9 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
                 std::filesystem::create_directories(buildDir);
                 std::string engineRoot = ProjectSettings::GetEngineRoot().string();
 
-                // Setup initial state for the progress UI
-                m_isBuilding = true;
-                m_buildProgress = 0;
-                m_buildStatusMsg = "Initializing Build...";
                 m_openBuildProgressPopup = true; // Trigger the new progress modal
 
-                // Spawn the thread and detach it so it runs independently in the background
-                std::thread(&MainMenuBar::RunBuildThread, this, startSceneStr, outputDirStr, projectRoot, engineRoot).detach();
+                Build::Start(startSceneStr, outputDirStr, projectRoot, engineRoot);
             } 
             else {
                 std::cerr << "[Editor] Failed to save build configuration." << std::endl;
@@ -236,55 +233,60 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
     // Modal size is fixed to make sure the console has enough room
     ImGui::SetNextWindowSize(ImVec2(700, 450), ImGuiCond_Appearing);
     if (ImGui::BeginPopupModal("Build Progress", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-        // Safely read the current status from the thread
-        std::string currentStatus;
-        {
-            std::lock_guard<std::mutex> lock(m_buildMutex);
-            currentStatus = m_buildStatusMsg;
-        }
-        int progress = m_buildProgress.load();
-        bool isBuilding = m_isBuilding.load();
-
-        //  Display the text and the progress bar
+        
+        // --- NEW: Thread-safe data retrieval from the static Build class ---
+        // Fetch the current status message (e.g., "Step 1/3: Compiling...")
+        std::string currentStatus = Build::GetStatusMessage();
+        // Fetch the current progress percentage (0-100, or -1 for errors)
+        int progress = Build::GetProgress();
+        // Check if the background build thread is currently running
+        bool isBuilding = Build::IsBuilding();
+        // Fetch a thread-safe copy of all console logs generated so far
+        std::vector<std::string> logs = Build::GetLogs();
+        
+        // Display the current status message at the top of the modal
         ImGui::TextUnformatted(currentStatus.c_str());
         ImGui::Spacing();
 
-        // Console Output
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.05f, 0.05f, 0.05f, 1.0f)); // Dark background for console
+        // Setup a dark background color specifically for the console output area
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.05f, 0.05f, 0.05f, 1.0f)); 
+        // Create a scrollable child window for the console logs with a fixed height (280px)
         ImGui::BeginChild("ConsoleLog", ImVec2(0, 280), true, ImGuiWindowFlags_HorizontalScrollbar);
 
-        {
-            std::lock_guard<std::mutex> lock(m_buildMutex);
-            for (const auto& log : m_buildLogs) {
-                // Check if the log contains the word "error" or "warning" to color it
-                std::string lowerLog = log;
-                std::transform(lowerLog.begin(), lowerLog.end(), lowerLog.begin(), ::tolower);
+        // Iterate through all fetched logs to display them
+        for (const auto& log : logs) {
+            // Create a lowercase copy of the log to easily search for keywords
+            std::string lowerLog = log;
+            std::transform(lowerLog.begin(), lowerLog.end(), lowerLog.begin(), ::tolower);
 
-                if (lowerLog.find("error") != std::string::npos || lowerLog.find("failed") != std::string::npos) {
-                    ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", log.c_str());
-                } else if (lowerLog.find("warning") != std::string::npos) {
-                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "%s", log.c_str());
-                } else {
-                    ImGui::TextUnformatted(log.c_str());
-                }
-            }
-
-            // Auto-scroll to the bottom if we are actively building
-            if (isBuilding && ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) {
-                ImGui::SetScrollHereY(1.0f);
+            // Colorize the text based on keywords (Errors in red, Warnings in yellow, Normal in default color)
+            if (lowerLog.find("error") != std::string::npos || lowerLog.find("failed") != std::string::npos) {
+                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", log.c_str());
+            } else if (lowerLog.find("warning") != std::string::npos) {
+                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "%s", log.c_str());
+            } else {
+                ImGui::TextUnformatted(log.c_str());
             }
         }
 
-        ImGui::EndChild();
-        ImGui::PopStyleColor();
+        // Auto-scroll to the bottom: If we are building and the scrollbar is already near the bottom,
+        // force it to stay at the bottom so the user sees the newest logs automatically.
+        if (isBuilding && ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) {
+            ImGui::SetScrollHereY(1.0f);
+        }
 
+        ImGui::EndChild();
+        ImGui::PopStyleColor(); // Restore the default child background color
         ImGui::Spacing();
 
+        // Handle the progress bar or error message display
         if (progress >= 0) {
+            // Convert percentage (0-100) to a fraction (0.0 - 1.0) for ImGui
             float fraction = progress / 100.0f;
-            // Negative width (-1) means "fill the entire available width"
+            // Draw the progress bar. ImVec2(-1, 24) means "fill available width, 24px height"
             ImGui::ProgressBar(fraction, ImVec2(-1, 24)); 
         } else {
+            // If progress is negative (-1), it means a fatal error occurred in the build thread
             ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), ICON_FA_TRIANGLE_EXCLAMATION " Build Process Terminated with Errors.");
         }
 
@@ -292,12 +294,13 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
         ImGui::Separator();
         ImGui::Spacing();
 
-        // Dynamic Close Button
+        // Footer Actions: Disable the "Close" button while the build is actively running
         if (isBuilding) {
             ImGui::BeginDisabled();
             ImGui::Button(ICON_FA_SPINNER " Building...", ImVec2(120, 0));
             ImGui::EndDisabled();
         } else {
+            // Once the build finishes (success or failure), allow the user to close the modal
             if (ImGui::Button("Close", ImVec2(120, 0))) {
                 ImGui::CloseCurrentPopup();
             }
@@ -305,153 +308,4 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
         
         ImGui::EndPopup();
     }
-}
-
-void MainMenuBar::RunBuildThread(std::string startSceneStr, std::string outputDirStr, std::filesystem::path projectRoot, std::string engineRoot) {
-    std::filesystem::path buildDir = projectRoot / outputDirStr;
-    
-    {
-        std::lock_guard<std::mutex> lock(m_buildMutex);
-        m_buildLogs.clear(); // Clear logs from previous builds
-        m_buildStatusMsg = "Step 1/3: Configuring CMake...";
-    }
-    m_buildProgress = 0;
-    
-    std::string cmakeConfigCmd = "cmake -S \"" + engineRoot + "\" -B \"" + buildDir.string() + "\" -DCMAKE_BUILD_TYPE=Release";
-    int configResult = ExecuteCommandWithOutput(cmakeConfigCmd, 0, 10);
-
-    if (configResult == 0) {
-        {
-            std::lock_guard<std::mutex> lock(m_buildMutex);
-            m_buildStatusMsg = "Step 2/3: Compiling Game (This will take a moment)...";
-        }
-        
-        std::string cmakeBuildCmd = "cmake --build \"" + buildDir.string() + "\" --target FoxvoidStandalone --config Release";
-        int buildResult = ExecuteCommandWithOutput(cmakeBuildCmd, 10, 90);
-
-        if (buildResult == 0) {
-            {
-                std::lock_guard<std::mutex> lock(m_buildMutex);
-                m_buildStatusMsg = "Step 3/3: Copying Assets...";
-            }
-            m_buildProgress = 95;
-
-            try {
-                std::filesystem::copy(projectRoot / "assets", buildDir / "assets", std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
-                std::filesystem::copy_file(projectRoot / "project.json", buildDir / "project.json", std::filesystem::copy_options::overwrite_existing);
-                
-                // Rename the executable based on the Project Name
-                std::string projectName = ProjectSettings::GetProjectName();
-                
-                // Replace spaces with underscores for a safe OS executable name
-                std::string safeProjectName = projectName;
-                std::replace(safeProjectName.begin(), safeProjectName.end(), ' ', '_');
-
-                std::filesystem::path originalExe;
-                std::filesystem::path newExe;
-
-                // Handle cross-platform extension and potential CMake Release subfolders
-#if defined(_WIN32)
-                originalExe = buildDir / "FoxvoidStandalone.exe";
-                if (!std::filesystem::exists(originalExe)) {
-                    // Fallback for Visual Studio CMake generators
-                    originalExe = buildDir / "Release" / "FoxvoidStandalone.exe"; 
-                }
-                newExe = buildDir / (safeProjectName + ".exe");
-#else
-                originalExe = buildDir / "FoxvoidStandalone";
-                newExe = buildDir / safeProjectName;
-#endif
-
-                // Perform the rename/move operation
-                if (std::filesystem::exists(originalExe)) {
-                    // We use copy + remove instead of rename to safely handle moving out of the Release/ folder
-                    std::filesystem::copy_file(originalExe, newExe, std::filesystem::copy_options::overwrite_existing);
-                    std::filesystem::remove(originalExe);
-                } else {
-                    std::lock_guard<std::mutex> lock(m_buildMutex);
-                    m_buildLogs.push_back("[Warning] Could not find the executable to rename.");
-                }
-
-                {
-                    std::lock_guard<std::mutex> lock(m_buildMutex);
-                    m_buildStatusMsg = "SUCCESS! Game exported to: " + outputDirStr;
-                    m_buildLogs.push_back("--- BUILD FINISHED SUCCESSFULLY ---");
-                }
-                m_buildProgress = 100;
-            } catch(std::filesystem::filesystem_error& e) {
-                {
-                    std::lock_guard<std::mutex> lock(m_buildMutex);
-                    m_buildStatusMsg = "Error copying assets.";
-                    m_buildLogs.push_back(std::string("Filesystem Error: ") + e.what());
-                }
-                m_buildProgress = -1; 
-            }
-        } else {
-            {
-                std::lock_guard<std::mutex> lock(m_buildMutex);
-                m_buildStatusMsg = "FAILED during compilation.";
-            }
-            m_buildProgress = -1;
-        }
-    } else {
-        {
-            std::lock_guard<std::mutex> lock(m_buildMutex);
-            m_buildStatusMsg = "FAILED during CMake configuration.";
-        }
-        m_buildProgress = -1;
-    }
-
-    m_isBuilding = false;
-}
-
-int MainMenuBar::ExecuteCommandWithOutput(const std::string& cmd, int baseProgress, int maxProgress) {
-    // Append " 2>&1" to redirect standard errors to standard output so we catch everything
-    std::string fullCmd = cmd + " 2>&1";
-    
-    // Open the pipe
-    FILE* pipe = popen(fullCmd.c_str(), "r");
-    if (!pipe) {
-        std::lock_guard<std::mutex> lock(m_buildMutex);
-        m_buildLogs.push_back("[Error] Failed to open process pipe.");
-        return -1;
-    }
-
-    char buffer[256];
-    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-        std::string line(buffer);
-        
-        // Remove the trailing newline character
-        if (!line.empty() && line.back() == '\n') {
-            line.pop_back();
-        }
-
-        std::lock_guard<std::mutex> lock(m_buildMutex);
-        m_buildLogs.push_back(line);
-
-        // Progress Parser
-        // Look for the '%' character to extract Ninja/CMake progress
-        size_t pctPos = line.find("%");
-        if (pctPos != std::string::npos && pctPos > 0) {
-            // Backtrack to find the number before the '%'
-            size_t start = pctPos - 1;
-            while (start > 0 && std::isdigit(line[start])) {
-                start--;
-            }
-            if (!std::isdigit(line[start])) start++; // Move forward to the first digit
-
-            if (start < pctPos) {
-                try {
-                    int extractedPct = std::stoi(line.substr(start, pctPos - start));
-                    // Map the 0-100% of this specific command to our global progress bar
-                    float fraction = extractedPct / 100.0f;
-                    m_buildProgress = baseProgress + static_cast<int>(fraction * (maxProgress - baseProgress));
-                } catch(...) {
-                    // Ignore parsing errors
-                }
-            }
-        }
-    }
-
-    return pclose(pipe);
 }

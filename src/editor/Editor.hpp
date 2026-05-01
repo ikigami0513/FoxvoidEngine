@@ -27,7 +27,7 @@
 #include "editor/PerformancePanel.hpp"
 #include "editor/CodeEditorPanel.hpp"
 
-class Editor {
+class [[gnu::visibility("default")]] Editor {
     public:
         Editor(int windowWidth, int windowHeight);
         ~Editor();

@@ -19,6 +19,7 @@
 #include "graphics/Camera2d.hpp"
 #include "PersistentComponent.hpp"
 #include <gui/Mask.hpp>
+#include <core/AssetRegistry.hpp>
 
 class Scene {
     public:
@@ -170,21 +171,48 @@ class Scene {
             }
         }
 
-        // Loads a scene from a JSON file
+        // Loads a scene from a JSON file, supporting both Editor and Standalone VFS modes
         void LoadFromFile(const std::string& filepath, bool keepPersistent = true) {
-            std::ifstream file(filepath);
-            if (file.is_open()) {
-                nlohmann::json j;
-                try {
-                    file >> j;
-                    Deserialize(j, keepPersistent);
-                    std::cout << "[Scene] Successfully loaded from: " << filepath << std::endl;
-                } catch (const nlohmann::json::parse_error& e) {
-                    std::cerr << "[Scene] JSON parsing error in " << filepath << ":\n" << e.what() << std::endl;
+            nlohmann::json j;
+            bool loadSuccess = false;
+
+            // Check if we are running in packed (VFS) mode
+            if (AssetRegistry::IsPacked()) {
+                // Read raw bytes from the data.pak file
+                std::vector<unsigned char> fileData = AssetRegistry::GetFileData(filepath);
+                
+                if (!fileData.empty()) {
+                    try {
+                        // nlohmann::json can parse directly from memory iterators!
+                        j = nlohmann::json::parse(fileData.begin(), fileData.end());
+                        loadSuccess = true;
+                    } catch (const nlohmann::json::parse_error& e) {
+                        std::cerr << "[Scene] JSON parsing error in VFS " << filepath << ":\n" << e.what() << std::endl;
+                    }
+                } else {
+                    std::cerr << "[Scene] Failed to load file from VFS: " << filepath << std::endl;
                 }
-                file.close();
-            } else {
-                std::cerr << "[Scene] Failed to open file for loading: " << filepath << std::endl;
+            } 
+            else {
+                // Standard Editor Mode: Load directly from disk
+                std::ifstream file(filepath);
+                if (file.is_open()) {
+                    try {
+                        file >> j;
+                        loadSuccess = true;
+                    } catch (const nlohmann::json::parse_error& e) {
+                        std::cerr << "[Scene] JSON parsing error in " << filepath << ":\n" << e.what() << std::endl;
+                    }
+                    file.close();
+                } else {
+                    std::cerr << "[Scene] Failed to open file for loading: " << filepath << std::endl;
+                }
+            }
+
+            // Only proceed with instantiation if the JSON was successfully parsed
+            if (loadSuccess) {
+                Deserialize(j, keepPersistent);
+                std::cout << "[Scene] Successfully loaded from: " << filepath << std::endl;
             }
         }
 
@@ -264,15 +292,46 @@ class Scene {
 
         // Instantiates a new GameObject (or a full hierarchy) from a JSON prefab file
         GameObject* Instantiate(const std::string& prefabPath) {
-            std::ifstream file(prefabPath);
-            if (!file.is_open()) {
-                std::cerr << "[Scene] Error: Could not open prefab file: " << prefabPath << std::endl;
-                return nullptr;
+            nlohmann::json j;
+            bool loadSuccess = false;
+
+            // Check if we are running in packed (VFS) mode
+            if (AssetRegistry::IsPacked()) {
+                std::vector<unsigned char> fileData = AssetRegistry::GetFileData(prefabPath);
+                
+                if (!fileData.empty()) {
+                    try {
+                        j = nlohmann::json::parse(fileData.begin(), fileData.end());
+                        loadSuccess = true;
+                    } catch (const nlohmann::json::parse_error& e) {
+                        std::cerr << "[Scene] Prefab JSON parsing error in VFS " << prefabPath << ":\n" << e.what() << std::endl;
+                    }
+                } else {
+                    std::cerr << "[Scene] Error: Could not open prefab file from VFS: " << prefabPath << std::endl;
+                    return nullptr; // Fail early
+                }
+            } 
+            else {
+                // Standard Editor Mode: Load directly from disk
+                std::ifstream file(prefabPath);
+                if (!file.is_open()) {
+                    std::cerr << "[Scene] Error: Could not open prefab file: " << prefabPath << std::endl;
+                    return nullptr; // Fail early
+                }
+                
+                try {
+                    file >> j;
+                    loadSuccess = true;
+                } catch (const nlohmann::json::parse_error& e) {
+                    std::cerr << "[Scene] Prefab JSON parsing error in " << prefabPath << ":\n" << e.what() << std::endl;
+                }
+                file.close();
             }
 
-            nlohmann::json j;
-            file >> j;
-            file.close();
+            // Safety check before trying to instantiate objects
+            if (!loadSuccess) {
+                return nullptr;
+            }
 
             // Backward Compatibility
             // If it's an old prefab (just a single object, not an array)
