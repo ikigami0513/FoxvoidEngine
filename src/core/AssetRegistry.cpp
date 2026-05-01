@@ -45,7 +45,7 @@ void AssetRegistry::ProcessDirectory(const fs::path& directory) {
             
             s_Registry[(uint64_t)assetUUID] = entry.path();
             
-            // CORRECTION: Convert to absolute and standardized path before saving
+            // Convert to absolute and standardized path before saving
             std::string normalizedPath = fs::absolute(entry.path()).lexically_normal().string();
             s_PathToUUID[normalizedPath] = (uint64_t)assetUUID;
         }
@@ -103,6 +103,24 @@ UUID AssetRegistry::GetUUIDForPath(const fs::path& path) {
     
     if (it != s_PathToUUID.end()) {
         return UUID(it->second);
+    }
+
+    // Just-In-Time (JIT) registration
+    // If the file exists on disk but isn't in our registry yet, 
+    // it means the user just added it via the OS explorer. Let's process it right now!
+    if (fs::exists(normalizedPath) && !fs::is_directory(normalizedPath)) {
+        // Ignore files that shouldn't have meta files
+        std::string ext = fs::path(normalizedPath).extension().string();
+        if (ext != ".meta" && ext != ".pyc" && fs::path(normalizedPath).filename().string()[0] != '.') {
+            
+            std::cout << "[AssetRegistry] Auto-registering new file: " << path.filename() << std::endl;
+            
+            UUID newUUID = LoadOrGenerateMetaFile(normalizedPath);
+            s_Registry[(uint64_t)newUUID] = normalizedPath;
+            s_PathToUUID[normalizedPath] = (uint64_t)newUUID;
+            
+            return newUUID;
+        }
     }
     
     // Useful debug to know if a path failed to resolve
