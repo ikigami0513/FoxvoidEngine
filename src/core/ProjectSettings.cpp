@@ -2,6 +2,7 @@
 #include "scripting/PythonStubs.hpp"
 #include <fstream>
 #include <iostream>
+#include <sstream>
 
 namespace fs = std::filesystem;
 
@@ -11,23 +12,67 @@ fs::path ProjectSettings::s_projectRoot;
 fs::path ProjectSettings::s_engineRoot;
 
 bool ProjectSettings::Load(const fs::path& projectFilePath) {
+    // Check if the provided project configuration file actually exists on disk
     if (!fs::exists(projectFilePath)) {
         std::cerr << "[ProjectSettings] Error: File not found at " << projectFilePath << std::endl;
         return false;
     }
 
+    // Open the file stream for reading
     std::ifstream file(projectFilePath);
     if (!file.is_open()) return false;
 
     try {
-        // Parse the JSON file into our static config object
+        // Parse the JSON file content into our static config object
         file >> s_config;
         
-        // Store the directory containing the project.json file
+        // Store the directory containing the project.json file as the absolute project root
         s_projectRoot = projectFilePath.parent_path();
         std::cout << "[ProjectSettings] Successfully loaded project: " << GetProjectName() << std::endl;
+
+        // Python Stubs Auto-Generation
+        // Ensure the Python type hinting file (__init__.pyi) is always up to date 
+        // when a project is loaded, so the IDE has the latest Engine API definitions.
+        std::filesystem::path foxvoidDir = GetAssetsPath() / "scripts" / "foxvoid";
+        std::filesystem::path pyiFile = foxvoidDir / "__init__.pyi";
+
+        bool needsUpdate = true;
+
+        // Check if the stubs file already exists
+        if (std::filesystem::exists(pyiFile)) {
+            // Open the file in binary mode to prevent Windows from converting \n to \r\n, 
+            // which would cause the exact string comparison to fail unnecessarily.
+            std::ifstream inFile(pyiFile, std::ios::binary); 
+            if (inFile.is_open()) {
+                // Read the entire file content into a string buffer
+                std::stringstream buffer;
+                buffer << inFile.rdbuf();
+                
+                // Compare existing file content with the hardcoded expected C++ content
+                if (buffer.str() == FOXVOID_PYI_CONTENT) {
+                    needsUpdate = false; // The file is already perfectly up to date
+                }
+                inFile.close();
+            }
+        } else {
+            // If it doesn't exist, safely create the directory structure first
+            std::filesystem::create_directories(foxvoidDir);
+        }
+
+        // Write or overwrite the file if an update is required
+        if (needsUpdate) {
+            // ios::trunc ensures any old content is completely wiped before writing
+            std::ofstream outFile(pyiFile, std::ios::trunc | std::ios::binary); 
+            if (outFile.is_open()) {
+                outFile << FOXVOID_PYI_CONTENT;
+                outFile.close();
+                std::cout << "[ProjectSettings] Successfully updated Python stubs at: " << pyiFile << std::endl;
+            }
+        }
+
         return true;
     } catch (const std::exception& e) {
+        // Catch any JSON parsing errors or filesystem exceptions to prevent crashing
         std::cerr << "[ProjectSettings] JSON Parse Error: " << e.what() << std::endl;
         return false;
     }

@@ -11,7 +11,7 @@ const std::string FOXVOID_PYI_CONTENT = R"(
 # implementation is handled natively in C++.
 
 from enum import Enum
-from typing import TypeVar, Type, Optional, List, overload, Tuple
+from typing import TypeVar, Type, Optional, List, overload, Tuple, Dict
 
 # Type variable for smart autocompletion in the get_component method.
 # It ensures that getting a Transform2d actually returns a Transform2d type in the IDE.
@@ -171,6 +171,18 @@ class Collision2D:
 class Component:
     """Base class for all engine scripts and components."""
     
+    __categories__: Dict[str, List[str]]
+    """
+    (Optional) Editor metadata to group variables in the Inspector.
+    Format: {"Category Name": ["var1", "var2"]}
+
+    Example:
+        __categories__ = {
+            "Movement": ["speed", "jump_force"],
+            "Combat": ["health", "damage"]
+        }
+    """
+
     def __init__(self) -> None: 
         """Initializes the C++ base component memory."""
         ...

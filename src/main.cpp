@@ -47,43 +47,6 @@ int main(int argc, char** argv) {
             return -1;
 #endif
         }
-
-        // Auto-generate or update the Python stubs file if it's missing or outdated
-        std::filesystem::path foxvoidDir = ProjectSettings::GetAssetsPath() / "scripts" / "foxvoid";
-        std::filesystem::path pyiFile = foxvoidDir / "__init__.pyi";
-
-        bool needsUpdate = true;
-
-        // If the file already exists, check if its content matches the engine's current version
-        if (std::filesystem::exists(pyiFile)) {
-            std::ifstream inFile(pyiFile);
-            if (inFile.is_open()) {
-                std::stringstream buffer;
-                buffer << inFile.rdbuf(); // Read the entire file into the stringstream
-                
-                // Compare existing content with the expected content
-                if (buffer.str() == FOXVOID_PYI_CONTENT) {
-                    needsUpdate = false; // It's up to date, no need to touch the disk
-                }
-                inFile.close();
-            }
-        } else {
-            // Create the directory safely if it doesn't exist at all
-            std::filesystem::create_directories(foxvoidDir);
-        }
-
-        // Write or overwrite the file if necessary
-        if (needsUpdate) {
-            std::ofstream outFile(pyiFile, std::ios::trunc); // trunc ensures we overwrite old content
-            if (outFile.is_open()) {
-                outFile << FOXVOID_PYI_CONTENT;
-                outFile.close();
-                std::cout << "[Engine] Successfully generated/updated Python stubs at: " << pyiFile << std::endl;
-            } else {
-                std::cerr << "[Engine] Error: Could not write Python stubs to: " << pyiFile << std::endl;
-            }
-        }
-
     } else if (argc > 1) {
         std::cerr << "Error: Provided project path does not exist: " << projectPath << std::endl;
     }
