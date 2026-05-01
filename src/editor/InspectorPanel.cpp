@@ -111,7 +111,7 @@ void InspectorPanel::Draw(GameObject*& selectedObject, py::object& selectedAsset
 
         // Add new components
         float windowWidth = ImGui::GetWindowSize().x;
-        float buttonWidth = 150.0f;
+        float buttonWidth = 200.0f;
         ImGui::SetCursorPosX((windowWidth - buttonWidth) * 0.5f);
 
         if (ImGui::Button("Add Component", ImVec2(buttonWidth, 0))) {
