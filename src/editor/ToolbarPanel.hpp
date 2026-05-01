@@ -13,4 +13,8 @@
 class ToolbarPanel {
     public:
         void Draw(Scene& activeScene, GameObject*& selectedObject, nlohmann::json& sceneBackup, EditorViewMode& currentViewMode);
+
+    private:
+        // Stores the original scene path to restore it when STOP is pressed
+        std::string m_savedScenePathBeforePlay = "";
 };

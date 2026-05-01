@@ -18,6 +18,8 @@ void ToolbarPanel::Draw(Scene& activeScene, GameObject*& selectedObject, nlohman
             std::cout << "[Editor] Entered PLAY mode." << std::endl;
             
             selectedObject = nullptr;
+
+            m_savedScenePathBeforePlay = Engine::Get()->GetCurrentScenePath();
             
             // Backup the scene before any scripts modify it
             sceneBackup = activeScene.Serialize();
@@ -42,6 +44,8 @@ void ToolbarPanel::Draw(Scene& activeScene, GameObject*& selectedObject, nlohman
 
             // Restore the scene to its initial state
             activeScene.Deserialize(sceneBackup, false);
+
+            Engine::Get()->SetCurrentScenePath(m_savedScenePathBeforePlay);
 
             // Restore the global variables so the Editor UI reflects the defaults
             GameStateManager::Load();

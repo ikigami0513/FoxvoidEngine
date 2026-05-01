@@ -46,6 +46,12 @@ class Engine {
         void SetPlaying(bool playing);
         bool IsPlaying() const;
 
+        // Allows the editor to query the currently loaded scene file
+        const std::string& GetCurrentScenePath() const { return m_currentScenePath; }
+
+        // Allows the editor to forcefully restore the scene path after a play session
+        void SetCurrentScenePath(const std::string& path) { m_currentScenePath = path; }
+
     private:
         // Core loop stages
         void ProcessInput();
