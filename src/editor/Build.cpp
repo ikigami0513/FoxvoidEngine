@@ -77,9 +77,6 @@ void Build::RunThread(std::string startSceneStr, std::string outputDirStr, std::
             s_buildProgress = 95;
 
             try {
-                // Copy the project configuration
-                std::filesystem::copy_file(projectRoot / "project.json", buildDir / "project.json", std::filesystem::copy_options::overwrite_existing);
-                
                 // The packer (Virtual File System)
                 {
                     std::lock_guard<std::mutex> lock(s_buildMutex);
@@ -91,6 +88,9 @@ void Build::RunThread(std::string startSceneStr, std::string outputDirStr, std::
 
                 if (pakFile.is_open()) {
                     std::vector<std::filesystem::path> filesToPack;
+
+                    filesToPack.push_back(projectRoot / "project.json");
+
                     for (const auto& entry : std::filesystem::recursive_directory_iterator(projectRoot / "assets")) {
                         if (entry.is_regular_file()) {
                             std::string ext = entry.path().extension().string();
@@ -112,7 +112,17 @@ void Build::RunThread(std::string startSceneStr, std::string outputDirStr, std::
                     pakFile.seekp(tocOffset + tocSize);
 
                     for (const auto& filePath : filesToPack) {
-                        UUID fileUUID = AssetRegistry::GetUUIDForPath(filePath);
+                        UUID fileUUID = 0;
+                        std::string relPath;
+
+                        if (filePath.filename() == "project.json") {
+                            fileUUID = UUID(1);
+                            relPath = "project.json";
+                        }
+                        else {
+                            fileUUID = AssetRegistry::GetUUIDForPath(filePath);
+                            relPath = std::filesystem::relative(filePath, projectRoot).generic_string();
+                        }
                         
                         if (fileUUID != 0) {
                             std::ifstream sourceFile(filePath, std::ios::binary | std::ios::ate);

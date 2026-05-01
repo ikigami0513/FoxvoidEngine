@@ -32,14 +32,18 @@ int main(int argc, char** argv) {
         // In Editor mode, if no arguments are passed, we leave the path empty.
         // The Engine will boot and the Editor will show the Project Hub.
 #else
-        // In Standalone mode, the built executable expects the project.json 
-        // to be in the exact same directory as the executable itself.
+        // In Standalone mode, we mount the VFS immediately using the executable's directory
+        std::filesystem::path exeDir = std::filesystem::current_path();
+        AssetRegistry::MountVFS(exeDir);
+        
+        // We set the target to project.json, which will now be intercepted by the VFS
         projectPath = "project.json";
 #endif
     }
 
     // Attempt to load the project configuration
-    if (!projectPath.empty() && std::filesystem::exists(projectPath)) {
+    // We removed std::filesystem::exists() because project.json is hidden inside the VFS!
+    if (!projectPath.empty()) {
         if (!ProjectSettings::Load(projectPath)) {
             std::cerr << "Failed to load project at: " << projectPath << std::endl;
 #ifdef STANDALONE_MODE
@@ -48,7 +52,7 @@ int main(int argc, char** argv) {
 #endif
         }
     } else if (argc > 1) {
-        std::cerr << "Error: Provided project path does not exist: " << projectPath << std::endl;
+        std::cerr << "Error: Provided project path is invalid: " << projectPath << std::endl;
     }
 
     try {
@@ -61,14 +65,11 @@ int main(int argc, char** argv) {
         );
 
 #ifdef STANDALONE_MODE
-        // Change the OS Current Working Directory
-        // Forces Raylib and standard file ops to look relative to the project root
-        std::filesystem::path absoluteRoot = std::filesystem::absolute(projectPath).parent_path();
-        std::filesystem::current_path(absoluteRoot);
-        std::cout << "[Standalone] Working directory set to: " << std::filesystem::current_path().string() << std::endl;
+        // NOUVEAU: The old std::filesystem::current_path change was removed here 
+        // to avoid conflicts with the VFS.
 
         // Initialize the global Asset Registry
-        // Scans the standalone "assets" folder to map all .meta UUIDs to file paths
+        // In Standalone, this will just skip the physical scan since IsPacked() is true
         AssetRegistry::Initialize(ProjectSettings::GetAssetsPath());
 
         // Register the project's script folder in Python

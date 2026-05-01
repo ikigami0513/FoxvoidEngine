@@ -13,6 +13,9 @@ class [[gnu::visibility("default")]] AssetRegistry {
         // Scans the asset directory, reading or generating .meta files
         static void Initialize(const fs::path& assetsDirectory);
 
+        // Mounts the Virtual File System before the engine fully boots
+        static void MountVFS(const fs::path& executableDirectory);
+
         // Rescans the directory (useful if the user adds files externally)
         static void Refresh();
 

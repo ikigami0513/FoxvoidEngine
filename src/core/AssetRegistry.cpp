@@ -16,13 +16,17 @@ fs::path AssetRegistry::s_PakFilePath = "";
 void AssetRegistry::Initialize(const fs::path& assetsDirectory) {
     s_AssetsDirectory = assetsDirectory;
 
-    // The pak file is expected to be next to the assets directory (or project.json)
-    s_PakFilePath = assetsDirectory.parent_path() / "data.pak";
+    if (!s_IsPacked) {
+        Refresh();
+    }
+}
 
-    // VFS boot logic
+void AssetRegistry::MountVFS(const fs::path& executableDirectory) {
+    s_PakFilePath = executableDirectory / "data.pak";
+    
     if (fs::exists(s_PakFilePath)) {
         s_IsPacked = true;
-        std::cout << "[AssetRegistry] VFS Mode Active: Reading from data.pak" << std::endl;
+        std::cout << "[AssetRegistry] VFS Mounted: " << s_PakFilePath << std::endl;
 
         std::ifstream pakFile(s_PakFilePath, std::ios::binary);
         if (pakFile.is_open()) {
@@ -33,21 +37,17 @@ void AssetRegistry::Initialize(const fs::path& assetsDirectory) {
             pakFile.read(reinterpret_cast<char*>(toc.data()), numFiles * sizeof(PakEntry));
 
             for (const auto& entry : toc) {
-                // Convert relative path back to absolute standardized path for the engine's internal map
-                std::string absolutePath = fs::absolute(assetsDirectory.parent_path() / entry.path).lexically_normal().string();
+                // On recrée le chemin absolu tel que le moteur s'y attend
+                std::string absolutePath = fs::absolute(executableDirectory / entry.path).lexically_normal().string();
                 
                 s_PakToc[absolutePath] = entry;
-                s_PathToUUID[absolutePath] = entry.uuid; // Allows GetUUIDForPath to still work!
-
-                s_Registry[entry.uuid] = absolutePath;
+                s_PathToUUID[absolutePath] = entry.uuid;
+                if (entry.uuid != 1) { // Si ce n'est pas notre faux UUID du project.json
+                    s_Registry[entry.uuid] = absolutePath;
+                }
             }
             pakFile.close();
-            std::cout << "[AssetRegistry] Loaded " << numFiles << " virtual files into memory." << std::endl;
         }
-    }
-    else {
-        s_IsPacked = false;
-        Refresh(); // Fallback to standard Editor mode
     }
 }
 
