@@ -3,6 +3,9 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <map>
+#include <vector>
+#include <algorithm>
 
 #include "core/AssetRegistry.hpp"
 #include "world/GameObject.hpp"
@@ -257,7 +260,7 @@ std::string ScriptComponent::GetName() const {
 
 #ifndef STANDALONE_MODE
 void ScriptComponent::OnInspector() {
-    // 1. Script Binding (Only visible if no script is currently loaded)
+    // Script Binding (Only visible if no script is currently loaded)
     if (!m_instance) {
         ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.2f, 1.0f), "No valid Python instance.");
         
@@ -321,7 +324,7 @@ void ScriptComponent::OnInspector() {
         return; // Stop drawing here if no instance is loaded
     }
 
-    // 2. Hot Reload Check for Editor Mode (Only runs if a script is loaded)
+    // Hot Reload Check for Editor Mode (Only runs if a script is loaded)
     try {
         if (!m_scriptFilePath.empty() && std::filesystem::exists(m_scriptFilePath)) {
             auto currentWriteTime = std::filesystem::last_write_time(m_scriptFilePath);
@@ -334,19 +337,15 @@ void ScriptComponent::OnInspector() {
         std::cerr << "[ScriptComponent] Inspector File system error: " << e.what() << std::endl;
     }
 
-    // 3. Dynamic Variables Inspection
+    // Dynamic Variables Inspection
     try {
         py::dict attributes = m_instance.attr("__dict__");
         static nlohmann::json initialDynamicState;
 
-        for (auto item : attributes) {
-            std::string key = py::str(item.first);
-            
-            if (key.rfind("_", 0) == 0) continue;
-
-            py::object value = py::reinterpret_borrow<py::object>(item.second);
-
-            if (py::isinstance<Component>(value)) continue;
+        // Helper Lambda to draw a single property
+        // This avoids duplicating the drawing code for categorized and uncategorized variables
+        auto DrawPythonVariable = [&](const std::string& key, py::object value) {
+            if (py::isinstance<Component>(value)) return;
 
             if (py::isinstance<py::float_>(value)) {
                 float v = value.cast<float>();
@@ -389,7 +388,82 @@ void ScriptComponent::OnInspector() {
                 std::string typeName = py::str(value.get_type().attr("__name__"));
                 ImGui::TextDisabled("%s : [%s]", key.c_str(), typeName.c_str());
             }
+        };
+
+        // Categories Logic
+        std::map<std::string, std::vector<std::string>> categories;
+        std::vector<std::string> categorizedVars;
+
+        // Attempt to read the __categories__ dictionary if defined in the Python class
+        if (py::hasattr(m_instance, "__categories__")) {
+            try {
+                py::dict pyCategories = m_instance.attr("__categories__");
+                for (auto item : pyCategories) {
+                    std::string catName = py::str(item.first);
+                    py::list varsList = py::cast<py::list>(item.second);
+                    
+                    for (auto var : varsList) {
+                        std::string varName = py::str(var);
+                        categories[catName].push_back(varName);
+                        categorizedVars.push_back(varName); // Track everything that has a category
+                    }
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "[Editor] Error reading __categories__: " << e.what() << std::endl;
+            }
         }
+
+        // Draw the categorized variables first, inside collapsible TreeNodes
+        for (const auto& [catName, vars] : categories) {
+            // Make the category open by default
+            if (ImGui::TreeNodeEx(catName.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+                for (const auto& varName : vars) {
+                    // Safety check: ensure the variable actually exists in the instance's __dict__
+                    if (attributes.contains(varName.c_str())) {
+                        py::object varValue = py::reinterpret_borrow<py::object>(attributes[varName.c_str()]);
+                        DrawPythonVariable(varName, varValue);
+                    } else {
+                        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "Warning: '%s' not found", varName.c_str());
+                    }
+                }
+                ImGui::TreePop(); // Close the category folder
+            }
+        }
+
+        // Uncategorized Logic
+        // Check if there are any variables left to draw outside of categories
+        bool hasUncategorized = false;
+        for (auto item : attributes) {
+            std::string key = py::str(item.first);
+            if (key.rfind("_", 0) == 0) continue; // Skip private
+
+            // If a valid variable is not in the categorized list, flag it
+            if (std::find(categorizedVars.begin(), categorizedVars.end(), key) == categorizedVars.end()) {
+                hasUncategorized = true;
+                break;
+            }
+        }
+
+        // Draw a separator only if we have both categories AND uncategorized variables
+        if (hasUncategorized && !categories.empty()) {
+            ImGui::Separator();
+            ImGui::TextDisabled("Uncategorized");
+        }
+
+        // Draw the remaining variables
+        for (auto item : attributes) {
+            std::string key = py::str(item.first);
+            
+            // Skip private variables (starting with '_')
+            if (key.rfind("_", 0) == 0) continue;
+
+            // Only draw if it wasn't already drawn in a category
+            if (std::find(categorizedVars.begin(), categorizedVars.end(), key) == categorizedVars.end()) {
+                py::object value = py::reinterpret_borrow<py::object>(item.second);
+                DrawPythonVariable(key, value);
+            }
+        }
+
     } 
     catch (const py::error_already_set& e) {
         ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Python Error:");
