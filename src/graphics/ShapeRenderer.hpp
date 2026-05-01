@@ -5,6 +5,7 @@
 #include "physics/Transform2d.hpp"
 #include "gui/RectTransform.hpp"
 #include <raylib.h>
+#include <rlgl.h>
 
 #ifndef STANDALONE_MODE
 #include "editor/EditorUI.hpp"
@@ -18,8 +19,11 @@ class ShapeRenderer : public Component {
         float height;
         bool isHUD;
 
+        float roundness;
+        int segments;
+
         ShapeRenderer(float w = 50.0f, float h = 50.0f, Color c = WHITE, bool hud = false) 
-            : width(w), height(h), color(c), isHUD(hud) {}
+            : width(w), height(h), color(c), isHUD(hud), roundness(0.0f), segments(10) {}
 
         // We only override Render, as this component doesn't need to update logic
         void Render() override {
@@ -45,8 +49,23 @@ class ShapeRenderer : public Component {
                 // Define the origin point for rotation (center of the rectangle)
                 Vector2 origin = { rec.width / 2.0f, rec.height / 2.0f };
                 
-                // Draw the rotated rectangle
-                DrawRectanglePro(rec, origin, transform->rotation, color);
+                if (roundness > 0.0f) {
+                    // Since Raylib lacks DrawRectangleRoundedPro, we use OpenGL matrices
+                    rlPushMatrix();
+                        // Move to the object's position
+                        rlTranslatef(position.x, position.y, 0.0f);
+                        // Rotate around the Z axis
+                        rlRotatef(transform->rotation, 0.0f, 0.0f, 1.0f);
+                        
+                        // Draw the rounded rect centered on the new origin (0,0)
+                        Rectangle localRec = { -origin.x, -origin.y, rec.width, rec.height };
+                        DrawRectangleRounded(localRec, roundness, segments, color);
+                    rlPopMatrix();
+                }
+                else {
+                    // Legacy fast-path for perfectly square rectangles
+                    DrawRectanglePro(rec, origin, transform->rotation, color);
+                }
             }
         }
 
@@ -56,7 +75,13 @@ class ShapeRenderer : public Component {
             // UI Elements should prefer RectTransform
             if (RectTransform* rectTransform = owner->GetComponent<RectTransform>()) {
                 Rectangle rec = rectTransform->GetScreenRect();
-                DrawRectangleRec(rec, color);
+                
+                if (roundness > 0.0f) {
+                    DrawRectangleRounded(rec, roundness, segments, color);
+                } else {
+                    DrawRectangleRec(rec, color);
+                }
+
                 return;
             }
 
@@ -73,7 +98,18 @@ class ShapeRenderer : public Component {
                 };
                 
                 Vector2 origin = { rec.width / 2.0f, rec.height / 2.0f };
-                DrawRectanglePro(rec, origin, transform->rotation, color);
+
+                if (roundness > 0.0f) {
+                    rlPushMatrix();
+                        rlTranslatef(position.x, position.y, 0.0f);
+                        rlRotatef(transform->rotation, 0.0f, 0.0f, 1.0f);
+                        Rectangle localRec = { -origin.x, -origin.y, rec.width, rec.height };
+                        DrawRectangleRounded(localRec, roundness, segments, color);
+                    rlPopMatrix();
+                } 
+                else {
+                    DrawRectanglePro(rec, origin, transform->rotation, color);
+                }
             }
         }
 
@@ -89,6 +125,16 @@ class ShapeRenderer : public Component {
             EditorUI::ColorEdit4("Color", &color, this);
 
             ImGui::Separator();
+
+            ImGui::Text("Appearance");
+            EditorUI::DragFloat("Roundness", &roundness, 0.01f, this, 0.0f, 1.0f);
+
+            // Only show segment configuration if the shape is actually rounded
+            if (roundness > 0.0f) {
+                ImGui::SliderInt("Smoothness", &segments, 0, 36);
+            }
+
+            ImGui::Separator();
             EditorUI::Checkbox("Is HUB (Screen Space)", &isHUD, this);
         }
 #endif
@@ -99,7 +145,9 @@ class ShapeRenderer : public Component {
                 { "width", width },
                 { "height", height },
                 { "color", { color.r, color.g, color.b, color.a }},
-                { "isHUD", isHUD }
+                { "isHUD", isHUD },
+                { "roundness", roundness },
+                { "segments", segments }
             };
         }
 
@@ -107,6 +155,9 @@ class ShapeRenderer : public Component {
             width = j.value("width", 50.0f);
             height = j.value("height", 50.0f);
             isHUD = j.value("isHUD", false);
+
+            roundness = j.value("roundness", 0.0f);
+            segments = j.value("segments", 10);
             
             // Safely extract the color array
             if (j.contains("color") && j["color"].is_array() && j["color"].size() == 4) {
