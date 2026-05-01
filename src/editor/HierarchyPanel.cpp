@@ -16,6 +16,15 @@ bool IsDescendant(GameObject* target, GameObject* potentialAncestor) {
     return false;
 }
 
+// Recursive helper to collect a node and all its descendants into a flat list
+void CollectHierarchy(GameObject* node, std::vector<GameObject*>& list) {
+    if (!node) return;
+    list.push_back(node);
+    for (auto* child : node->GetChildren()) {
+        CollectHierarchy(child, list);
+    }
+}
+
 void HierarchyPanel::Draw(Scene& activeScene, GameObject*& selectedObject) {
     ImGui::Begin("Hierarchy");
 
@@ -152,14 +161,35 @@ void HierarchyPanel::DrawNode(Scene& activeScene, GameObject* node, GameObject*&
 
         if (ImGui::Selectable("Save as Prefab")) {
             std::filesystem::create_directories("assets/prefabs");
-            nlohmann::json prefabJson = node->Serialize();
+            
+            // 1. Collect the parent and all its children
+            std::vector<GameObject*> nodesToSave;
+            CollectHierarchy(node, nodesToSave);
+
+            // 2. Create a mini-scene structure
+            nlohmann::json prefabJson;
+            prefabJson["gameObjects"] = nlohmann::json::array();
+
+            // 3. Serialize everyone
+            for (GameObject* n : nodesToSave) {
+                nlohmann::json nJson = n->Serialize();
+                
+                // Crucial: The absolute root of the prefab MUST have parentId = 0
+                // so it doesn't try to link to its original scene parent when loaded later.
+                if (n == node) {
+                    nJson["parentId"] = 0;
+                }
+                
+                prefabJson["gameObjects"].push_back(nJson);
+            }
+
             std::string path = "assets/prefabs/" + node->name + ".prefab";
             std::ofstream file(path);
 
             if (file.is_open()) {
                 file << prefabJson.dump(4);
                 file.close();
-                std::cout << "[Editor] Saved prefab successfully: " << path << std::endl;
+                std::cout << "[Editor] Saved hierarchy prefab successfully: " << path << std::endl;
             } else {
                 std::cerr << "[Editor] Error: Could not save prefab to " << path << std::endl;
             }

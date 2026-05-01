@@ -21,11 +21,29 @@ Camera2d::Camera2d()
       useWorldBounds(false),
       worldBounds{0.0f, 0.0f, 2000.0f, 2000.0f},
       m_currentTarget{0.0f, 0.0f},
-      m_isFirstFrame(true) 
+      m_isFirstFrame(true),
+      m_shakeIntensity(0.0f),
+      m_shakeDuration(0.0f),
+      m_shakeTimer(0.0f)
 {}
+
+void Camera2d::Shake(float intensity, float duration) {
+    m_shakeIntensity = intensity;
+    m_shakeDuration = duration;
+    m_shakeTimer = duration;
+}
 
 void Camera2d::Update(float deltaTime) {
     if (!owner) return;
+
+    // Update the shake timer
+    if (m_shakeTimer > 0.0f) {
+        m_shakeTimer -= deltaTime;
+        if (m_shakeTimer < 0.0f) {
+            m_shakeTimer = 0.0f;
+        }
+    }
+
     auto transform = owner->GetComponent<Transform2d>();
     if (!transform) return;
 
@@ -237,6 +255,22 @@ Camera2D Camera2d::GetCamera(float screenWidth, float screenHeight) const {
 
         cam.target.x = Clamp(cam.target.x, minX, maxX);
         cam.target.y = Clamp(cam.target.y, minY, maxY);
+    }
+
+    // Screen shake logic
+    // We apply it at the very end to the visual offset, so it doesn't mess with bounds or lerping
+    if (m_shakeTimer > 0.0f && m_shakeDuration > 0.0f) {
+        // Calculate the dampening factor (1.0 at start, moving to 0.0 at the end)
+        float dampening = m_shakeTimer / m_shakeDuration;
+        float currentIntensity = m_shakeIntensity * dampening;
+
+        // Apply random shift using Raylib's GetRandomValue
+        // GetRandomValue takes integers, so we cast to int and back to float
+        int maxOffset = (int)currentIntensity;
+        if (maxOffset > 0) {
+            cam.offset.x += (float)GetRandomValue(-maxOffset, maxOffset);
+            cam.offset.y += (float)GetRandomValue(-maxOffset, maxOffset);
+        }
     }
 
     return cam;

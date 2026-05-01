@@ -23,7 +23,9 @@ void BindGraphics(py::module_& m) {
     });
 
     py::class_<SpriteRenderer, Component>(m, "SpriteRenderer")
-        .def(py::init<std::string>());
+        .def(py::init<std::string>())
+        .def_property_readonly("width", &SpriteRenderer::GetWidth)
+        .def_property_readonly("height", &SpriteRenderer::GetHeight);
 
     ComponentRegistry::Register<SpriteRenderer>("SpriteRenderer", 
         [](GameObject& go, py::args args) -> py::object {
@@ -157,7 +159,8 @@ void BindGraphics(py::module_& m) {
         .def_readwrite("offset", &Camera2d::offset)
         .def_readwrite("anchor", &Camera2d::anchor)
         .def_readwrite("is_main", &Camera2d::isMain)
-        .def_readwrite("background_color", &Camera2d::backgroundColor);
+        .def_readwrite("background_color", &Camera2d::backgroundColor)
+        .def("shake", &Camera2d::Shake);
 
     ComponentRegistry::Register<Camera2d>("Camera2d",
         [](GameObject& go, py::args args) -> py::object {

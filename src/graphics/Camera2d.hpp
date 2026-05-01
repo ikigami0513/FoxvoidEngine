@@ -42,7 +42,16 @@ class Camera2d : public Component {
         // Generates the Raylib Camera2D struct dynamically based on the GameObject's Transform2d
         Camera2D GetCamera(float screenWidth, float screenHeight) const;
 
+        // Triggers a screen shake effect
+        // intensity: max pixel offset, duration: how long it lasts in seconds
+        void Shake(float intensity, float duration);
+
     private:
         Vector2 m_currentTarget; // Internal state for Lerp calculation
         bool m_isFirstFrame;     // Ensures the camera snaps instantly on start instead of sliding from 0,0
+
+        // Screen shake internal state
+        float m_shakeIntensity;
+        float m_shakeDuration;
+        float m_shakeTimer;
 };

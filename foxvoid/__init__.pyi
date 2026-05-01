@@ -401,6 +401,12 @@ class SpriteRenderer(Component):
         """
         ...
 
+    @property
+    def width(self) -> float: ...
+
+    @property
+    def height(self) -> float: ...
+
 
 class SpriteSheetRenderer(Component):
     """Renders a specific frame from a grid-based spritesheet texture."""
@@ -662,6 +668,10 @@ class Camera2d(Component):
         Initializes a Camera2d component with default values 
         (zoom=1.0, offset=(0,0), anchor=CameraAnchor.Center, is_main=True).
         """
+        ...
+
+    def shake(self, intensity: float, duration: float):
+        """Triggers a screen shake (intensity, duration)"""
         ...
 
 

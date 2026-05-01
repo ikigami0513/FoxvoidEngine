@@ -24,6 +24,9 @@ class SpriteRenderer : public Component {
 
         Texture2D GetTexture() const { return m_texture; }
 
+        float GetWidth() const { return m_texture.width; }
+        float GetHeight() const { return m_texture.height; }
+
         // Editor UI and Serialization
         std::string GetName() const override;
 

@@ -41,6 +41,8 @@ class Scene {
         }
 
         void Start() {
+            m_isRunning = true;
+
             for (auto& go : m_gameObjects) {
                 go->Start();
             }
@@ -65,18 +67,28 @@ class Scene {
         // Safely adds pending objects and removes destroyed ones
         void Flush() {
             // GARBAGE COLLECTION (Deferred Destruction)
-            // Safely remove and destroy any GameObject marked as pending destroy.
-            // Doing this AFTER the update loop prevents iteration crashes (iterator invalidation).
             std::erase_if(m_gameObjects, [](const std::unique_ptr<GameObject>& go) {
                 return go->IsPendingDestroy();
             });
 
-            // Now that the loop is over, it is safe to add our new objects into the main scene.
-            for (auto& newGo : m_pendingObjects) {
-                m_gameObjects.push_back(std::move(newGo));
+            // SECURE NEW OBJECT MANAGEMENT
+            // We use a 'while' loop because a call to Start() might instantiate NEW objects!
+            while (!m_pendingObjects.empty()) {
+                
+                // Transfer pending objects to a temporary local list
+                std::vector<std::unique_ptr<GameObject>> tempPending;
+                tempPending.swap(m_pendingObjects); // m_pendingObjects is now empty
+
+                for (auto& newGo : tempPending) {
+                    // Only call Start() if the game is in "Play" mode
+                    if (m_isRunning) {
+                        newGo->Start();
+                    }
+                    
+                    // Integrate the object into the official scene
+                    m_gameObjects.push_back(std::move(newGo));
+                }
             }
-            // Clear the waiting room for the next frame
-            m_pendingObjects.clear();
         }
 
         // Triggers the render loop for all GameObjects in the scene based on Z-Index
@@ -118,6 +130,8 @@ class Scene {
         }
 
         void Clear(bool keepPersistent = true) {
+            m_isRunning = false;
+
             if (!keepPersistent) {
                 // Editor stop mode: Destroy absolutely everything to restore the backup
                 m_gameObjects.clear();
@@ -244,42 +258,96 @@ class Scene {
             Flush(); // Crucial: move them from pending to active!
         }
 
-        // Instantiates a new GameObject from a JSON prefab file
+        // Instantiates a new GameObject (or a full hierarchy) from a JSON prefab file
         GameObject* Instantiate(const std::string& prefabPath) {
-            // Open the prefab JSON file
             std::ifstream file(prefabPath);
             if (!file.is_open()) {
                 std::cerr << "[Scene] Error: Could not open prefab file: " << prefabPath << std::endl;
                 return nullptr;
             }
 
-            // Parse the JSON data
             nlohmann::json j;
             file >> j;
             file.close();
 
-            // Extract the name, adding a suffix to indicate it's a clone
-            std::string name = j.value("name", "New Prefab") + " (Clone)";
-
-            // Create a fresh GameObject in the current scene
-            GameObject* newObj = CreateGameObject(name);
-
-            //  Inject the saved data into the new object
-            // This will reconstruct all the components (Transform, Sprite, Scripts...)
-            // Warning: This will overwrite the fresh ID with the one from the JSON
-            newObj->Deserialize(j);
-
-            // Regenerate a unique ID so this clone doesn't share the same ID as the file
-            newObj->RegenerateID();
+            // Backward Compatibility
+            // If it's an old prefab (just a single object, not an array)
+            if (!j.contains("gameObjects")) {
+                std::string name = j.value("name", "New Prefab") + " (Clone)";
+                GameObject* newObj = CreateGameObject(name);
+                newObj->Deserialize(j);
+                newObj->RegenerateID();
+                newObj->pendingParentId = 0;
+                return newObj;
+            }
             
-            // Break any old parent links. 
-            // A freshly instantiated prefab should spawn at the root of the scene.
-            newObj->pendingParentId = 0;
+            // We need to keep track of Old IDs vs New IDs to rebuild the parent-child links
+            std::unordered_map<uint64_t, uint64_t> idMapping;
+            std::vector<GameObject*> instantiatedObjects;
+            GameObject* rootObject = nullptr;
 
-            std::cout << "[Scene] Successfully instantiated prefab: " << prefabPath << std::endl;
+            // PASS 1: Create all objects and map their IDs
+            for (const auto& goJson : j["gameObjects"]) {
+                std::string name = goJson.value("name", "Prefab Object");
+                
+                // Identify the root object (the one with no parent in the prefab)
+                bool isRoot = (goJson.value("parentId", 0ULL) == 0);
+                if (isRoot) {
+                    name += " (Clone)";
+                }
+
+                GameObject* newObj = CreateGameObject(name);
+                
+                // Deserialize loads the components AND overwrites the ID with the old one from the JSON
+                newObj->Deserialize(goJson); 
+                
+                uint64_t oldId = newObj->id;
+                
+                // Generate a fresh unique ID for this specific clone
+                newObj->RegenerateID(); 
+                uint64_t newId = newObj->id;
+                
+                // Save the mapping
+                idMapping[oldId] = newId;
+                instantiatedObjects.push_back(newObj);
+
+                if (isRoot) {
+                    rootObject = newObj;
+                    newObj->pendingParentId = 0; // Force the root to spawn at the top level of the Scene
+                }
+            }
+
+            // Pass 2: Re-link parents using the new generated IDs
+            for (GameObject* obj : instantiatedObjects) {
+                if (obj != rootObject && obj->pendingParentId != 0) {
+                    // If the parent was part of this prefab, update its pending ID to the newly cloned parent
+                    if (idMapping.find(obj->pendingParentId) != idMapping.end()) {
+                        uint64_t newParentId = idMapping[obj->pendingParentId];
+                        obj->pendingParentId = newParentId;
+
+                        for (GameObject* potentialParent : instantiatedObjects) {
+                            if (potentialParent->id == newParentId) {
+                                obj->SetParent(potentialParent);
+                                break;
+                            }
+                        }
+                    }
+                    else {
+                        // Edge case: If the parent wasn't found in the prefab, try finding it in the scene
+                        for (const auto& potentialParent : m_gameObjects) {
+                            if (potentialParent->id == obj->pendingParentId) {
+                                obj->SetParent(potentialParent.get());
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            std::cout << "[Scene] Successfully instantiated hierarchy prefab: " << prefabPath << std::endl;
             
-            // Return the pointer so the caller can manipulate it immediately
-            return newObj;
+            // Return the absolute root of the prefab
+            return rootObject;
         }
 
         // Returns the top-most GameObject at the given world position, or nullptr if empty
@@ -402,6 +470,8 @@ class Scene {
         }
 
     private:
+        bool m_isRunning = false;
+
         // Recursive function to draw the HUD hierarchy
         void RenderHUDHierarchical(GameObject* node) {
             bool isMasking = false;

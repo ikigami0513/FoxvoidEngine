@@ -2,10 +2,13 @@
 #include "core/ProjectSettings.hpp"
 #include <iostream>
 #include <filesystem>
+#include <fstream>
 
 #ifdef STANDALONE_MODE
 #include "core/InputManager.hpp"
 #include "core/GameStateManager.hpp"
+#include "core/AssetRegistry.hpp"
+#include "scripting/ScriptEngine.hpp"
 #endif
 
 int main(int argc, char** argv) {
@@ -56,7 +59,21 @@ int main(int argc, char** argv) {
         );
 
 #ifdef STANDALONE_MODE
-        // Load project specific settings in Standalone BEFORE loading the scene ---
+        // Change the OS Current Working Directory
+        // Forces Raylib and standard file ops to look relative to the project root
+        std::filesystem::path absoluteRoot = std::filesystem::absolute(projectPath).parent_path();
+        std::filesystem::current_path(absoluteRoot);
+        std::cout << "[Standalone] Working directory set to: " << std::filesystem::current_path().string() << std::endl;
+
+        // Initialize the global Asset Registry
+        // Scans the standalone "assets" folder to map all .meta UUIDs to file paths
+        AssetRegistry::Initialize(ProjectSettings::GetAssetsPath());
+
+        // Register the project's script folder in Python
+        // Allows Pybind11 to find and import the user's Python component classes
+        ScriptEngine::AddScriptPath(ProjectSettings::GetAssetsPath() / "scripts");
+
+        // Load project specific settings in Standalone BEFORE loading the scene
         std::filesystem::path settingsPath = ProjectSettings::GetAssetsPath() / "settings";
         InputManager::Load((settingsPath / "inputs.json").string());
         GameStateManager::Load((settingsPath / "globals.json").string());
@@ -78,6 +95,13 @@ int main(int argc, char** argv) {
         engine.Run();
         
     } catch (const std::exception& e) {
+        std::ofstream crashLog("crash.log");
+        if (crashLog.is_open()) {
+            crashLog << "=== FATAL ERROR ===" << std::endl;
+            crashLog << e.what() << std::endl;
+            crashLog.close();
+        }
+
         // Catch and display any standard exceptions thrown during execution
         std::cerr << "Fatal Error: " << e.what() << std::endl;
         return -1;

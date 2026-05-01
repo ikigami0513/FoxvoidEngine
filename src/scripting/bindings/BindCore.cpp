@@ -41,7 +41,8 @@ void BindCore(py::module_& m) {
         .def("start", &Component::Start)
         .def("update", &Component::Update, py::arg("delta_time"))
         .def("on_collision", &Component::OnCollision, py::arg("collision"))
-        .def("on_animation_events", &Component::OnAnimationEvent, py::arg("event_name"));
+        .def("on_animation_events", &Component::OnAnimationEvent, py::arg("event_name"))
+        .def("on_gui_click", &Component::OnGUIClick, py::arg("button_name"));
 
     py::class_<GameObject>(m, "GameObject")
         .def_readwrite("name", &GameObject::name)
