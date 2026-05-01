@@ -30,34 +30,41 @@
 namespace EngineSetup {
     void RegisterNativeComponents() {
         // Register all native components to the C++ Engine.
-        ComponentRegistry::RegisterCPP<Transform2d>("Transform2d");
-        ComponentRegistry::RegisterCPP<RectCollider>("RectCollider");
-        ComponentRegistry::RegisterCPP<RigidBody2d>("RigidBody2d");
 
-        ComponentRegistry::RegisterCPP<ShapeRenderer>("ShapeRenderer");
-        ComponentRegistry::RegisterCPP<SpriteRenderer>("SpriteRenderer");
-        ComponentRegistry::RegisterCPP<SpriteSheetRenderer>("SpriteSheetRenderer");
-        ComponentRegistry::RegisterCPP<Animation2d>("Animation2d");
-        ComponentRegistry::RegisterCPP<Animator2d>("Animator2d");
-        ComponentRegistry::RegisterCPP<Camera2d>("Camera2d");
-        ComponentRegistry::RegisterCPP<TileMap>("TileMap");
-        ComponentRegistry::RegisterCPP<ParticleSystem2d>("ParticleSystem2d");
+        // Core
+        ComponentRegistry::RegisterCPP<Transform2d>("Transform2d", "Core");
+        ComponentRegistry::RegisterCPP<PersistentComponent>("PersistentComponent", "Core");
 
-        ComponentRegistry::RegisterCPP<RectTransform>("RectTransform");
-        ComponentRegistry::RegisterCPP<TextRenderer>("TextRenderer");
-        ComponentRegistry::RegisterCPP<Button>("Button");
-        ComponentRegistry::RegisterCPP<ImageRenderer>("ImageRenderer");
-        ComponentRegistry::RegisterCPP<VBoxContainer>("VBoxContainer");
-        ComponentRegistry::RegisterCPP<HBoxContainer>("HBoxContainer");
-        ComponentRegistry::RegisterCPP<Mask>("Mask");
-        ComponentRegistry::RegisterCPP<Checkbox>("Checkbox");
-        ComponentRegistry::RegisterCPP<Slider>("Slider");
-        ComponentRegistry::RegisterCPP<TextInput>("TextInput");
+        // Physics
+        ComponentRegistry::RegisterCPP<RectCollider>("RectCollider", "Physics");
+        ComponentRegistry::RegisterCPP<RigidBody2d>("RigidBody2d", "Physics");
 
-        ComponentRegistry::RegisterCPP<PersistentComponent>("PersistentComponent");
+        // Graphics
+        ComponentRegistry::RegisterCPP<ShapeRenderer>("ShapeRenderer", "Graphics");
+        ComponentRegistry::RegisterCPP<SpriteRenderer>("SpriteRenderer", "Graphics");
+        ComponentRegistry::RegisterCPP<SpriteSheetRenderer>("SpriteSheetRenderer", "Graphics");
+        ComponentRegistry::RegisterCPP<Animation2d>("Animation2d", "Graphics");
+        ComponentRegistry::RegisterCPP<Animator2d>("Animator2d", "Graphics");
+        ComponentRegistry::RegisterCPP<Camera2d>("Camera2d", "Graphics");
+        ComponentRegistry::RegisterCPP<TileMap>("TileMap", "Graphics");
+        ComponentRegistry::RegisterCPP<ParticleSystem2d>("ParticleSystem2d", "Graphics");
 
-        ComponentRegistry::RegisterCPP<AudioSource>("AudioSource");
+        // Gui
+        ComponentRegistry::RegisterCPP<RectTransform>("RectTransform", "GUI");
+        ComponentRegistry::RegisterCPP<TextRenderer>("TextRenderer", "GUI");
+        ComponentRegistry::RegisterCPP<Button>("Button", "GUI");
+        ComponentRegistry::RegisterCPP<ImageRenderer>("ImageRenderer", "GUI");
+        ComponentRegistry::RegisterCPP<VBoxContainer>("VBoxContainer", "GUI");
+        ComponentRegistry::RegisterCPP<HBoxContainer>("HBoxContainer", "GUI");
+        ComponentRegistry::RegisterCPP<Mask>("Mask", "GUI");
+        ComponentRegistry::RegisterCPP<Checkbox>("Checkbox", "GUI");
+        ComponentRegistry::RegisterCPP<Slider>("Slider", "GUI");
+        ComponentRegistry::RegisterCPP<TextInput>("TextInput", "GUI");
 
-        ComponentRegistry::RegisterCPP<ScriptComponent>("ScriptComponent");
+        // Audio
+        ComponentRegistry::RegisterCPP<AudioSource>("AudioSource", "Audio");
+
+        // Scripting
+        ComponentRegistry::RegisterCPP<ScriptComponent>("ScriptComponent", "Scripting");
     }
 }

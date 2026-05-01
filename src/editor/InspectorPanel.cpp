@@ -119,11 +119,67 @@ void InspectorPanel::Draw(GameObject*& selectedObject, py::object& selectedAsset
         }
 
         if (ImGui::BeginPopup("AddComponentPopup")) {
-            for (const std::string& typeName : ComponentRegistry::registeredTypes) {
-                if (ImGui::Selectable(typeName.c_str())) {
-                    ComponentRegistry::factories[typeName](*selectedObject);
+            // Static buffer to hold the search query
+            static char searchBuffer[128] = "";
+
+            // Auto-focus the search bar the moment the popup opens
+            if (ImGui::IsWindowAppearing()) {
+                ImGui::SetKeyboardFocusHere();
+            }
+
+            // Draw the search bar
+            ImGui::InputText("Search...", searchBuffer, sizeof(searchBuffer));
+            ImGui::Separator();
+
+            std::string searchQuery(searchBuffer);
+
+            // Convert the search query to lowercase for case-insensitive matching
+            std::transform(searchQuery.begin(), searchQuery.end(), searchQuery.begin(), ::tolower);
+
+            // Mode A: Empty search: Show categories
+            if (searchQuery.empty()) {
+                // Iterate through the sorted map of categories
+                for (const auto& [category, types] : ComponentRegistry::categorizedTypes) {
+                    // Create a sub-menu for each category
+                    if (ImGui::BeginMenu(category.c_str())) {
+                        // List all components within this category
+                        for (const std::string& typeName : types) {
+                            if (ImGui::Selectable(typeName.c_str())) {
+                                ComponentRegistry::factories[typeName](*selectedObject);
+                            }
+                        }
+                        ImGui::EndMenu();
+                    }
                 }
             }
+            // Mode B: Active search: Show filtered list
+            else {
+                bool foundAny = false;
+
+                // Iterate through the flat list of all registered types
+                for (const std::string& typeName : ComponentRegistry::GetFlatRegisteredTypes()) {
+                    std::string typeLower = typeName;
+                    std::transform(typeLower.begin(), typeLower.end(), typeLower.begin(), ::tolower);
+                    
+                    // If the component name contains the search string
+                    if (typeLower.find(searchQuery) != std::string::npos) {
+                        foundAny = true;
+                        
+                        if (ImGui::Selectable(typeName.c_str())) {
+                            ComponentRegistry::factories[typeName](*selectedObject);
+                            
+                            // Reset search and close popup after adding
+                            searchBuffer[0] = '\0';
+                            ImGui::CloseCurrentPopup();
+                        }
+                    }
+                }
+
+                if (!foundAny) {
+                    ImGui::TextDisabled("No results found.");
+                }
+            }
+
             ImGui::EndPopup();
         }
     }

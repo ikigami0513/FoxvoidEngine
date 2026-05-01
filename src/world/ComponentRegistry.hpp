@@ -2,6 +2,8 @@
 
 #include <pybind11/pybind11.h>
 #include <unordered_map>
+#include <map>
+#include <vector>
 #include <functional>
 #include <string>
 
@@ -25,8 +27,9 @@ class ComponentRegistry {
         // Factory map and UI list
         inline static std::unordered_map<std::string, ComponentFactory> factories;
 
-        // Vector to keep track of available components for the ImGui dropdown
-        inline static std::vector<std::string> registeredTypes;
+        // Map to group component types by category
+        // std::map automatically sorts the categories alphabetically
+        inline static std::map<std::string, std::vector<std::string>> categorizedTypes;
 
         template<typename T>
         static void Register(const std::string& typeName, ComponentAdder adderLogic) {
@@ -46,10 +49,10 @@ class ComponentRegistry {
 
         // Pure C++ registration
         template<typename T>
-        static void RegisterCPP(const std::string& typeName) {
+        static void RegisterCPP(const std::string& typeName, const std::string& category = "General") {
             // Prevent duplicate entries in the UI list if registered multiple times
             if (factories.find(typeName) == factories.end()) {
-                registeredTypes.push_back(typeName);
+                categorizedTypes[category].push_back(typeName);
             }
 
             // Store the factory lambda
@@ -58,5 +61,19 @@ class ComponentRegistry {
                 return go.AddComponent<T>();
             };
         }
-};
+        
+        // Returns a flat list of all registered component names
+        static std::vector<std::string> GetFlatRegisteredTypes() {
+            std::vector<std::string> flatList;
 
+            // Iterate through every category in map
+            for (const auto& [category, types] : categorizedTypes) {
+                // Add all components from this category into our flat list
+                for (const std::string& typeName : types) {
+                    flatList.push_back(typeName);
+                }
+            }
+
+            return flatList;
+        }
+};
