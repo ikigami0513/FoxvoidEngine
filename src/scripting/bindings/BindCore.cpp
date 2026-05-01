@@ -48,6 +48,8 @@ void BindCore(py::module_& m) {
     py::class_<GameObject>(m, "GameObject")
         .def_readwrite("name", &GameObject::name)
         .def_readonly("id", &GameObject::id)
+        .def_readwrite("is_active", &GameObject::isActive)
+        .def("is_active_in_hierarchy", &GameObject::IsActiveInHierarchy)
         .def("set_parent", &GameObject::SetParent, py::arg("new_parent"))
         // We use reference policy so Python doesn't try to take ownership and delete the parent/children
         .def("get_parent", &GameObject::GetParent, py::return_value_policy::reference)

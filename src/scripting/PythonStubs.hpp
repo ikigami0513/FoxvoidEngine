@@ -53,10 +53,20 @@ def is_pixel_art_mode() -> bool:
 
 class GameObject:
     name: str
+
+    # Allow enabling or disabling the GameObject and its components
+    is_active: bool
     
     # Read-only unique identifier
     @property
     def id(self) -> int: ...
+
+    def is_active_in_hierarchy(self) -> bool:
+        """
+        Checks if this object is currently active in the scene.
+        Returns False if this object OR any of its parents are inactive.
+        """
+        ...
 
     def set_parent(self, new_parent: Optional['GameObject']) -> None:
         """Attaches this object to a new parent. Pass None to unparent (move to root)."""
@@ -186,6 +196,12 @@ class Component:
         """
         Called automatically by an attached Animator2d when a specific frame is reached.
         Override this method in your script to handle animation events (e.g., footsteps, attacks).
+        """
+        ...
+
+    def on_gui_click(self, button_name: str) -> None:
+        """
+        Called when a Button component on the same GameObject is clicked
         """
         ...
 
@@ -402,6 +418,12 @@ class SpriteRenderer(Component):
             texture_path: The relative path to the image file (e.g., 'assets/player.png').
         """
         ...
+
+    @property
+    def width(self) -> float: ...
+
+    @property
+    def height(self) -> float: ...
 
 
 class SpriteSheetRenderer(Component):
@@ -666,6 +688,10 @@ class Camera2d(Component):
         """
         ...
 
+    def shake(self, intensity: float, duration: float):
+        """Triggers a screen shake (intensity, duration) """
+        ...
+
 
 class TileLayer:
     """Represents a single layer of tiles within a TileMap."""
@@ -778,6 +804,32 @@ class SceneManager:
         """
         Requests the engine to load a new scene at the start of the next frame.
         The name should not include the extension or path (e.g., 'main_menu', 'level_01').
+        """
+        ...
+
+
+class Scene:
+    """
+    Represents the currently active game scene, containing all active GameObjects.
+    Provides global access and search utilities.
+    """
+
+    @staticmethod
+    def find_object_by_name(name: str) -> Optional[GameObject]:
+        """
+        Searches for a GameObject by its exact name across the entire active scene.
+        This is a global search and will find the object regardless of its parent.
+        
+        Args:
+            name (str): The exact name of the GameObject to search for.
+            
+        Returns:
+            Optional[GameObject]: The found GameObject instance, or None if no object matches the name.
+            
+        Example:
+            camera = Scene.find_object_by_name("Main Camera")
+            if camera:
+                print("Camera found!")
         """
         ...
 
@@ -1135,5 +1187,58 @@ class Mask(Component):
     is_active: bool
 
     def __init__(self) -> None: ...
+        
+
+class Checkbox(Component):
+    """
+    A toggleable UI element. Triggers on_gui_click() when pressed.
+    """
+    is_on: bool
+    use_sprite: bool
+    color_on: 'Color'
+    color_off: 'Color'
+
+    def __init__(self) -> None: ...
+
+
+class Slider(Component):
+    """
+    An interactive UI element that allows selecting a numerical value 
+    by dragging a handle along a track. Triggers on_gui_click() dynamically.
+    """
+    value: float
+    min_value: float
+    max_value: float
+    
+    track_color: 'Color'
+    handle_color: 'Color'
+    active_handle_color: 'Color'
+
+    def __init__(self) -> None: ...
+
+
+class TextInput(Component):
+    """
+    An interactive text field. Captures keyboard input when clicked.
+    Triggers on_gui_click() when the user presses 'Enter'.
+    """
+    text: str
+    max_length: int
+    font_size: int
+    spacing: float
+    
+    text_color: 'Color'
+    bg_color: 'Color'
+    focused_bg_color: 'Color'
+
+    def __init__(self) -> None: ...
+    def is_focused(self) -> bool: ...
+
+    def set_font(self, path: str) -> None:
+        """
+        Updates the font used by the text input.
+        Example: self.input.set_font("assets/fonts/arial.ttf")
+        """
+        ...
         
 )";

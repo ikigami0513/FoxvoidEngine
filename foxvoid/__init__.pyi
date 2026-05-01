@@ -45,10 +45,20 @@ def is_pixel_art_mode() -> bool:
 
 class GameObject:
     name: str
+
+    # Allow enabling or disabling the GameObject and its components
+    is_active: bool
     
     # Read-only unique identifier
     @property
     def id(self) -> int: ...
+
+    def is_active_in_hierarchy(self) -> bool:
+        """
+        Checks if this object is currently active in the scene.
+        Returns False if this object OR any of its parents are inactive.
+        """
+        ...
 
     def set_parent(self, new_parent: Optional['GameObject']) -> None:
         """Attaches this object to a new parent. Pass None to unparent (move to root)."""
@@ -671,7 +681,7 @@ class Camera2d(Component):
         ...
 
     def shake(self, intensity: float, duration: float):
-        """Triggers a screen shake (intensity, duration)"""
+        """Triggers a screen shake (intensity, duration) """
         ...
 
 
