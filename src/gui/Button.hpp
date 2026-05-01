@@ -43,6 +43,8 @@ class Button : public Component {
 
         void Update(float deltaTime) override;
 
+        void Render() override;
+
         std::string GetName() const override;
 
 #ifndef STANDALONE_MODE

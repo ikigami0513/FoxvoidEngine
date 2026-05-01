@@ -87,6 +87,12 @@ void Button::Update(float deltaTime) {
     }
 }
 
+void Button::Render() {
+    if (Engine::Get() && !Engine::Get()->IsPlaying()) {
+        ApplyTransition();
+    }
+}
+
 void Button::ApplyTransition() {
     if (!owner || transition == ButtonTransition::None) return;
 
