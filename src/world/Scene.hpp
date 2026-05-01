@@ -56,6 +56,8 @@ class Scene {
         void Update(float deltaTime) {
             // Update all objects
             for (auto& go : m_gameObjects) {
+                if (!go->IsActiveInHierarchy()) continue;
+                
                 go->Update(deltaTime);
             }
 
@@ -97,6 +99,8 @@ class Scene {
             std::vector<GameObject*> renderList;
             renderList.reserve(m_gameObjects.size());
             for (auto& go : m_gameObjects) {
+                if (!go->IsActiveInHierarchy()) continue;
+
                 renderList.push_back(go.get());
             }
 
@@ -123,7 +127,7 @@ class Scene {
 
         void RenderHUD() {
             for (auto& go : m_gameObjects) {
-                if (go->GetParent() == nullptr) {
+                if (go->GetParent() == nullptr && go->IsActiveInHierarchy()) {
                     RenderHUDHierarchical(go.get());
                 }
             }
@@ -356,6 +360,9 @@ class Scene {
             std::vector<GameObject*> pickList;
             pickList.reserve(m_gameObjects.size());
             for (auto& go : m_gameObjects) {
+                // We cannot click on invisible objects
+                if (!go->IsActiveInHierarchy()) continue;
+
                 pickList.push_back(go.get());
             }
 
@@ -486,6 +493,10 @@ class Scene {
 
         // Recursive function to draw the HUD hierarchy
         void RenderHUDHierarchical(GameObject* node) {
+            // Safety check during recursion
+            // If we reach a child that is explicitly disabled, we stop rendering it AND its descendants
+            if (!node->isActive) return;
+
             bool isMasking = false;
             
             // 1. Check if this node is a Mask

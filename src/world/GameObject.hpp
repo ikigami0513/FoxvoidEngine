@@ -17,6 +17,9 @@ class GameObject {
         // Stores the parent ID loaded from JSON until the Scene links them
         uint64_t pendingParentId = 0;
 
+        // Controls visibility and logic updates
+        bool isActive = true;
+
         GameObject(const std::string& name);
         ~GameObject();
 
@@ -38,6 +41,13 @@ class GameObject {
         // Checks if the GameObject is scheduled for destruction
         bool IsPendingDestroy() const {
             return m_pendingDestroy;
+        }
+
+        // Checks if this object AND all its parents are active
+        bool IsActiveInHierarchy() const {
+            if (!isActive) return false;
+            if (parent != nullptr) return parent->IsActiveInHierarchy();
+            return true;
         }
 
         // Generates a completely new ID (Useful when instantiating Prefabs!)

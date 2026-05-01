@@ -79,6 +79,8 @@ nlohmann::json GameObject::Serialize() const {
     j["id"] = id;
     j["parentId"] = parent ? parent->id : 0; // 0 means no parent
 
+    j["isActive"] = isActive;
+
     j["name"] = name;
     j["components"] = nlohmann::json::array();
 
@@ -100,6 +102,8 @@ void GameObject::Deserialize(const nlohmann::json& j) {
     if (j.contains("name")) {
         name = j["name"];
     }
+
+    isActive = j.value("isActive", true);
 
     // Clear any default components that might have been added during creation
     // (like a default Transform2d) to avoid duplicates when loading from the prefab

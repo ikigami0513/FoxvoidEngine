@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include "extras/IconsFontAwesome6.h"
 
 // Helper to prevent infinite loops: checks if the target is a descendant of the potential ancestor
 bool IsDescendant(GameObject* target, GameObject* potentialAncestor) {
@@ -92,6 +93,28 @@ void HierarchyPanel::Draw(Scene& activeScene, GameObject*& selectedObject) {
 }
 
 void HierarchyPanel::DrawNode(Scene& activeScene, GameObject* node, GameObject*& selectedObject, GameObject*& objectToDelete) {
+    // Render the Eye Toggle Button
+    // Push an ID so multiple buttons on the same level don't conflict
+    ImGui::PushID(node);
+
+    // Pick the icon based on the state
+    const char* icon = node->isActive ? ICON_FA_EYE : ICON_FA_EYE_SLASH;
+
+    // Use a flat button (no background) for a cleaner look
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_Text, node->isActive ? ImVec4(0.8f, 0.8f, 0.8f, 1.0f) : ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
+
+    if (ImGui::Button(icon)) {
+        node->isActive = !node->isActive;
+    }
+
+    ImGui::PopStyleColor(2);
+    
+    // Draw the button and the tree node on the same line
+    ImGui::SameLine();
+    
+    ImGui::PopID();
+    
     ImGuiTreeNodeFlags flags = ((selectedObject == node) ? ImGuiTreeNodeFlags_Selected : 0);
     flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen;
 
