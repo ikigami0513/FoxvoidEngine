@@ -89,45 +89,19 @@ void PhysicsEngine::Update(Scene& scene, float deltaTime) {
 bool PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB, Vector2& outNormalA, Vector2& outNormalB) {
     auto colA = objA->GetComponent<RectCollider>();
     auto colB = objB->GetComponent<RectCollider>();
-
-    // Both objects must have colliders to collide
     if (!colA || !colB) return false;
 
     auto tA = objA->GetComponent<Transform2d>();
     auto tB = objB->GetComponent<Transform2d>();
     if (!tA || !tB) return false;
 
-    auto rbA = objA->GetComponent<RigidBody2d>();
-    auto rbB = objB->GetComponent<RigidBody2d>();
+    // Get the properly rotated vertices in global space
+    std::vector<Vector2> polyA = GetColliderVertices(colA, tA);
+    std::vector<Vector2> polyB = GetColliderVertices(colB, tB);
 
-    // Fetch Global Properties
-    Vector2 posA = tA->GetGlobalPosition();
-    Vector2 scaleA = tA->GetGlobalScale();
-    Vector2 posB = tB->GetGlobalPosition();
-    Vector2 scaleB = tB->GetGlobalScale();
-
-    // Define the actual world-space rectangles (centered around the transform)
-    // We use std::abs on scale to prevent negative width/height
-    float scaledWidthA = colA->size.x * std::abs(scaleA.x);
-    float scaledHeightA = colA->size.y * std::abs(scaleA.y);
-    Rectangle recA = {
-        (posA.x + colA->offset.x) - (scaledWidthA / 2.0f),
-        (posA.y + colA->offset.y) - (scaledHeightA / 2.0f),
-        scaledWidthA,
-        scaledHeightA
-    };
-
-    float scaledWidthB = colB->size.x * std::abs(scaleB.x);
-    float scaledHeightB = colB->size.y * std::abs(scaleB.y);
-    Rectangle recB = {
-        (posB.x + colB->offset.x) - (scaledWidthB / 2.0f),
-        (posB.y + colB->offset.y) - (scaledHeightB / 2.0f),
-        scaledWidthB,
-        scaledHeightB
-    };
-
-    // Check if they overlap using Raylib
-    if (CheckCollisionRecs(recA, recB)) {
+    Vector2 mtv; // Minimum Translation Vector
+    if (SATCollision(polyA, polyB, mtv)) {
+        
         // Handle Triggers: Detect overlap but do NOT apply physics push
         if (colA->isTrigger || colB->isTrigger) {
             outNormalA = { 0.0f, 0.0f };
@@ -135,85 +109,46 @@ bool PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB, Vector2
             return true;
         }
 
+        auto rbA = objA->GetComponent<RigidBody2d>();
+        auto rbB = objB->GetComponent<RigidBody2d>();
+
         bool isKinematicA = !rbA || rbA->isKinematic;
         bool isKinematicB = !rbB || rbB->isKinematic;
 
         if (isKinematicA && isKinematicB) return true;
-        
-        // Calculate the center points of both rectangles
-        float centerA_x = recA.x + recA.width / 2.0f;
-        float centerB_x = recB.x + recB.width / 2.0f;
-        float centerA_y = recA.y + recA.height / 2.0f;
-        float centerB_y = recB.y + recB.height / 2.0f;
 
-        // Calculate the depth of the penetration on both axes
-        float overlapX = (recA.width / 2.0f + recB.width / 2.0f) - std::abs(centerA_x - centerB_x);
-        float overlapY = (recA.height / 2.0f + recB.height / 2.0f) - std::abs(centerA_y - centerB_y);
+        // The collision normal is simply the direction of the MTV
+        Vector2 normal = Vector2Normalize(mtv);
+        outNormalA = {-normal.x, -normal.y};
+        outNormalB = normal;
 
-        // We only resolve if there is a true overlap
-        if (overlapX > 0 && overlapY > 0) {
-            
-            // The golden rule of AABB collision: 
-            // Always push objects out along the axis of LEAST penetration.
-            if (overlapX < overlapY) {
-                // Resolve on the X-axis (Horizontal collision)
-                float sign = (centerA_x < centerB_x) ? -1.0f : 1.0f;
-                outNormalA = { sign, 0.0f };
-                outNormalB = { -sign, 0.0f };
+        // If the normal pushes upwards (negative Y in Raylib), we are touching the ground
+        if (normal.y < -0.5f && rbA) rbA->isGrounded = true;
+        if (normal.y > 0.5f && rbB) rbB->isGrounded = true;
 
-                if (!isKinematicA && isKinematicB) {
-                    posA.x += overlapX * sign;
-                    tA->SetGlobalPosition(posA);
-                    if (rbA) rbA->velocity.x = 0; // Stop momentum on impact
-                } 
-                else if (isKinematicA && !isKinematicB) {
-                    posB.x -= overlapX * sign;
-                    tB->SetGlobalPosition(posB);
-                    if (rbB) rbB->velocity.x = 0;
-                } 
-                else {
-                    // Both dynamic: split the push equally (or by mass later!)
-                    posA.x += (overlapX / 2.0f) * sign;
-                    posB.x -= (overlapX / 2.0f) * sign;
-                    tA->SetGlobalPosition(posA);
-                    tB->SetGlobalPosition(posB);
-                    if (rbA) rbA->velocity.x = 0;
-                    if (rbB) rbB->velocity.x = 0;
-                }
-            } 
-            else {
-                // Resolve on the Y-axis (Vertical collision, e.g., hitting the floor)
-                float sign = (centerA_y < centerB_y) ? -1.0f : 1.0f;
-                outNormalA = { 0.0f, sign };
-                outNormalB = { 0.0f, -sign };
+        Vector2 posA = tA->GetGlobalPosition();
+        Vector2 posB = tB->GetGlobalPosition();
 
-                if (sign < 0.0f && rbA) rbA->isGrounded = true;
-                if (sign > 0.0f && rbB) rbB->isGrounded = true;
-
-                if (!isKinematicA && isKinematicB) {
-                    posA.y += overlapY * sign;
-                    tA->SetGlobalPosition(posA);
-                    if (rbA) rbA->velocity.y = 0;
-                } 
-                else if (isKinematicA && !isKinematicB) {
-                    posB.y -= overlapY * sign;
-                    tB->SetGlobalPosition(posB);
-                    if (rbB) rbB->velocity.y = 0;
-                } 
-                else {
-                    posA.y += (overlapY / 2.0f) * sign;
-                    posB.y -= (overlapY / 2.0f) * sign;
-                    tA->SetGlobalPosition(posA);
-                    tB->SetGlobalPosition(posB);
-                    if (rbA) rbA->velocity.y = 0;
-                    if (rbB) rbB->velocity.y = 0;
-                }
-            }
-
-            return true;
+        if (!isKinematicA && isKinematicB) {
+            tA->SetGlobalPosition(Vector2Subtract(posA, mtv));
+            // For now, we kill all velocity on impact. 
+            // Later, we can do a proper projection of the velocity vector along the wall!
+            if (rbA) { rbA->velocity.x = 0; rbA->velocity.y = 0; }
+        } 
+        else if (isKinematicA && !isKinematicB) {
+            tB->SetGlobalPosition(Vector2Add(posB, mtv));
+            if (rbB) { rbB->velocity.x = 0; rbB->velocity.y = 0; }
+        } 
+        else {
+            // Split mass: push both objects away from each other equally
+            tA->SetGlobalPosition(Vector2Subtract(posA, {mtv.x * 0.5f, mtv.y * 0.5f}));
+            tB->SetGlobalPosition(Vector2Add(posB, {mtv.x * 0.5f, mtv.y * 0.5f}));
+            if (rbA) { rbA->velocity.x = 0; rbA->velocity.y = 0; }
+            if (rbB) { rbB->velocity.x = 0; rbB->velocity.y = 0; }
         }
-    }
 
+        return true;
+    }
     return false;
 }
 
@@ -221,65 +156,34 @@ bool PhysicsEngine::ResolveTileCollision(GameObject* obj, const Rectangle& tileR
     auto col = obj->GetComponent<RectCollider>();
     auto t = obj->GetComponent<Transform2d>();
     auto rb = obj->GetComponent<RigidBody2d>();
-
-    // We only resolve if the object has a physical presence
     if (!col || !t) return false;
 
-    Vector2 pos = t->GetGlobalPosition();
-    Vector2 scale = t->GetGlobalScale();
+    std::vector<Vector2> polyA = GetColliderVertices(col, t);
+    std::vector<Vector2> polyTile = GetRectangleVertices(tileRect);
 
-    // Define the dynamic object's world-space rectangle
-    float scaledWidth = col->size.x * std::abs(scale.x);
-    float scaledHeight = col->size.y * std::abs(scale.y);
-    Rectangle rec = {
-        (pos.x + col->offset.x) - (scaledWidth / 2.0f),
-        (pos.y + col->offset.y) - (scaledHeight / 2.0f),
-        scaledWidth,
-        scaledHeight
-    };
-
-    // Check overlap
-    if (CheckCollisionRecs(rec, tileRect)) {
-        // Triggers detect the tile, but aren't pushed by it
+    Vector2 mtv;
+    if (SATCollision(polyA, polyTile, mtv)) {
         if (col->isTrigger) {
-            outNormal = { 0.0f, 0.0f };
-            return true; 
+            outNormal = {0.0f, 0.0f};
+            return true;
         }
 
         if (!rb || rb->isKinematic) return false;
 
-        float center_x = rec.x + rec.width / 2.0f;
-        float center_y = rec.y + rec.height / 2.0f;
-        float tileCenter_x = tileRect.x + tileRect.width / 2.0f;
-        float tileCenter_y = tileRect.y + tileRect.height / 2.0f;
+        Vector2 normal = Vector2Normalize(mtv);
+        outNormal = {-normal.x, -normal.y};
 
-        float overlapX = (rec.width / 2.0f + tileRect.width / 2.0f) - std::abs(center_x - tileCenter_x);
-        float overlapY = (rec.height / 2.0f + tileRect.height / 2.0f) - std::abs(center_y - tileCenter_y);
+        if (normal.y < -0.5f) rb->isGrounded = true;
 
-        if (overlapX > 0 && overlapY > 0) {
-            if (overlapX < overlapY) {
-                // Horizontal collision (Hit a wall)
-                float sign = (center_x < tileCenter_x) ? -1.0f : 1.0f;
-                pos.x += overlapX * sign;
-                t->SetGlobalPosition(pos);
-                rb->velocity.x = 0;
-                outNormal = { sign, 0.0f };
-            } else {
-                // Vertical collision (Hit the floor or ceiling)
-                float sign = (center_y < tileCenter_y) ? -1.0f : 1.0f;
-                pos.y += overlapY * sign;
-                t->SetGlobalPosition(pos);
-                rb->velocity.y = 0;
-                outNormal = { 0.0f, sign };
+        Vector2 pos = t->GetGlobalPosition();
+        t->SetGlobalPosition(Vector2Subtract(pos, mtv));
+        
+        // Basic velocity cancellation depending on the hit axis
+        if (std::abs(normal.x) > 0.5f) rb->velocity.x = 0;
+        if (std::abs(normal.y) > 0.5f) rb->velocity.y = 0;
 
-                if (sign < 0.0f) {
-                    rb->isGrounded = true;
-                }
-            }
-            return true;
-        }
+        return true;
     }
-    
     return false;
 }
 
@@ -287,42 +191,28 @@ void PhysicsEngine::RenderDebug(Scene& scene) {
     const auto& gameObjects = scene.GetGameObjects();
 
     for (const auto& go : gameObjects) {
-        auto col = go->GetComponent<RectCollider>();
-        auto transform = go->GetComponent<Transform2d>();
+        if (auto col = go->GetComponent<RectCollider>()) {
+            if (auto transform = go->GetComponent<Transform2d>()) {
+                std::vector<Vector2> vertices = GetColliderVertices(col, transform);
+                Color debugColor = col->isTrigger ? YELLOW : GREEN;
 
-        if (col && transform) {
-            Vector2 pos = transform->GetGlobalPosition();
-            Vector2 scale = transform->GetGlobalScale();
+                // Draw the 4 edges of the rotated polygon
+                for (int i = 0; i < 4; i++) {
+                    DrawLineEx(vertices[i], vertices[(i + 1) % 4], 2.0f, debugColor);
+                }
 
-            // Calculate the exact AABB centered around the transform position
-            float scaledWidth = col->size.x * std::abs(scale.x);
-            float scaledHeight = col->size.y * std::abs(scale.y);
-
-            // Shift the top-left corner back by half the width and height
-            Rectangle rec = {
-                (pos.x + col->offset.x) - (scaledWidth / 2.0f),
-                (pos.y + col->offset.y) - (scaledHeight / 2.0f),
-                scaledWidth,
-                scaledHeight
-            };
-
-            // Choose color: Yellow for triggers, Green for solid physical colliders
-            Color debugColor = col->isTrigger ? YELLOW : GREEN;
-
-            // Draw the outline of the collider
-            DrawRectangleLinesEx(rec, 2.0f, debugColor);
-
-            // Draw a tiny crosshair at the actual position of the GameObject 
-            // This is super helpful to visualize how the 'offset' is moving the collider
-            DrawLine(pos.x - 5, pos.y, pos.x + 5, pos.y, RED);
-            DrawLine(pos.x, pos.y - 5, pos.x, pos.y + 5, RED);
+                // Draw a crosshair at the actual position to visualize offsets
+                Vector2 pos = transform->GetGlobalPosition();
+                DrawLine(pos.x - 5, pos.y, pos.x + 5, pos.y, RED);
+                DrawLine(pos.x, pos.y - 5, pos.x, pos.y + 5, RED);
+            }
         }
 
         // Draw TileMap Solid Layers Geometry
         if (auto tileMap = go->GetComponent<TileMap>()) {
             std::vector<Rectangle> solidTiles = tileMap->GetCollisionRects();
             for (const auto& tileRect : solidTiles) {
-                // Use a distinctive color (e.g. SKYBLUE) for level geometry
+                // Use a distinctive color (e.g., SKYBLUE) for level geometry
                 DrawRectangleLinesEx(tileRect, 1.5f, SKYBLUE);
             }
         }
@@ -444,4 +334,118 @@ RaycastHit PhysicsEngine::Raycast(Scene& scene, Vector2 origin, Vector2 directio
     }
 
     return result;
+}
+
+std::vector<Vector2> PhysicsEngine::GetColliderVertices(RectCollider* col, Transform2d* t) {
+    std::vector<Vector2> vertices(4);
+    
+    Vector2 pos = t->GetGlobalPosition();
+    Vector2 scale = t->GetGlobalScale();
+    float rot = t->GetGlobalRotation() * DEG2RAD; // Raylib DEG2RAD macro converts degrees to radians
+    
+    float cosR = std::cos(rot);
+    float sinR = std::sin(rot);
+    
+    float sw = col->size.x * std::abs(scale.x);
+    float sh = col->size.y * std::abs(scale.y);
+    float ox = col->offset.x * std::abs(scale.x);
+    float oy = col->offset.y * std::abs(scale.y);
+
+    // The 4 local corners centered around the origin (0,0)
+    Vector2 localPoints[4] = {
+        {-sw / 2.0f + ox, -sh / 2.0f + oy}, // Top-Left
+        { sw / 2.0f + ox, -sh / 2.0f + oy}, // Top-Right
+        { sw / 2.0f + ox,  sh / 2.0f + oy}, // Bottom-Right
+        {-sw / 2.0f + ox,  sh / 2.0f + oy}  // Bottom-Left
+    };
+
+    // Apply the rotation matrix and translate to the global position
+    for(int i = 0; i < 4; i++) {
+        vertices[i].x = pos.x + (localPoints[i].x * cosR - localPoints[i].y * sinR);
+        vertices[i].y = pos.y + (localPoints[i].x * sinR + localPoints[i].y * cosR);
+    }
+    return vertices;
+}
+
+std::vector<Vector2> PhysicsEngine::GetRectangleVertices(const Rectangle& rect) {
+    return {
+        { rect.x, rect.y },
+        { rect.x + rect.width, rect.y },
+        { rect.x + rect.width, rect.y + rect.height },
+        { rect.x, rect.y + rect.height }
+    };
+}
+
+Vector2 PhysicsEngine::GetPolygonCenter(const std::vector<Vector2>& vertices) {
+    Vector2 center = {0, 0};
+    for (const auto& v : vertices) {
+        center.x += v.x;
+        center.y += v.y;
+    }
+    center.x /= vertices.size();
+    center.y /= vertices.size();
+    return center;
+}
+
+void PhysicsEngine::ProjectPolygon(const std::vector<Vector2>& vertices, Vector2 axis, float& min, float& max) {
+    min = Vector2DotProduct(vertices[0], axis);
+    max = min;
+    for (size_t i = 1; i < vertices.size(); i++) {
+        float projection = Vector2DotProduct(vertices[i], axis);
+        if (projection < min) min = projection;
+        if (projection > max) max = projection;
+    }
+}
+
+bool PhysicsEngine::SATCollision(const std::vector<Vector2>& polyA, const std::vector<Vector2>& polyB, Vector2& outMTV) {
+    float minOverlap = std::numeric_limits<float>::infinity();
+    Vector2 smallestAxis = {0, 0};
+
+    std::vector<std::vector<Vector2>> polygons = {polyA, polyB};
+
+    // For each polygon...
+    for (int p = 0; p < 2; p++) {
+        const auto& poly = polygons[p];
+        
+        // ... test the normal of each edge
+        for (size_t i = 0; i < poly.size(); i++) {
+            Vector2 p1 = poly[i];
+            Vector2 p2 = poly[(i + 1) % poly.size()];
+            
+            // Edge vector
+            Vector2 edge = Vector2Subtract(p2, p1);
+            // The normal is the perpendicular vector to the edge (flipped x and y)
+            Vector2 normal = Vector2Normalize({-edge.y, edge.x});
+
+            float minA, maxA, minB, maxB;
+            ProjectPolygon(polyA, normal, minA, maxA);
+            ProjectPolygon(polyB, normal, minB, maxB);
+
+            // If there is a gap on this axis, THEN THERE IS NO COLLISION AT ALL!
+            if (minA >= maxB || minB >= maxA) {
+                return false;
+            }
+
+            // Calculate the actual overlap depth
+            float overlap = std::min(maxA, maxB) - std::max(minA, minB);
+            
+            // Keep track of the axis with the smallest overlap (Minimum Translation Vector)
+            if (overlap < minOverlap) {
+                minOverlap = overlap;
+                smallestAxis = normal;
+            }
+        }
+    }
+
+    // Ensure the push vector always points from A to B
+    Vector2 centerA = GetPolygonCenter(polyA);
+    Vector2 centerB = GetPolygonCenter(polyB);
+    Vector2 dir = Vector2Subtract(centerB, centerA);
+    
+    if (Vector2DotProduct(smallestAxis, dir) < 0) {
+        smallestAxis = {-smallestAxis.x, -smallestAxis.y};
+    }
+
+    outMTV = {smallestAxis.x * minOverlap, smallestAxis.y * minOverlap};
+    return true;
 }

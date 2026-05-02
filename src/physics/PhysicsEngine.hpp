@@ -5,6 +5,8 @@
 #include "Collision2D.hpp"
 
 class Scene;
+class RectCollider;
+class Transform2d;
 
 class PhysicsEngine {
     public:
@@ -30,4 +32,19 @@ class PhysicsEngine {
 
         // Helper to check line vs AABB intersection
         static bool CheckLineBoxIntersection(Vector2 p1, Vector2 p2, Rectangle box, Vector2& hitPoint, Vector2& hitNormal);
+
+        // Transforms a RectCollider into 4 rotated vertices in global space
+        static std::vector<Vector2> GetColliderVertices(RectCollider* col, Transform2d* t);
+
+        // Transforms a simple standard Rectangle (like a Tile) into 4 vertices
+        static std::vector<Vector2> GetRectangleVertices(const Rectangle& rect);
+
+        // Finds the mathematical center of a polygon
+        static Vector2 GetPolygonCenter(const std::vector<Vector2>& vertices);
+        
+        // Projects a polygon onto a given axis to get the min and max points of the "shadow"
+        static void ProjectPolygon(const std::vector<Vector2>& vertices, Vector2 axis, float& min, float& max);
+        
+        // The pure SAT Algorithm: returns true if there is a collision, and populates outMTV with the push vector
+        static bool SATCollision(const std::vector<Vector2>& polyA, const std::vector<Vector2>& polyB, Vector2& outMTV);
 };
