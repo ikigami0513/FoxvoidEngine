@@ -3,6 +3,7 @@
 #include "world/GameObject.hpp"
 #include <raylib.h>
 #include "Collision2D.hpp"
+#include "ColliderData.hpp"
 
 class Scene;
 class RectCollider;
@@ -35,18 +36,6 @@ class PhysicsEngine {
 
         // Transforms a RectCollider into 4 rotated vertices in global space
         static std::vector<Vector2> GetColliderVertices(RectCollider* col, Transform2d* t);
-
-        enum class ColliderShape { Polygon, Circle, Capsule };
-
-        // Universal structure to hold extracted collision geometry
-        struct ColliderData {
-            ColliderShape shapeType;
-            std::vector<Vector2> vertices; // Used if shapeType == Polygon
-            Vector2 center;                // Used if shapeType == Circle (Global Space)
-            Vector2 p1, p2;                // Used if shapeType == Capsule (The internal segment)
-            float radius;                  // Used if shapeType == Circle (Global Scaled)
-            bool isTrigger;
-        };
 
         // Generic method that returns the global vertices of ANY collider attached to the object
         static bool GetObjectColliderData(GameObject* obj, ColliderData& outData);

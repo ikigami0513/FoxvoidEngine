@@ -10,12 +10,12 @@
 #include "PolygonCollider.hpp"
 #include "CircleCollider.hpp"
 #include "CapsuleCollider.hpp"
+#include "physics/SpatialHashGrid.hpp"
 
 // Initialize global gravity (981 pixels/sec² pointing down)
 Vector2 PhysicsEngine::GlobalGravity = { 0.0f, 981.0f };
 
 void PhysicsEngine::Update(Scene& scene, float deltaTime) {
-    // Get all game objects from the scene
     const auto& gameObjects = scene.GetGameObjects();
 
     // Step 1: Integration (Apply Gravity and Velocity)
@@ -23,16 +23,11 @@ void PhysicsEngine::Update(Scene& scene, float deltaTime) {
         auto rb = go->GetComponent<RigidBody2d>();
         auto transform = go->GetComponent<Transform2d>();
 
-        // Only move objects that have physics and are not kinematic
         if (rb && transform && !rb->isKinematic) {
-            // Reset grounded state before collision checks
             rb->isGrounded = false;
-
-            // Apply global gravity based on the object's personal scale
             rb->velocity.x += GlobalGravity.x * rb->gravityScale * deltaTime;
             rb->velocity.y += GlobalGravity.y * rb->gravityScale * deltaTime;
 
-            // Apply the velocity to the actual position in GLOBAL SPACE
             Vector2 globalPos = transform->GetGlobalPosition();
             globalPos.x += rb->velocity.x * deltaTime;
             globalPos.y += rb->velocity.y * deltaTime;
@@ -40,52 +35,80 @@ void PhysicsEngine::Update(Scene& scene, float deltaTime) {
         }
     }
 
-    // Step 2: Collect all solid TileMap geometry
-    std::vector<Rectangle> solidTiles;
+    // Step 2: Build the Spatial Hash Grid for this frame
+    SpatialHashGrid grid(100.0f); // 100 pixels per cell
+    
+    // We store the data we extract so we don't have to extract it twice
+    std::vector<std::pair<GameObject*, ColliderData>> physicsObjects;
+
     for (const auto& go : gameObjects) {
+        ColliderData data;
+        if (GetObjectColliderData(go.get(), data)) {
+            grid.Insert(go.get(), data);
+            physicsObjects.push_back({go.get(), data});
+        }
+
+        // Also add solid tiles to the grid!
         if (auto tileMap = go->GetComponent<TileMap>()) {
-            auto rects = tileMap->GetCollisionRects();
-            solidTiles.insert(solidTiles.end(), rects.begin(), rects.end());
+            for (const Rectangle& rect : tileMap->GetCollisionRects()) {
+                ColliderData tileData;
+                tileData.shapeType = ColliderShape::Polygon;
+                tileData.vertices = GetRectangleVertices(rect);
+                tileData.isTrigger = false;
+                grid.Insert(go.get(), tileData);
+                // We don't push tiles to physicsObjects because tiles don't initiate collisions, they only receive them.
+            }
         }
     }
 
-    // Event Queue to store collisions for this frame
-    // We store who collided (GameObject) and what they hit (Collision2D)
     std::vector<std::pair<GameObject*, Collision2D>> collisionEvents;
 
-    // Step 3: Collision resolution (O(N²) checks)
-    for (size_t i = 0; i < gameObjects.size(); ++i) {
-        auto objA = gameObjects[i].get();
+    // Step 3: Collision resolution using the Broadphase
+    // Notice how we ONLY loop through physicsObjects now!
+    for (size_t i = 0; i < physicsObjects.size(); ++i) {
+        GameObject* objA = physicsObjects[i].first;
+        ColliderData& dataA = physicsObjects[i].second;
 
-        // Dynamic Objects vs Static TileMap
-        // We only test objects that have a collider against the solid tiles
-        for (const Rectangle& tileRect : solidTiles) {
-            Vector2 normal = { 0.0f, 0.0f };
-            if (ResolveTileCollision(gameObjects[i].get(), tileRect, normal)) {
-                collisionEvents.push_back({ objA, Collision2D{ nullptr, normal } });
-            }
-        }
+        // BROADPHASE MAGIC: Get only objects in the same or adjacent cells!
+        std::vector<GameObject*> nearbyObjects = grid.GetNearby(dataA);
 
-        // Object vs Object (O(N²) checks)
-        for (size_t j = i + 1; j < gameObjects.size(); ++j) {
-            auto objB = gameObjects[j].get();
+        for (GameObject* objB : nearbyObjects) {
+            // Prevent self-collision and duplicate checks
+            if (objA == objB) continue;
+            
+            // To prevent testing A vs B, then B vs A later, we enforce a strict memory address order
+            // Note: TileMaps are a special case because they are added to the grid but not physicsObjects
+            bool isTileMapB = objB->GetComponent<TileMap>() != nullptr;
+            if (!isTileMapB && objA >= objB) continue; 
+
             Vector2 normalA = { 0.0f, 0.0f };
             Vector2 normalB = { 0.0f, 0.0f };
             
-            if (ResolveCollision(objA, objB, normalA, normalB)) {
-                collisionEvents.push_back({ objA, Collision2D{ objB, normalA } });
-                collisionEvents.push_back({ objB, Collision2D{ objA, normalB } });
+            bool hit = false;
+            if (isTileMapB) {
+                // If B is a TileMap, we need a special check because the Grid returns the TileMap object,
+                // but we need to check against its specific tiles.
+                // (Optimization note: A more advanced grid would store the specific Tile index, 
+                // but looping over nearby tiles is fast enough for now).
+                auto tileMap = objB->GetComponent<TileMap>();
+                for (const Rectangle& rect : tileMap->GetCollisionRects()) {
+                    if (ResolveTileCollision(objA, rect, normalA)) {
+                        collisionEvents.push_back({ objA, Collision2D{ nullptr, normalA } });
+                    }
+                }
+            } 
+            else {
+                if (ResolveCollision(objA, objB, normalA, normalB)) {
+                    collisionEvents.push_back({ objA, Collision2D{ objB, normalA } });
+                    collisionEvents.push_back({ objB, Collision2D{ objA, normalB } });
+                }
             }
         }
     }
 
     // Step 4: Dispatch events to scripts
     for (const auto& event : collisionEvents) {
-        GameObject* entity = event.first;
-        const Collision2D& colData = event.second;
-        
-        // Tells the GameObject it collided, so it warns its components
-        entity->OnCollision(colData);
+        event.first->OnCollision(event.second);
     }
 }
 
