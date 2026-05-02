@@ -8,7 +8,7 @@
 #include <portable-file-dialogs.h>
 #include <extras/IconsFontAwesome6.h>
 #include <core/AssetRegistry.hpp>
-#include "Build.hpp"
+#include "build/Build.hpp"
 
 void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& isRunning, GameObject*& selectedObject, InputSettingsPanel& inputPanel, GameStatePanel& gameStatePanel, bool& showGlobalGrid) {
     // Global Shortcuts
@@ -189,7 +189,7 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
 
         // Select Target OS
         static int targetOsIndex = 0;
-        const char* osOptions[] = { "Linux (Native)", "Windows (MinGW Cross-Compile)" };
+        const char* osOptions[] = { "Linux", "Windows" };
         ImGui::TextUnformatted("Target Platform");
         ImGui::SetNextItemWidth(300.0f);
         ImGui::Combo("##TargetOS", &targetOsIndex, osOptions, IM_ARRAYSIZE(osOptions));

@@ -24,10 +24,14 @@ class Build {
         static std::string GetStatusMessage();
         static std::vector<std::string> GetLogs();
 
+        static int ExecuteCommandWithOutput(const std::string& cmd, int baseProgress, int maxProgress);
+        static void LogMessage(const std::string& msg);
+        static void LogWarning(const std::string& msg);
+        static void LogError(const std::string& msg);
+
     private:
         static void RunThread(std::string startScene, std::string outputDir, std::filesystem::path projectRoot, std::string engineRoot, TargetOS target);
-        static int ExecuteCommandWithOutput(const std::string& cmd, int baseProgress, int maxProgress);
-
+        
         // Thread-safe state
         static std::atomic<bool> s_isBuilding;
         static std::atomic<int> s_buildProgress;
