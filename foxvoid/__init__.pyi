@@ -1277,3 +1277,22 @@ class CircleCollider(Component):
         Initializes a CircleCollider with a given radius.
         """
         ...
+
+
+class CapsuleCollider(Component):
+    """
+    A capsule-shaped collider, consisting of a cylinder with hemispherical ends.
+    This is the industry standard shape for 2D character controllers as it slides
+    smoothly over small bumps and does not catch on tile edges.
+    """
+    radius: float
+    height: float
+    offset: Vector2
+    is_trigger: bool
+
+    def __init__(self, radius: float = 25.0, height: float = 50.0) -> None: 
+        """
+        Initializes a CapsuleCollider. The height is the total vertical span
+        and cannot be strictly smaller than radius * 2.
+        """
+        ...

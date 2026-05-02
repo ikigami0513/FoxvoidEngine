@@ -9,6 +9,7 @@
 #include <limits>
 #include "PolygonCollider.hpp"
 #include "CircleCollider.hpp"
+#include "CapsuleCollider.hpp"
 
 // Initialize global gravity (981 pixels/sec² pointing down)
 Vector2 PhysicsEngine::GlobalGravity = { 0.0f, 981.0f };
@@ -104,12 +105,28 @@ bool PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB, Vector2
     else if (dataA.shapeType == ColliderShape::Circle && dataB.shapeType == ColliderShape::Circle) {
         hasCollision = CircleCircleCollision(dataA, dataB, mtv);
     } 
+    else if (dataA.shapeType == ColliderShape::Capsule && dataB.shapeType == ColliderShape::Capsule) {
+        hasCollision = CapsuleCapsuleCollision(dataA, dataB, mtv);
+    }
     else if (dataA.shapeType == ColliderShape::Polygon && dataB.shapeType == ColliderShape::Circle) {
         hasCollision = SATPolygonCircleCollision(dataA, dataB, mtv);
     } 
     else if (dataA.shapeType == ColliderShape::Circle && dataB.shapeType == ColliderShape::Polygon) {
-        // If the order is reversed, we test Poly vs Circle and INVERT the MTV result
         hasCollision = SATPolygonCircleCollision(dataB, dataA, mtv);
+        if (hasCollision) mtv = {-mtv.x, -mtv.y}; 
+    }
+    else if (dataA.shapeType == ColliderShape::Polygon && dataB.shapeType == ColliderShape::Capsule) {
+        hasCollision = SATPolygonCapsuleCollision(dataA, dataB, mtv);
+    } 
+    else if (dataA.shapeType == ColliderShape::Capsule && dataB.shapeType == ColliderShape::Polygon) {
+        hasCollision = SATPolygonCapsuleCollision(dataB, dataA, mtv);
+        if (hasCollision) mtv = {-mtv.x, -mtv.y}; 
+    }
+    else if (dataA.shapeType == ColliderShape::Capsule && dataB.shapeType == ColliderShape::Circle) {
+        hasCollision = CapsuleCircleCollision(dataA, dataB, mtv);
+    }
+    else if (dataA.shapeType == ColliderShape::Circle && dataB.shapeType == ColliderShape::Capsule) {
+        hasCollision = CapsuleCircleCollision(dataB, dataA, mtv);
         if (hasCollision) mtv = {-mtv.x, -mtv.y}; 
     }
     
@@ -179,10 +196,15 @@ bool PhysicsEngine::ResolveTileCollision(GameObject* obj, const Rectangle& tileR
 
     if (dataA.shapeType == ColliderShape::Polygon) {
         hasCollision = SATCollision(dataA.vertices, dataTile.vertices, mtv);
-    } else {
+    } 
+    else if (dataA.shapeType == ColliderShape::Circle) {
         // Here, A is the Circle, and B is the Tile (Polygon)
         // We calculate Poly vs Circle, and INVERT the MTV because 'obj' is A.
         hasCollision = SATPolygonCircleCollision(dataTile, dataA, mtv);
+        if (hasCollision) mtv = {-mtv.x, -mtv.y};
+    } 
+    else if (dataA.shapeType == ColliderShape::Capsule) {
+        hasCollision = SATPolygonCapsuleCollision(dataTile, dataA, mtv);
         if (hasCollision) mtv = {-mtv.x, -mtv.y};
     }
 
@@ -240,6 +262,20 @@ void PhysicsEngine::RenderDebug(Scene& scene) {
                     };
                     DrawLineEx(data.center, rotLineEnd, 2.0f, debugColor);
                 }
+            }
+            else if (data.shapeType == ColliderShape::Capsule) {
+                // Draw the two end circles
+                DrawCircleLines(data.p1.x, data.p1.y, data.radius, debugColor);
+                DrawCircleLines(data.p2.x, data.p2.y, data.radius, debugColor);
+                
+                // Draw the two side lines connecting the circles
+                Vector2 edge = Vector2Subtract(data.p2, data.p1);
+                Vector2 normal = Vector2Normalize({-edge.y, edge.x});
+                Vector2 offsetLeft = Vector2Scale(normal, data.radius);
+                Vector2 offsetRight = Vector2Scale(normal, -data.radius);
+                
+                DrawLineEx(Vector2Add(data.p1, offsetLeft), Vector2Add(data.p2, offsetLeft), 2.0f, debugColor);
+                DrawLineEx(Vector2Add(data.p1, offsetRight), Vector2Add(data.p2, offsetRight), 2.0f, debugColor);
             }
 
             if (auto t = go->GetComponent<Transform2d>()) {
@@ -466,6 +502,34 @@ bool PhysicsEngine::GetObjectColliderData(GameObject* obj, ColliderData& outData
         return true;
     }
 
+    // 4. CapsuleCollider
+    if (auto capCol = obj->GetComponent<CapsuleCollider>()) {
+        outData.shapeType = ColliderShape::Capsule;
+        outData.isTrigger = capCol->isTrigger;
+        
+        Vector2 pos = t->GetGlobalPosition();
+        Vector2 scale = t->GetGlobalScale();
+        float rot = t->GetGlobalRotation() * DEG2RAD;
+        
+        float maxScale = std::max(std::abs(scale.x), std::abs(scale.y));
+        outData.radius = capCol->radius * maxScale;
+        
+        // The core line segment length is the total height minus the two circles at the ends
+        float segmentLen = std::max(0.0f, capCol->height - 2.0f * capCol->radius) * std::abs(scale.y);
+        float halfLen = segmentLen / 2.0f;
+        
+        float ox = capCol->offset.x * std::abs(scale.x);
+        float oy = capCol->offset.y * std::abs(scale.y);
+        float cx = pos.x + (ox * std::cos(rot) - oy * std::sin(rot));
+        float cy = pos.y + (ox * std::sin(rot) + oy * std::cos(rot));
+        
+        // Apply rotation to the top and bottom points of the inner segment
+        outData.p1 = { cx + halfLen * std::sin(rot), cy - halfLen * std::cos(rot) }; // Top point
+        outData.p2 = { cx - halfLen * std::sin(rot), cy + halfLen * std::cos(rot) }; // Bottom point
+        
+        return true;
+    }
+
     return false;
 }
 
@@ -640,6 +704,146 @@ bool PhysicsEngine::SATPolygonCircleCollision(const ColliderData& poly, const Co
     if (Vector2DotProduct(smallestAxis, dir) < 0) {
         smallestAxis = {-smallestAxis.x, -smallestAxis.y};
     }
+
+    outMTV = {smallestAxis.x * minOverlap, smallestAxis.y * minOverlap};
+    return true;
+}
+
+// Finds the closest point on a line segment (a to b) to a specific point (p)
+Vector2 PhysicsEngine::ClosestPointOnLineSegment(Vector2 p, Vector2 a, Vector2 b) {
+    Vector2 ab = Vector2Subtract(b, a);
+    float t = Vector2DotProduct(Vector2Subtract(p, a), ab) / (Vector2LengthSqr(ab) + 0.0001f);
+    t = std::clamp(t, 0.0f, 1.0f);
+    return Vector2Add(a, Vector2Scale(ab, t));
+}
+
+bool PhysicsEngine::CapsuleCircleCollision(const ColliderData& cap, const ColliderData& circ, Vector2& outMTV) {
+    Vector2 closest = ClosestPointOnLineSegment(circ.center, cap.p1, cap.p2);
+    Vector2 dir = Vector2Subtract(circ.center, closest);
+    float distSq = Vector2LengthSqr(dir);
+    float radiusSum = cap.radius + circ.radius;
+    
+    if (distSq < radiusSum * radiusSum) {
+        float dist = std::sqrt(distSq);
+        float overlap = radiusSum - dist;
+        if (dist == 0.0f) outMTV = {0.0f, -overlap};
+        else outMTV = { (dir.x/dist)*overlap, (dir.y/dist)*overlap };
+        return true;
+    }
+    return false;
+}
+
+bool PhysicsEngine::SATPolygonCapsuleCollision(const ColliderData& poly, const ColliderData& cap, Vector2& outMTV) {
+    float minOverlap = std::numeric_limits<float>::infinity();
+    Vector2 smallestAxis = {0, 0};
+    std::vector<Vector2> axes;
+    
+    // 1. Polygon edge normals
+    for (size_t i = 0; i < poly.vertices.size(); i++) {
+        Vector2 p1 = poly.vertices[i];
+        Vector2 p2 = poly.vertices[(i + 1) % poly.vertices.size()];
+        Vector2 edge = Vector2Subtract(p2, p1);
+        axes.push_back(Vector2Normalize({-edge.y, edge.x}));
+    }
+
+    // 2. Capsule segment normal
+    Vector2 capEdge = Vector2Subtract(cap.p2, cap.p1);
+    if (Vector2LengthSqr(capEdge) > 0.0001f) {
+        axes.push_back(Vector2Normalize({-capEdge.y, capEdge.x}));
+    }
+
+    // 3. Vectors from Capsule endpoints to the closest polygon vertices
+    for (Vector2 capPoint : {cap.p1, cap.p2}) {
+        Vector2 closestVertex = poly.vertices[0];
+        float minDistSq = Vector2DistanceSqr(capPoint, closestVertex);
+        for (size_t i = 1; i < poly.vertices.size(); i++) {
+            float distSq = Vector2DistanceSqr(capPoint, poly.vertices[i]);
+            if (distSq < minDistSq) {
+                minDistSq = distSq;
+                closestVertex = poly.vertices[i];
+            }
+        }
+        Vector2 axis = Vector2Normalize(Vector2Subtract(capPoint, closestVertex));
+        if (!std::isnan(axis.x)) axes.push_back(axis);
+    }
+
+    // Test all collected axes
+    for (Vector2 axis : axes) {
+        float minA, maxA;
+        ProjectPolygon(poly.vertices, axis, minA, maxA);
+        
+        float proj1 = Vector2DotProduct(cap.p1, axis);
+        float proj2 = Vector2DotProduct(cap.p2, axis);
+        float minB = std::min(proj1, proj2) - cap.radius;
+        float maxB = std::max(proj1, proj2) + cap.radius;
+
+        if (minA >= maxB || minB >= maxA) return false;
+
+        float overlap = std::min(maxA, maxB) - std::max(minA, minB);
+        if (overlap < minOverlap) {
+            minOverlap = overlap;
+            smallestAxis = axis;
+        }
+    }
+
+    Vector2 centerA = GetPolygonCenter(poly.vertices);
+    Vector2 centerB = { (cap.p1.x + cap.p2.x)/2.0f, (cap.p1.y + cap.p2.y)/2.0f };
+    Vector2 dir = Vector2Subtract(centerB, centerA);
+    if (Vector2DotProduct(smallestAxis, dir) < 0) smallestAxis = {-smallestAxis.x, -smallestAxis.y};
+
+    outMTV = {smallestAxis.x * minOverlap, smallestAxis.y * minOverlap};
+    return true;
+}
+
+// A beautiful optimization: We can resolve Capsule vs Capsule purely through SAT
+// without complex segment-to-segment distance algorithms.
+bool PhysicsEngine::CapsuleCapsuleCollision(const ColliderData& capA, const ColliderData& capB, Vector2& outMTV) {
+    float minOverlap = std::numeric_limits<float>::infinity();
+    Vector2 smallestAxis = {0, 0};
+    std::vector<Vector2> axes;
+    
+    // 1. Both segment normals
+    Vector2 edgeA = Vector2Subtract(capA.p2, capA.p1);
+    if (Vector2LengthSqr(edgeA) > 0.0001f) axes.push_back(Vector2Normalize({-edgeA.y, edgeA.x}));
+    
+    Vector2 edgeB = Vector2Subtract(capB.p2, capB.p1);
+    if (Vector2LengthSqr(edgeB) > 0.0001f) axes.push_back(Vector2Normalize({-edgeB.y, edgeB.x}));
+
+    // 2. Point-to-Point vectors between all 4 endpoints
+    Vector2 pointsA[] = {capA.p1, capA.p2};
+    Vector2 pointsB[] = {capB.p1, capB.p2};
+    for (auto pa : pointsA) {
+        for (auto pb : pointsB) {
+            Vector2 axis = Vector2Normalize(Vector2Subtract(pa, pb));
+            if (!std::isnan(axis.x)) axes.push_back(axis);
+        }
+    }
+
+    // Test axes
+    for (Vector2 axis : axes) {
+        float projA1 = Vector2DotProduct(capA.p1, axis);
+        float projA2 = Vector2DotProduct(capA.p2, axis);
+        float minA = std::min(projA1, projA2) - capA.radius;
+        float maxA = std::max(projA1, projA2) + capA.radius;
+
+        float projB1 = Vector2DotProduct(capB.p1, axis);
+        float projB2 = Vector2DotProduct(capB.p2, axis);
+        float minB = std::min(projB1, projB2) - capB.radius;
+        float maxB = std::max(projB1, projB2) + capB.radius;
+
+        if (minA >= maxB || minB >= maxA) return false;
+
+        float overlap = std::min(maxA, maxB) - std::max(minA, minB);
+        if (overlap < minOverlap) {
+            minOverlap = overlap;
+            smallestAxis = axis;
+        }
+    }
+
+    Vector2 centerA = { (capA.p1.x + capA.p2.x)/2.0f, (capA.p1.y + capA.p2.y)/2.0f };
+    Vector2 centerB = { (capB.p1.x + capB.p2.x)/2.0f, (capB.p1.y + capB.p2.y)/2.0f };
+    Vector2 dir = Vector2Subtract(centerB, centerA);
+    if (Vector2DotProduct(smallestAxis, dir) < 0) smallestAxis = {-smallestAxis.x, -smallestAxis.y};
 
     outMTV = {smallestAxis.x * minOverlap, smallestAxis.y * minOverlap};
     return true;

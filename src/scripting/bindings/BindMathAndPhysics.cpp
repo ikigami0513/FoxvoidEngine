@@ -12,6 +12,7 @@
 #include <physics/PhysicsEngine.hpp>
 #include <core/Engine.hpp>
 #include <physics/CircleCollider.hpp>
+#include <physics/CapsuleCollider.hpp>
 
 void BindMathAndPhysics(py::module_& m) {
     py::class_<Vector2>(m, "Vector2")
@@ -144,6 +145,24 @@ void BindMathAndPhysics(py::module_& m) {
             float radius = 25.0f;
             if (args.size() >= 1) radius = args[0].cast<float>();
             auto* c = go.AddComponent<CircleCollider>(radius);
+            return py::cast(c, py::return_value_policy::reference);
+        }
+    );
+
+    py::class_<CapsuleCollider, Component>(m, "CapsuleCollider")
+        .def(py::init<float, float>(), py::arg("radius") = 25.0f, py::arg("height") = 50.0f)
+        .def_readwrite("radius", &CapsuleCollider::radius)
+        .def_readwrite("height", &CapsuleCollider::height)
+        .def_readwrite("offset", &CapsuleCollider::offset)
+        .def_readwrite("is_trigger", &CapsuleCollider::isTrigger);
+
+    ComponentRegistry::Register<CapsuleCollider>("CapsuleCollider",
+        [](GameObject& go, py::args args) -> py::object {
+            float radius = 25.0f;
+            float height = 50.0f;
+            if (args.size() >= 1) radius = args[0].cast<float>();
+            if (args.size() >= 2) height = args[1].cast<float>();
+            auto* c = go.AddComponent<CapsuleCollider>(radius, height);
             return py::cast(c, py::return_value_policy::reference);
         }
     );
