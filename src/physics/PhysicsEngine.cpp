@@ -113,7 +113,6 @@ bool PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB, Vector2
         if (hasCollision) mtv = {-mtv.x, -mtv.y}; 
     }
     
-    Vector2 mtv; // Minimum Translation Vector
     if (hasCollision) {
         if (dataA.isTrigger || dataB.isTrigger) {
             outNormalA = { 0.0f, 0.0f };
