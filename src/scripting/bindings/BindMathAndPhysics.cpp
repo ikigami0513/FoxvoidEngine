@@ -11,6 +11,7 @@
 #include "physics/Collision2D.hpp"
 #include <physics/PhysicsEngine.hpp>
 #include <core/Engine.hpp>
+#include <physics/CircleCollider.hpp>
 
 void BindMathAndPhysics(py::module_& m) {
     py::class_<Vector2>(m, "Vector2")
@@ -131,4 +132,19 @@ void BindMathAndPhysics(py::module_& m) {
             Scene& activeScene = Engine::Get()->GetActiveScene();
             return PhysicsEngine::Raycast(activeScene, o, d, distance);
         });
+
+    py::class_<CircleCollider, Component>(m, "CircleCollider")
+        .def(py::init<float>(), py::arg("radius") = 25.0f)
+        .def_readwrite("radius", &CircleCollider::radius)
+        .def_readwrite("offset", &CircleCollider::offset)
+        .def_readwrite("is_trigger", &CircleCollider::isTrigger);
+
+    ComponentRegistry::Register<CircleCollider>("CircleCollider",
+        [](GameObject& go, py::args args) -> py::object {
+            float radius = 25.0f;
+            if (args.size() >= 1) radius = args[0].cast<float>();
+            auto* c = go.AddComponent<CircleCollider>(radius);
+            return py::cast(c, py::return_value_policy::reference);
+        }
+    );
 }

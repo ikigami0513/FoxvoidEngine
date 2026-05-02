@@ -1244,3 +1244,36 @@ class TextInput(Component):
         Example: self.input.set_font("assets/fonts/arial.ttf")
         """
         ...
+
+
+class PolygonCollider(Component):
+    """
+    A custom polygonal shape collider.
+    Warning: The shape MUST be convex (no hollow parts/indentations),
+    and the vertices should ideally be defined in a clockwise order.
+    """
+    local_vertices: list[Vector2]
+    offset: Vector2
+    is_trigger: bool
+
+    def __init__(self) -> None: 
+        """
+        Initializes a PolygonCollider with a default triangle shape.
+        """
+        ...
+
+class CircleCollider(Component):
+    """
+    A perfect circle collider.
+    Ideal for characters and rolling objects to prevent
+    snagging on TileMap corners.
+    """
+    radius: float
+    offset: Vector2
+    is_trigger: bool
+
+    def __init__(self, radius: float = 25.0) -> None: 
+        """
+        Initializes a CircleCollider with a given radius.
+        """
+        ...

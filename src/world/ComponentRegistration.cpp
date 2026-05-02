@@ -18,6 +18,7 @@
 #include "world/PersistentComponent.hpp"
 #include "audio/AudioSource.hpp"
 #include "physics/PolygonCollider.hpp"
+#include "physics/CircleCollider.hpp"
 
 #include "gui/RectTransform.hpp"
 #include "gui/ImageRenderer.hpp"
@@ -40,6 +41,7 @@ namespace EngineSetup {
         ComponentRegistry::RegisterCPP<RectCollider>("RectCollider", "Physics");
         ComponentRegistry::RegisterCPP<RigidBody2d>("RigidBody2d", "Physics");
         ComponentRegistry::RegisterCPP<PolygonCollider>("PolygonCollider", "Physics");
+        ComponentRegistry::RegisterCPP<CircleCollider>("CircleCollider", "Physics");
 
         // Graphics
         ComponentRegistry::RegisterCPP<ShapeRenderer>("ShapeRenderer", "Graphics");

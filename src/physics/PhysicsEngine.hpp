@@ -36,8 +36,19 @@ class PhysicsEngine {
         // Transforms a RectCollider into 4 rotated vertices in global space
         static std::vector<Vector2> GetColliderVertices(RectCollider* col, Transform2d* t);
 
+        enum class ColliderShape { Polygon, Circle };
+
+        // Universal structure to hold extracted collision geometry
+        struct ColliderData {
+            ColliderShape shapeType;
+            std::vector<Vector2> vertices; // Used if shapeType == Polygon
+            Vector2 center;                // Used if shapeType == Circle (Global Space)
+            float radius;                  // Used if shapeType == Circle (Global Scaled)
+            bool isTrigger;
+        };
+
         // Generic method that returns the global vertices of ANY collider attached to the object
-        static bool GetObjectColliderData(GameObject* obj, std::vector<Vector2>& outVertices, bool& outIsTrigger);
+        static bool GetObjectColliderData(GameObject* obj, ColliderData& outData);
 
         // Transforms a simple standard Rectangle (like a Tile) into 4 vertices
         static std::vector<Vector2> GetRectangleVertices(const Rectangle& rect);
@@ -50,4 +61,10 @@ class PhysicsEngine {
         
         // The pure SAT Algorithm: returns true if there is a collision, and populates outMTV with the push vector
         static bool SATCollision(const std::vector<Vector2>& polyA, const std::vector<Vector2>& polyB, Vector2& outMTV);
+
+        // Handles collisions between two perfect circles
+        static bool CircleCircleCollision(const ColliderData& circleA, const ColliderData& circleB, Vector2& outMTV);
+        
+        // Handles collisions between a polygon and a perfect circle using modified SAT
+        static bool SATPolygonCircleCollision(const ColliderData& poly, const ColliderData& circle, Vector2& outMTV);
 };

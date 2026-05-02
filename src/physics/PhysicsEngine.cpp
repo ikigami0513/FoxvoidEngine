@@ -8,6 +8,7 @@
 #include <cmath>
 #include <limits>
 #include "PolygonCollider.hpp"
+#include "CircleCollider.hpp"
 
 // Initialize global gravity (981 pixels/sec² pointing down)
 Vector2 PhysicsEngine::GlobalGravity = { 0.0f, 981.0f };
@@ -88,16 +89,33 @@ void PhysicsEngine::Update(Scene& scene, float deltaTime) {
 }
 
 bool PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB, Vector2& outNormalA, Vector2& outNormalB) {
-    std::vector<Vector2> polyA, polyB;
-    bool isTriggerA = false, isTriggerB = false;
+    ColliderData dataA, dataB;
 
-    // Fetch collider data universally (works for Rect AND Polygon colliders)
-    if (!GetObjectColliderData(objA, polyA, isTriggerA)) return false;
-    if (!GetObjectColliderData(objB, polyB, isTriggerB)) return false;
+    if (!GetObjectColliderData(objA, dataA)) return false;
+    if (!GetObjectColliderData(objB, dataB)) return false;
+
+    Vector2 mtv;
+    bool hasCollision = false;
+
+    // Collision Dispatcher
+    if (dataA.shapeType == ColliderShape::Polygon && dataB.shapeType == ColliderShape::Polygon) {
+        hasCollision = SATCollision(dataA.vertices, dataB.vertices, mtv);
+    } 
+    else if (dataA.shapeType == ColliderShape::Circle && dataB.shapeType == ColliderShape::Circle) {
+        hasCollision = CircleCircleCollision(dataA, dataB, mtv);
+    } 
+    else if (dataA.shapeType == ColliderShape::Polygon && dataB.shapeType == ColliderShape::Circle) {
+        hasCollision = SATPolygonCircleCollision(dataA, dataB, mtv);
+    } 
+    else if (dataA.shapeType == ColliderShape::Circle && dataB.shapeType == ColliderShape::Polygon) {
+        // If the order is reversed, we test Poly vs Circle and INVERT the MTV result
+        hasCollision = SATPolygonCircleCollision(dataB, dataA, mtv);
+        if (hasCollision) mtv = {-mtv.x, -mtv.y}; 
+    }
     
     Vector2 mtv; // Minimum Translation Vector
-    if (SATCollision(polyA, polyB, mtv)) {
-        if (isTriggerA || isTriggerB) {
+    if (hasCollision) {
+        if (dataA.isTrigger || dataB.isTrigger) {
             outNormalA = { 0.0f, 0.0f };
             outNormalB = { 0.0f, 0.0f };
             return true;
@@ -149,16 +167,28 @@ bool PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB, Vector2
 }
 
 bool PhysicsEngine::ResolveTileCollision(GameObject* obj, const Rectangle& tileRect, Vector2& outNormal) {
-    std::vector<Vector2> polyA;
-    bool isTrigger = false;
+    ColliderData dataA;
+    if (!GetObjectColliderData(obj, dataA)) return false;
 
-    // Abstract fetch
-    if (!GetObjectColliderData(obj, polyA, isTrigger)) return false;
-    std::vector<Vector2> polyTile = GetRectangleVertices(tileRect);
-    
+    // A tile is always a Polygon
+    ColliderData dataTile;
+    dataTile.shapeType = ColliderShape::Polygon;
+    dataTile.vertices = GetRectangleVertices(tileRect);
+
     Vector2 mtv;
-    if (SATCollision(polyA, polyTile, mtv)) {
-        if (isTrigger) {
+    bool hasCollision = false;
+
+    if (dataA.shapeType == ColliderShape::Polygon) {
+        hasCollision = SATCollision(dataA.vertices, dataTile.vertices, mtv);
+    } else {
+        // Here, A is the Circle, and B is the Tile (Polygon)
+        // We calculate Poly vs Circle, and INVERT the MTV because 'obj' is A.
+        hasCollision = SATPolygonCircleCollision(dataTile, dataA, mtv);
+        if (hasCollision) mtv = {-mtv.x, -mtv.y};
+    }
+
+    if (hasCollision) {
+        if (dataA.isTrigger) {
             outNormal = {0.0f, 0.0f};
             return true;
         }
@@ -189,16 +219,28 @@ void PhysicsEngine::RenderDebug(Scene& scene) {
     const auto& gameObjects = scene.GetGameObjects();
 
     for (const auto& go : gameObjects) {
-        std::vector<Vector2> vertices;
-        bool isTrigger = false;
-        
-        // Abstract drawing: It will draw ANY collider shape perfectly
-        if (GetObjectColliderData(go.get(), vertices, isTrigger)) {
-            Color debugColor = isTrigger ? YELLOW : GREEN;
+        ColliderData data;
+        if (GetObjectColliderData(go.get(), data)) {
+            Color debugColor = data.isTrigger ? YELLOW : GREEN;
             
-            // Loop through all vertices and draw lines between them
-            for (size_t i = 0; i < vertices.size(); i++) {
-                DrawLineEx(vertices[i], vertices[(i + 1) % vertices.size()], 2.0f, debugColor);
+            if (data.shapeType == ColliderShape::Polygon) {
+                for (size_t i = 0; i < data.vertices.size(); i++) {
+                    DrawLineEx(data.vertices[i], data.vertices[(i + 1) % data.vertices.size()], 2.0f, debugColor);
+                }
+            } 
+            else if (data.shapeType == ColliderShape::Circle) {
+                // Draw a perfect circle outline
+                DrawCircleLines(data.center.x, data.center.y, data.radius, debugColor);
+                
+                // Draw a line indicating the rotation of the circle
+                if (auto t = go->GetComponent<Transform2d>()) {
+                    float rot = t->GetGlobalRotation() * DEG2RAD;
+                    Vector2 rotLineEnd = {
+                        data.center.x + std::cos(rot) * data.radius,
+                        data.center.y + std::sin(rot) * data.radius
+                    };
+                    DrawLineEx(data.center, rotLineEnd, 2.0f, debugColor);
+                }
             }
 
             if (auto t = go->GetComponent<Transform2d>()) {
@@ -366,47 +408,66 @@ std::vector<Vector2> PhysicsEngine::GetColliderVertices(RectCollider* col, Trans
     return vertices;
 }
 
-bool PhysicsEngine::GetObjectColliderData(GameObject* obj, std::vector<Vector2>& outVertices, bool& outIsTrigger) {
+bool PhysicsEngine::GetObjectColliderData(GameObject* obj, ColliderData& outData) {
     auto t = obj->GetComponent<Transform2d>();
     if (!t) return false;
 
-    // 1. Check if the object has a standard RectCollider
+    // 1. Standard RectCollider
     if (auto rectCol = obj->GetComponent<RectCollider>()) {
-        outVertices = GetColliderVertices(rectCol, t); // Reuse your existing logic!
-        outIsTrigger = rectCol->isTrigger;
+        outData.shapeType = ColliderShape::Polygon;
+        outData.vertices = GetColliderVertices(rectCol, t);
+        outData.isTrigger = rectCol->isTrigger;
         return true;
     }
 
-    // 2. Check if the object has a custom PolygonCollider
+    // 2. Custom PolygonCollider
     if (auto polyCol = obj->GetComponent<PolygonCollider>()) {
-        outVertices.clear();
-        outVertices.reserve(polyCol->localVertices.size());
+        outData.shapeType = ColliderShape::Polygon;
+        outData.vertices.clear();
+        outData.vertices.reserve(polyCol->localVertices.size());
         
         Vector2 pos = t->GetGlobalPosition();
         Vector2 scale = t->GetGlobalScale();
         float rot = t->GetGlobalRotation() * DEG2RAD;
-        
         float cosR = std::cos(rot);
         float sinR = std::sin(rot);
         
-        // Apply Transform mathematics to every single vertex in the polygon
         for (const auto& localV : polyCol->localVertices) {
-            // Apply scale
             float sx = (localV.x + polyCol->offset.x) * std::abs(scale.x);
             float sy = (localV.y + polyCol->offset.y) * std::abs(scale.y);
-            
-            // Apply rotation and translation to move to global space
             float gx = pos.x + (sx * cosR - sy * sinR);
             float gy = pos.y + (sx * sinR + sy * cosR);
-            
-            outVertices.push_back({gx, gy});
+            outData.vertices.push_back({gx, gy});
         }
         
-        outIsTrigger = polyCol->isTrigger;
+        outData.isTrigger = polyCol->isTrigger;
         return true;
     }
 
-    return false; // No collider found
+    // 3. Perfect CircleCollider
+    if (auto circleCol = obj->GetComponent<CircleCollider>()) {
+        outData.shapeType = ColliderShape::Circle;
+        outData.isTrigger = circleCol->isTrigger;
+        
+        Vector2 pos = t->GetGlobalPosition();
+        Vector2 scale = t->GetGlobalScale();
+        
+        // The circle's global center must account for scale, rotation, and offset
+        float rot = t->GetGlobalRotation() * DEG2RAD;
+        float scaledOffsetX = circleCol->offset.x * std::abs(scale.x);
+        float scaledOffsetY = circleCol->offset.y * std::abs(scale.y);
+        
+        outData.center.x = pos.x + (scaledOffsetX * std::cos(rot) - scaledOffsetY * std::sin(rot));
+        outData.center.y = pos.y + (scaledOffsetX * std::sin(rot) + scaledOffsetY * std::cos(rot));
+        
+        // Circles can't have non-uniform scale easily. We take the largest scale axis.
+        float maxScale = std::max(std::abs(scale.x), std::abs(scale.y));
+        outData.radius = circleCol->radius * maxScale;
+        
+        return true;
+    }
+
+    return false;
 }
 
 std::vector<Vector2> PhysicsEngine::GetRectangleVertices(const Rectangle& rect) {
@@ -484,6 +545,99 @@ bool PhysicsEngine::SATCollision(const std::vector<Vector2>& polyA, const std::v
     Vector2 centerB = GetPolygonCenter(polyB);
     Vector2 dir = Vector2Subtract(centerB, centerA);
     
+    if (Vector2DotProduct(smallestAxis, dir) < 0) {
+        smallestAxis = {-smallestAxis.x, -smallestAxis.y};
+    }
+
+    outMTV = {smallestAxis.x * minOverlap, smallestAxis.y * minOverlap};
+    return true;
+}
+
+// Very cheap and perfect math for two circles
+bool PhysicsEngine::CircleCircleCollision(const ColliderData& circleA, const ColliderData& circleB, Vector2& outMTV) {
+    Vector2 dir = Vector2Subtract(circleB.center, circleA.center);
+    float distSq = Vector2LengthSqr(dir);
+    float radiusSum = circleA.radius + circleB.radius;
+
+    if (distSq < radiusSum * radiusSum) {
+        float dist = std::sqrt(distSq);
+        float overlap = radiusSum - dist;
+        
+        // Prevent division by zero if they are in the exact same spot
+        if (dist == 0.0f) {
+            outMTV = {0.0f, -overlap};
+        } else {
+            Vector2 normal = {dir.x / dist, dir.y / dist};
+            outMTV = {normal.x * overlap, normal.y * overlap};
+        }
+        return true;
+    }
+    return false;
+}
+
+// Mixed SAT Algorithm for Polygon vs Circle
+bool PhysicsEngine::SATPolygonCircleCollision(const ColliderData& poly, const ColliderData& circle, Vector2& outMTV) {
+    float minOverlap = std::numeric_limits<float>::infinity();
+    Vector2 smallestAxis = {0, 0};
+
+    // 1. Test all standard edge normals of the polygon
+    for (size_t i = 0; i < poly.vertices.size(); i++) {
+        Vector2 p1 = poly.vertices[i];
+        Vector2 p2 = poly.vertices[(i + 1) % poly.vertices.size()];
+        Vector2 edge = Vector2Subtract(p2, p1);
+        Vector2 normal = Vector2Normalize({-edge.y, edge.x});
+
+        float minA, maxA;
+        ProjectPolygon(poly.vertices, normal, minA, maxA);
+        
+        // Projecting a circle is just the center projected onto the axis +/- the radius
+        float centerProj = Vector2DotProduct(circle.center, normal);
+        float minB = centerProj - circle.radius;
+        float maxB = centerProj + circle.radius;
+
+        // Gap found
+        if (minA >= maxB || minB >= maxA) return false;
+
+        float overlap = std::min(maxA, maxB) - std::max(minA, minB);
+        if (overlap < minOverlap) {
+            minOverlap = overlap;
+            smallestAxis = normal;
+        }
+    }
+
+    // 2. We MUST test one extra axis: The vector from the circle's center to the closest polygon vertex
+    Vector2 closestVertex = poly.vertices[0];
+    float minDistSq = Vector2DistanceSqr(circle.center, closestVertex);
+    for (size_t i = 1; i < poly.vertices.size(); i++) {
+        float distSq = Vector2DistanceSqr(circle.center, poly.vertices[i]);
+        if (distSq < minDistSq) {
+            minDistSq = distSq;
+            closestVertex = poly.vertices[i];
+        }
+    }
+
+    Vector2 specialAxis = Vector2Normalize(Vector2Subtract(circle.center, closestVertex));
+    
+    // Safety check if the center is exactly ON the vertex
+    if (std::isnan(specialAxis.x) || std::isnan(specialAxis.y)) specialAxis = {1, 0};
+
+    float minA, maxA;
+    ProjectPolygon(poly.vertices, specialAxis, minA, maxA);
+    float centerProj = Vector2DotProduct(circle.center, specialAxis);
+    float minB = centerProj - circle.radius;
+    float maxB = centerProj + circle.radius;
+
+    if (minA >= maxB || minB >= maxA) return false;
+
+    float overlap = std::min(maxA, maxB) - std::max(minA, minB);
+    if (overlap < minOverlap) {
+        minOverlap = overlap;
+        smallestAxis = specialAxis;
+    }
+
+    // Ensure the MTV pushes from Polygon (A) to Circle (B)
+    Vector2 centerA = GetPolygonCenter(poly.vertices);
+    Vector2 dir = Vector2Subtract(circle.center, centerA);
     if (Vector2DotProduct(smallestAxis, dir) < 0) {
         smallestAxis = {-smallestAxis.x, -smallestAxis.y};
     }
