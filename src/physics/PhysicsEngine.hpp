@@ -36,6 +36,9 @@ class PhysicsEngine {
         // Transforms a RectCollider into 4 rotated vertices in global space
         static std::vector<Vector2> GetColliderVertices(RectCollider* col, Transform2d* t);
 
+        // Generic method that returns the global vertices of ANY collider attached to the object
+        static bool GetObjectColliderData(GameObject* obj, std::vector<Vector2>& outVertices, bool& outIsTrigger);
+
         // Transforms a simple standard Rectangle (like a Tile) into 4 vertices
         static std::vector<Vector2> GetRectangleVertices(const Rectangle& rect);
 

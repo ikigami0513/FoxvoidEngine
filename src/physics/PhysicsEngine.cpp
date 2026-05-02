@@ -7,6 +7,7 @@
 #include <raymath.h>
 #include <cmath>
 #include <limits>
+#include "PolygonCollider.hpp"
 
 // Initialize global gravity (981 pixels/sec² pointing down)
 Vector2 PhysicsEngine::GlobalGravity = { 0.0f, 981.0f };
@@ -87,28 +88,23 @@ void PhysicsEngine::Update(Scene& scene, float deltaTime) {
 }
 
 bool PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB, Vector2& outNormalA, Vector2& outNormalB) {
-    auto colA = objA->GetComponent<RectCollider>();
-    auto colB = objB->GetComponent<RectCollider>();
-    if (!colA || !colB) return false;
+    std::vector<Vector2> polyA, polyB;
+    bool isTriggerA = false, isTriggerB = false;
 
-    auto tA = objA->GetComponent<Transform2d>();
-    auto tB = objB->GetComponent<Transform2d>();
-    if (!tA || !tB) return false;
-
-    // Get the properly rotated vertices in global space
-    std::vector<Vector2> polyA = GetColliderVertices(colA, tA);
-    std::vector<Vector2> polyB = GetColliderVertices(colB, tB);
-
+    // Fetch collider data universally (works for Rect AND Polygon colliders)
+    if (!GetObjectColliderData(objA, polyA, isTriggerA)) return false;
+    if (!GetObjectColliderData(objB, polyB, isTriggerB)) return false;
+    
     Vector2 mtv; // Minimum Translation Vector
     if (SATCollision(polyA, polyB, mtv)) {
-        
-        // Handle Triggers: Detect overlap but do NOT apply physics push
-        if (colA->isTrigger || colB->isTrigger) {
+        if (isTriggerA || isTriggerB) {
             outNormalA = { 0.0f, 0.0f };
             outNormalB = { 0.0f, 0.0f };
             return true;
         }
 
+        auto tA = objA->GetComponent<Transform2d>();
+        auto tB = objB->GetComponent<Transform2d>();
         auto rbA = objA->GetComponent<RigidBody2d>();
         auto rbB = objB->GetComponent<RigidBody2d>();
 
@@ -153,20 +149,22 @@ bool PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB, Vector2
 }
 
 bool PhysicsEngine::ResolveTileCollision(GameObject* obj, const Rectangle& tileRect, Vector2& outNormal) {
-    auto col = obj->GetComponent<RectCollider>();
-    auto t = obj->GetComponent<Transform2d>();
-    auto rb = obj->GetComponent<RigidBody2d>();
-    if (!col || !t) return false;
+    std::vector<Vector2> polyA;
+    bool isTrigger = false;
 
-    std::vector<Vector2> polyA = GetColliderVertices(col, t);
+    // Abstract fetch
+    if (!GetObjectColliderData(obj, polyA, isTrigger)) return false;
     std::vector<Vector2> polyTile = GetRectangleVertices(tileRect);
-
+    
     Vector2 mtv;
     if (SATCollision(polyA, polyTile, mtv)) {
-        if (col->isTrigger) {
+        if (isTrigger) {
             outNormal = {0.0f, 0.0f};
             return true;
         }
+
+        auto t = obj->GetComponent<Transform2d>();
+        auto rb = obj->GetComponent<RigidBody2d>();
 
         if (!rb || rb->isKinematic) return false;
 
@@ -191,18 +189,20 @@ void PhysicsEngine::RenderDebug(Scene& scene) {
     const auto& gameObjects = scene.GetGameObjects();
 
     for (const auto& go : gameObjects) {
-        if (auto col = go->GetComponent<RectCollider>()) {
-            if (auto transform = go->GetComponent<Transform2d>()) {
-                std::vector<Vector2> vertices = GetColliderVertices(col, transform);
-                Color debugColor = col->isTrigger ? YELLOW : GREEN;
+        std::vector<Vector2> vertices;
+        bool isTrigger = false;
+        
+        // Abstract drawing: It will draw ANY collider shape perfectly
+        if (GetObjectColliderData(go.get(), vertices, isTrigger)) {
+            Color debugColor = isTrigger ? YELLOW : GREEN;
+            
+            // Loop through all vertices and draw lines between them
+            for (size_t i = 0; i < vertices.size(); i++) {
+                DrawLineEx(vertices[i], vertices[(i + 1) % vertices.size()], 2.0f, debugColor);
+            }
 
-                // Draw the 4 edges of the rotated polygon
-                for (int i = 0; i < 4; i++) {
-                    DrawLineEx(vertices[i], vertices[(i + 1) % 4], 2.0f, debugColor);
-                }
-
-                // Draw a crosshair at the actual position to visualize offsets
-                Vector2 pos = transform->GetGlobalPosition();
+            if (auto t = go->GetComponent<Transform2d>()) {
+                Vector2 pos = t->GetGlobalPosition();
                 DrawLine(pos.x - 5, pos.y, pos.x + 5, pos.y, RED);
                 DrawLine(pos.x, pos.y - 5, pos.x, pos.y + 5, RED);
             }
@@ -212,7 +212,6 @@ void PhysicsEngine::RenderDebug(Scene& scene) {
         if (auto tileMap = go->GetComponent<TileMap>()) {
             std::vector<Rectangle> solidTiles = tileMap->GetCollisionRects();
             for (const auto& tileRect : solidTiles) {
-                // Use a distinctive color (e.g., SKYBLUE) for level geometry
                 DrawRectangleLinesEx(tileRect, 1.5f, SKYBLUE);
             }
         }
@@ -365,6 +364,49 @@ std::vector<Vector2> PhysicsEngine::GetColliderVertices(RectCollider* col, Trans
         vertices[i].y = pos.y + (localPoints[i].x * sinR + localPoints[i].y * cosR);
     }
     return vertices;
+}
+
+bool PhysicsEngine::GetObjectColliderData(GameObject* obj, std::vector<Vector2>& outVertices, bool& outIsTrigger) {
+    auto t = obj->GetComponent<Transform2d>();
+    if (!t) return false;
+
+    // 1. Check if the object has a standard RectCollider
+    if (auto rectCol = obj->GetComponent<RectCollider>()) {
+        outVertices = GetColliderVertices(rectCol, t); // Reuse your existing logic!
+        outIsTrigger = rectCol->isTrigger;
+        return true;
+    }
+
+    // 2. Check if the object has a custom PolygonCollider
+    if (auto polyCol = obj->GetComponent<PolygonCollider>()) {
+        outVertices.clear();
+        outVertices.reserve(polyCol->localVertices.size());
+        
+        Vector2 pos = t->GetGlobalPosition();
+        Vector2 scale = t->GetGlobalScale();
+        float rot = t->GetGlobalRotation() * DEG2RAD;
+        
+        float cosR = std::cos(rot);
+        float sinR = std::sin(rot);
+        
+        // Apply Transform mathematics to every single vertex in the polygon
+        for (const auto& localV : polyCol->localVertices) {
+            // Apply scale
+            float sx = (localV.x + polyCol->offset.x) * std::abs(scale.x);
+            float sy = (localV.y + polyCol->offset.y) * std::abs(scale.y);
+            
+            // Apply rotation and translation to move to global space
+            float gx = pos.x + (sx * cosR - sy * sinR);
+            float gy = pos.y + (sx * sinR + sy * cosR);
+            
+            outVertices.push_back({gx, gy});
+        }
+        
+        outIsTrigger = polyCol->isTrigger;
+        return true;
+    }
+
+    return false; // No collider found
 }
 
 std::vector<Vector2> PhysicsEngine::GetRectangleVertices(const Rectangle& rect) {

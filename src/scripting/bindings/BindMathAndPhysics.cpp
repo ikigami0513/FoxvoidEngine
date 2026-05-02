@@ -1,10 +1,12 @@
 #include "scripting/ScriptBindings.hpp"
 #include <raylib.h>
 #include <iostream>
+#include <pybind11/stl.h>
 #include "world/GameObject.hpp"
 #include "physics/Transform2d.hpp"
 #include <world/ComponentRegistry.hpp>
 #include "physics/RectCollider.hpp"
+#include "physics/PolygonCollider.hpp"
 #include "physics/RigidBody2d.hpp"
 #include "physics/Collision2D.hpp"
 #include <physics/PhysicsEngine.hpp>
@@ -80,6 +82,22 @@ void BindMathAndPhysics(py::module_& m) {
             if (args.size() >= 2) height = args[1].cast<float>();
 
             auto* t = go.AddComponent<RectCollider>(width, height);
+            return py::cast(t, py::return_value_policy::reference);
+        }
+    );
+
+    py::class_<PolygonCollider, Component>(m, "PolygonCollider")
+        .def(py::init<>()) // Uses the default constructor (triangle)
+        // With <pybind11/stl.h>, Python lists of Vector2 are natively converted to std::vector<Vector2>
+        .def_readwrite("local_vertices", &PolygonCollider::localVertices) 
+        .def_readwrite("offset", &PolygonCollider::offset)
+        .def_readwrite("is_trigger", &PolygonCollider::isTrigger);
+
+    ComponentRegistry::Register<PolygonCollider>("PolygonCollider",
+        [](GameObject& go, py::args args) -> py::object {
+            // We just add it with default values for now. 
+            // In python: go.add_component(PolygonCollider)
+            auto* t = go.AddComponent<PolygonCollider>();
             return py::cast(t, py::return_value_policy::reference);
         }
     );
