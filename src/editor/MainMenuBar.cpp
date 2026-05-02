@@ -186,12 +186,24 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
         ImGui::InputText("##OutputDir", outputDirBuffer, sizeof(outputDirBuffer));
 
         ImGui::Spacing();
+
+        // Select Target OS
+        static int targetOsIndex = 0;
+        const char* osOptions[] = { "Linux (Native)", "Windows (MinGW Cross-Compile)" };
+        ImGui::TextUnformatted("Target Platform");
+        ImGui::SetNextItemWidth(300.0f);
+        ImGui::Combo("##TargetOS", &targetOsIndex, osOptions, IM_ARRAYSIZE(osOptions));
+
+        ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
 
         if (ImGui::Button("Build", ImVec2(120, 0))) {
             std::string startSceneStr(startSceneBuffer);
             std::string outputDirStr(outputDirBuffer);
+            
+            // Map the dropdown index to our Enum
+            TargetOS targetPlatform = (targetOsIndex == 0) ? TargetOS::Linux : TargetOS::Windows;
             
             // Save the chosen start scene into the project configuration
             ProjectSettings::SetStartScenePath(startSceneStr);
@@ -206,7 +218,7 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
 
                 m_openBuildProgressPopup = true; // Trigger the new progress modal
 
-                Build::Start(startSceneStr, outputDirStr, projectRoot, engineRoot);
+                Build::Start(startSceneStr, outputDirStr, projectRoot, engineRoot, targetPlatform);
             } 
             else {
                 std::cerr << "[Editor] Failed to save build configuration." << std::endl;
@@ -234,7 +246,7 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
     ImGui::SetNextWindowSize(ImVec2(700, 450), ImGuiCond_Appearing);
     if (ImGui::BeginPopupModal("Build Progress", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
         
-        // --- NEW: Thread-safe data retrieval from the static Build class ---
+        // Thread-safe data retrieval from the static Build class
         // Fetch the current status message (e.g., "Step 1/3: Compiling...")
         std::string currentStatus = Build::GetStatusMessage();
         // Fetch the current progress percentage (0-100, or -1 for errors)
@@ -246,6 +258,15 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
         
         // Display the current status message at the top of the modal
         ImGui::TextUnformatted(currentStatus.c_str());
+        ImGui::Spacing();
+
+        if (ImGui::Button(ICON_FA_COPY " Copy Logs to Clipboard")) {
+            std::string allLogs = "--- BUILD LOGS ---\nStatus: " + currentStatus + "\n\n";
+            for (const auto& log : logs) {
+                allLogs += log + "\n";
+            }
+            ImGui::SetClipboardText(allLogs.c_str());
+        }
         ImGui::Spacing();
 
         // Setup a dark background color specifically for the console output area

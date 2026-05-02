@@ -8,6 +8,8 @@ project(FoxvoidEngine VERSION 1.0.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 # =========================================================================
 # DEPENDENCY MANAGEMENT (FetchContent)
 # =========================================================================
@@ -67,8 +69,37 @@ FetchContent_MakeAvailable(imgui_color_text_edit)
 
 # --- PYTHON & PYBIND11 SETUP ---
 
-# 1. Find the Python installation on the host system
-find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+# 1. Setup Python depending on the target OS
+if (CMAKE_CROSSCOMPILING AND WIN32)
+    message(STATUS "Cross-compiling for Windows: Forcing Windows Python 3.11")
+    
+    set(Python3_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/vendor/python_win/tools/include")
+    set(Python3_LIBRARIES "${CMAKE_SOURCE_DIR}/vendor/python_win/tools/libs/python311.lib")
+    
+    set(Python3_FOUND TRUE)
+    set(Python3_Development_FOUND TRUE)
+    set(Python3_Interpreter_FOUND TRUE)
+    set(Python3_Development.Module_FOUND TRUE)
+    set(Python3_Development.Embed_FOUND TRUE)
+    
+    find_program(Python3_EXECUTABLE NAMES python3 python REQUIRED)
+
+    if(NOT TARGET Python3::Python)
+        add_library(Python3::Python UNKNOWN IMPORTED)
+        set_target_properties(Python3::Python PROPERTIES
+            IMPORTED_LOCATION "${Python3_LIBRARIES}"
+            INTERFACE_INCLUDE_DIRECTORIES "${Python3_INCLUDE_DIRS}"
+        )
+    endif()
+    if(NOT TARGET Python3::Module)
+        add_library(Python3::Module ALIAS Python3::Python)
+    endif()
+    if(NOT TARGET Python3::Embed)
+        add_library(Python3::Embed ALIAS Python3::Python)
+    endif()
+else()
+    find_package(Python3 COMPONENTS Interpreter Development Development.Embed REQUIRED)
+endif()
 
 # 2. Fetch pybind11 directly from GitHub
 FetchContent_Declare(
@@ -162,6 +193,11 @@ target_link_libraries(FoxvoidStandalone PRIVATE
 target_include_directories(FoxvoidStandalone PRIVATE 
     src
 )
+
+# Force MinGW to embed the C and C++ runtimes directly into the .exe
+if (CMAKE_CROSSCOMPILING AND WIN32)
+    target_link_options(FoxvoidStandalone PRIVATE -static -static-libgcc -static-libstdc++)
+endif()
 
 # Define a macro so the C++ code knows it's running in Standalone mode
 target_compile_definitions(FoxvoidStandalone PRIVATE STANDALONE_MODE)

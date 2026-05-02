@@ -13,7 +13,7 @@ std::mutex Build::s_buildMutex;
 std::string Build::s_buildStatusMsg = "";
 std::vector<std::string> Build::s_buildLogs;
 
-void Build::Start(const std::string& startScene, const std::string& outputDir, const std::filesystem::path& projectRoot, const std::string& engineRoot) {
+void Build::Start(const std::string& startScene, const std::string& outputDir, const std::filesystem::path& projectRoot, const std::string& engineRoot, TargetOS target) {
     if (s_isBuilding) return; // Prevent multiple builds at the same time
 
     s_isBuilding = true;
@@ -26,7 +26,7 @@ void Build::Start(const std::string& startScene, const std::string& outputDir, c
     }
 
     // Spawn the thread and detach it
-    std::thread(&Build::RunThread, startScene, outputDir, projectRoot, engineRoot).detach();
+    std::thread(&Build::RunThread, startScene, outputDir, projectRoot, engineRoot, target).detach();
 }
 
 bool Build::IsBuilding() {
@@ -47,7 +47,7 @@ std::vector<std::string> Build::GetLogs() {
     return s_buildLogs; // Returns a safe copy for the UI to iterate over
 }
 
-void Build::RunThread(std::string startSceneStr, std::string outputDirStr, std::filesystem::path projectRoot, std::string engineRoot) {
+void Build::RunThread(std::string startSceneStr, std::string outputDirStr, std::filesystem::path projectRoot, std::string engineRoot, TargetOS target) {
     std::filesystem::path buildDir = projectRoot / outputDirStr;
     
     {
@@ -57,7 +57,33 @@ void Build::RunThread(std::string startSceneStr, std::string outputDirStr, std::
     }
     s_buildProgress = 0;
     
+    // Base CMake configuration command
     std::string cmakeConfigCmd = "cmake -S \"" + engineRoot + "\" -B \"" + buildDir.string() + "\" -DCMAKE_BUILD_TYPE=Release";
+
+    // Inject the MinGW toolchain file if the target is Windows
+    if (target == TargetOS::Windows) {
+        cmakeConfigCmd += " -DCMAKE_TOOLCHAIN_FILE=\"" + engineRoot + "/cmake/mingw-toolchain.cmake\"";
+        
+        std::string pyWinDir = engineRoot + "/vendor/python_win/tools";
+        
+        // 1. Force Pybind11 to use the old, direct variables instead of searching the Linux host system
+        cmakeConfigCmd += " -DPYBIND11_FINDPYTHON=OFF";
+        
+        // 2. Variables for standard CMake FindPython (Fallbacks)
+        cmakeConfigCmd += " -DPYTHON_INCLUDE_DIR=\"" + pyWinDir + "/include\"";
+        cmakeConfigCmd += " -DPYTHON_LIBRARY=\"" + pyWinDir + "/libs/python311.lib\"";
+        cmakeConfigCmd += " -DPYTHON_MODULE_EXTENSION=\".pyd\"";
+
+        // 3. Variables for modern FindPython3 (To completely blind it from your Linux system)
+        cmakeConfigCmd += " -DPython3_ROOT_DIR=\"" + pyWinDir + "\"";
+        cmakeConfigCmd += " -DPython3_INCLUDE_DIR=\"" + pyWinDir + "/include\"";
+        cmakeConfigCmd += " -DPython3_LIBRARY=\"" + pyWinDir + "/libs/python311.lib\""; 
+        
+        // 4. Tell CMake to NEVER look into the Linux registry or system paths for this
+        cmakeConfigCmd += " -DPython3_FIND_REGISTRY=NEVER";
+        cmakeConfigCmd += " -DPython3_FIND_STRATEGY=LOCATION";
+    }
+
     int configResult = ExecuteCommandWithOutput(cmakeConfigCmd, 0, 10);
 
     if (configResult == 0) {
@@ -160,23 +186,43 @@ void Build::RunThread(std::string startSceneStr, std::string outputDirStr, std::
                 std::string safeProjectName = projectName;
                 std::replace(safeProjectName.begin(), safeProjectName.end(), ' ', '_');
 
-                std::filesystem::path originalExe;
-                std::filesystem::path newExe;
+                // Determine the correct extension based on the TargetOS
+                std::string extension = (target == TargetOS::Windows) ? ".exe" : "";
 
-#if defined(_WIN32)
-                originalExe = buildDir / "FoxvoidStandalone.exe";
+                std::filesystem::path originalExe = buildDir / ("FoxvoidStandalone" + extension);
+                
+                // Fallback for CMake multi-config generators that create a Release/ folder
                 if (!std::filesystem::exists(originalExe)) {
-                    originalExe = buildDir / "Release" / "FoxvoidStandalone.exe"; 
+                    originalExe = buildDir / "Release" / ("FoxvoidStandalone" + extension); 
                 }
-                newExe = buildDir / (safeProjectName + ".exe");
-#else
-                originalExe = buildDir / "FoxvoidStandalone";
-                newExe = buildDir / safeProjectName;
-#endif
+                
+                std::filesystem::path newExe = buildDir / (safeProjectName + extension);
 
                 if (std::filesystem::exists(originalExe)) {
                     std::filesystem::copy_file(originalExe, newExe, std::filesystem::copy_options::overwrite_existing);
                     std::filesystem::remove(originalExe);
+
+                    // Copy the Windows Python DLL and MSVC Runtimes next to the game executable
+                    if (target == TargetOS::Windows) {
+                        // List of required external DLLs for Windows
+                        std::vector<std::string> dllsToCopy = {
+                            "python311.dll",
+                            "vcruntime140.dll",
+                            "vcruntime140_1.dll"
+                        };
+
+                        for (const auto& dllName : dllsToCopy) {
+                            std::filesystem::path dllSource = std::filesystem::path(engineRoot) / "vendor/python_win/tools" / dllName;
+                            std::filesystem::path dllDest = buildDir / dllName;
+                            
+                            if (std::filesystem::exists(dllSource)) {
+                                std::filesystem::copy_file(dllSource, dllDest, std::filesystem::copy_options::overwrite_existing);
+                            } else {
+                                std::lock_guard<std::mutex> lock(s_buildMutex);
+                                s_buildLogs.push_back("[Warning] " + dllName + " not found in vendor folder! The game may crash on Windows.");
+                            }
+                        }
+                    }
                 } else {
                     std::lock_guard<std::mutex> lock(s_buildMutex);
                     s_buildLogs.push_back("[Warning] Could not find the executable to rename.");
