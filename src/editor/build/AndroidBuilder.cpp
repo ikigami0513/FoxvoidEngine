@@ -1,7 +1,10 @@
 #include "AndroidBuilder.hpp"
 #include "Build.hpp"
 #include <filesystem>
-#include <cstdlib> // For system()
+#include <cstdlib>
+#include <fstream>
+#include <sstream>
+#include <regex>
 
 bool AndroidBuilder::Configure(const std::string& buildDir, const std::string& engineRoot) {
     Build::LogMessage("Cross-compiling for Android (ARM64) using the NDK...");
@@ -61,7 +64,7 @@ bool AndroidBuilder::Compile(const std::string& buildDir) {
     return Build::ExecuteCommandWithOutput(cmakeBuildCmd, 10, 90) == 0;
 }
 
-bool AndroidBuilder::CopyDependencies(const std::filesystem::path& buildDir, const std::string& engineRoot) {
+bool AndroidBuilder::CopyDependencies(const std::filesystem::path& buildDir, const std::string& engineRoot, ScreenOrientation orientation) {
     Build::LogMessage("Packaging Android APK...");
 
     // 1. Locate the Android Studio Template
@@ -152,6 +155,40 @@ bool AndroidBuilder::CopyDependencies(const std::filesystem::path& buildDir, con
         Build::LogMessage("Successfully injected data.pak into Android assets.");
     } else {
         Build::LogWarning("data.pak not found! The game will have no assets.");
+    }
+
+    // 7.8 Inject the requested screen orientation into AndroidManifest.xml
+    std::filesystem::path manifestPath = androidProjectDir / "app" / "src" / "main" / "AndroidManifest.xml";
+    if (std::filesystem::exists(manifestPath)) {
+        // Read the manifest into memory
+        std::ifstream in(manifestPath);
+        std::stringstream buffer;
+        buffer << in.rdbuf();
+        std::string manifestContent = buffer.str();
+        in.close();
+
+        // Determine the target string based on the selected enum
+        std::string targetOrientation = (orientation == ScreenOrientation::Portrait) ? "sensorPortrait" : "sensorLandscape";
+
+        // Check if an orientation attribute already exists
+        std::regex orientationRegex("android:screenOrientation=\"([^\"]*)\"");
+        if (std::regex_search(manifestContent, orientationRegex)) {
+            // Replace the existing one
+            manifestContent = std::regex_replace(manifestContent, orientationRegex, "android:screenOrientation=\"" + targetOrientation + "\"");
+        } else {
+            // Inject it right under the MainActivity declaration
+            std::regex nameRegex("android:name=\"\\.MainActivity\"");
+            manifestContent = std::regex_replace(manifestContent, nameRegex, "android:name=\".MainActivity\"\n            android:screenOrientation=\"" + targetOrientation + "\"");
+        }
+
+        // Write the modified manifest back to disk
+        std::ofstream out(manifestPath);
+        out << manifestContent;
+        out.close();
+
+        Build::LogMessage("Configured Android screen orientation: " + targetOrientation);
+    } else {
+        Build::LogWarning("AndroidManifest.xml not found! Could not set screen orientation.");
     }
 
     // 8. Compile the APK using Gradle

@@ -19,7 +19,7 @@ std::mutex Build::s_buildMutex;
 std::string Build::s_buildStatusMsg = "";
 std::vector<std::string> Build::s_buildLogs;
 
-void Build::Start(const std::string& startScene, const std::string& outputDir, const std::filesystem::path& projectRoot, const std::string& engineRoot, TargetOS target) {
+void Build::Start(const std::string& startScene, const std::string& outputDir, const std::filesystem::path& projectRoot, const std::string& engineRoot, TargetOS target, ScreenOrientation orientation) {
     if (s_isBuilding) return; // Prevent multiple builds at the same time
 
     s_isBuilding = true;

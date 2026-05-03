@@ -82,7 +82,7 @@ bool WindowsBuilder::Compile(const std::string& buildDir) {
     return Build::ExecuteCommandWithOutput(cmakeBuildCmd, 20, 90) == 0;
 }
 
-bool WindowsBuilder::CopyDependencies(const std::filesystem::path& buildDir, const std::string& engineRoot) {
+bool WindowsBuilder::CopyDependencies(const std::filesystem::path& buildDir, const std::string& engineRoot, ScreenOrientation orientation) {
     // List of required external DLLs for Windows
     std::vector<std::string> dllsToCopy = {
         "python311.dll",

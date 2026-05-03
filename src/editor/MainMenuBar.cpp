@@ -9,6 +9,7 @@
 #include <extras/IconsFontAwesome6.h>
 #include <core/AssetRegistry.hpp>
 #include "build/Build.hpp"
+#include "build/IBuilder.hpp"
 
 void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& isRunning, GameObject*& selectedObject, InputSettingsPanel& inputPanel, GameStatePanel& gameStatePanel, bool& showGlobalGrid) {
     // Global Shortcuts
@@ -195,6 +196,20 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
         ImGui::Combo("##TargetOS", &targetOsIndex, osOptions, IM_ARRAYSIZE(osOptions));
 
         ImGui::Spacing();
+
+        // Android-specific settings section
+        static int orientationIndex = 0; // 0 = Landscape, 1 = Portrait
+        if (targetOsIndex == 2) { // 2 == Android
+            ImGui::Separator();
+            ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "Android Options");
+            
+            const char* orientationOptions[] = { "Landscape (Horizontal)", "Portrait (Vertical)" };
+            ImGui::TextUnformatted("Screen Orientation");
+            ImGui::SetNextItemWidth(300.0f);
+            ImGui::Combo("##Orientation", &orientationIndex, orientationOptions, IM_ARRAYSIZE(orientationOptions));
+            ImGui::Spacing();
+        }
+
         ImGui::Separator();
         ImGui::Spacing();
 
@@ -207,6 +222,9 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
             if (targetOsIndex == 1) targetPlatform = TargetOS::Windows;
             if (targetOsIndex == 2) targetPlatform = TargetOS::Android;
             
+            // Map the orientation index to the enum
+            ScreenOrientation orientation = (orientationIndex == 0) ? ScreenOrientation::Landscape : ScreenOrientation::Portrait;
+
             // Save the chosen start scene into the project configuration
             ProjectSettings::SetStartScenePath(startSceneStr);
             
@@ -220,7 +238,7 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
 
                 m_openBuildProgressPopup = true; // Trigger the new progress modal
 
-                Build::Start(startSceneStr, outputDirStr, projectRoot, engineRoot, targetPlatform);
+                Build::Start(startSceneStr, outputDirStr, projectRoot, engineRoot, targetPlatform, orientation);
             } 
             else {
                 std::cerr << "[Editor] Failed to save build configuration." << std::endl;

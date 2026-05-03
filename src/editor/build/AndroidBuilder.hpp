@@ -9,5 +9,5 @@ class AndroidBuilder : public IBuilder {
         
         std::string GetExecutableExtension() const override { return ".so"; }
         
-        bool CopyDependencies(const std::filesystem::path& buildDir, const std::string& engineRoot) override;
+        bool CopyDependencies(const std::filesystem::path& buildDir, const std::string& engineRoot, ScreenOrientation orientation) override;
 };

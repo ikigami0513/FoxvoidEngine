@@ -3,6 +3,12 @@
 #include <string>
 #include <filesystem>
 
+
+enum class ScreenOrientation {
+    Landscape,
+    Portrait
+};
+
 // The Strategy Interface for all OS-specific build processes
 class IBuilder {
     public:
@@ -18,5 +24,5 @@ class IBuilder {
         virtual std::string GetExecutableExtension() const = 0;
 
         // Step 4: Copies OS-specific dependencies (e.g., DLLs for Windows) next to the executable
-        virtual bool CopyDependencies(const std::filesystem::path& buildDir, const std::string& engineRoot) = 0;
+        virtual bool CopyDependencies(const std::filesystem::path& buildDir, const std::string& engineRoot, ScreenOrientation orientation = ScreenOrientation::Landscape) = 0;
 };

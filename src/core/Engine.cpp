@@ -38,11 +38,17 @@ Engine::Engine(int width, int height, const std::string& title)
     // so Engine::Get() can return it properly.
     s_instance = this;
 
-    // Make the Engine window resizable
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-
-    // Initialize the Raylib window
-    InitWindow(m_windowWidth, m_windowHeight, m_windowTitle.c_str());
+    // Prevent double-initialization! 
+    // On Android, main.cpp already called InitWindow to boot the OS surface.
+    // Calling it again would corrupt the physical viewport (the bottom-left bug).
+    if (!IsWindowReady()) {
+        // Make the Engine window resizable (Desktop)
+        SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+        InitWindow(m_windowWidth, m_windowHeight, m_windowTitle.c_str());
+    } else {
+        // Window already exists, just update the title
+        SetWindowTitle(m_windowTitle.c_str());
+    }
     
     InitAudioDevice();
 
@@ -107,12 +113,28 @@ void Engine::Run() {
 }
 
 void Engine::ProcessInput() {
-    // Handle global engine inputs here (e.g., toggling debug mode)
-    
 #ifdef STANDALONE_MODE
-    // In standalone mode, the game fills the whole screen, 
-    // so the OS mouse is perfectly aligned with the game viewport.
-    Mouse::SetVirtualPosition(GetMousePosition());
+    // On Android, GetRenderWidth/Height gets the true physical pixels
+    int screenWidth = GetRenderWidth();
+    int screenHeight = GetRenderHeight();
+
+    float scale = std::min((float)screenWidth / m_windowWidth, (float)screenHeight / m_windowHeight);
+    float offsetX = (screenWidth - (m_windowWidth * scale)) * 0.5f;
+    float offsetY = (screenHeight - (m_windowHeight * scale)) * 0.5f;
+
+    // GetTouchPosition(0) is mapped to GetMousePosition() by Raylib automatically
+    Vector2 mousePos = GetMousePosition();
+    
+    // Map physical screen coordinates back to the virtual game coordinates
+    Vector2 virtualMouse;
+    virtualMouse.x = (mousePos.x - offsetX) / scale;
+    virtualMouse.y = (mousePos.y - offsetY) / scale;
+
+    // Clamp coordinates to prevent "clicking" outside the letterbox bounds
+    virtualMouse.x = std::clamp(virtualMouse.x, 0.0f, (float)m_windowWidth);
+    virtualMouse.y = std::clamp(virtualMouse.y, 0.0f, (float)m_windowHeight);
+
+    Mouse::SetVirtualPosition(virtualMouse);
 #endif
 
     // Note: In Editor mode, we do NOT call GetMousePosition() here. 
@@ -190,16 +212,30 @@ void Engine::Render() {
 
     EndDrawing();
 #else
-    // In standalone, we just draw the game texture directly to the screen!
+    // Pass 2: Standalone Rendering (Letterboxing / Pillarboxing)
+    int screenWidth = GetRenderWidth();
+    int screenHeight = GetRenderHeight();
+
+    // Calculate scale to fit the target resolution perfectly inside the screen
+    float scale = std::min((float)screenWidth / m_windowWidth, (float)screenHeight / m_windowHeight);
+
+    // Calculate the centered offsets
+    float offsetX = (screenWidth - (m_windowWidth * scale)) * 0.5f;
+    float offsetY = (screenHeight - (m_windowHeight * scale)) * 0.5f;
+
     BeginDrawing();
-        ClearBackground(BLACK);
-        // Draw the game texture scaled to fit the window (handling potential letterboxing later)
-        DrawTextureRec(
-            m_gameTexture.texture, 
-            Rectangle{ 0, 0, (float)m_gameTexture.texture.width, (float)-m_gameTexture.texture.height }, 
-            Vector2{ 0, 0 }, 
-            WHITE
-        );
+        ClearBackground(BLACK); // Color of the letterbox bars
+
+        // The source rectangle is inverted on Y because OpenGL framebuffers are upside down
+        Rectangle sourceRec = { 0.0f, 0.0f, (float)m_gameTexture.texture.width, (float)-m_gameTexture.texture.height };
+        
+        // The destination rectangle positions and scales the texture on the physical screen
+        Rectangle destRec = { offsetX, offsetY, m_windowWidth * scale, m_windowHeight * scale };
+        
+        Vector2 origin = { 0.0f, 0.0f };
+
+        // Draw the final composition
+        DrawTexturePro(m_gameTexture.texture, sourceRec, destRec, origin, 0.0f, WHITE);
     EndDrawing();
 #endif
 }

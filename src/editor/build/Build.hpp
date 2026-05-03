@@ -6,6 +6,7 @@
 #include <mutex>
 #include <atomic>
 #include <thread>
+#include "IBuilder.hpp"
 
 // Define the available target operating systems for the build process
 enum class TargetOS {
@@ -17,7 +18,7 @@ enum class TargetOS {
 class Build {
     public:
         // Spawns the background thread and starts the build process
-        static void Start(const std::string& startScene, const std::string& outputDir, const std::filesystem::path& projectRoot, const std::string& engineRoot, TargetOS target);
+        static void Start(const std::string& startScene, const std::string& outputDir, const std::filesystem::path& projectRoot, const std::string& engineRoot, TargetOS target, ScreenOrientation orientation = ScreenOrientation::Landscape);
 
         // Thread-safe accessors for the Editor UI
         static bool IsBuilding();

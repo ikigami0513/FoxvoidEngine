@@ -18,12 +18,21 @@ int main(int argc, char** argv) {
 
 #ifdef __ANDROID__
     // ====================================================================
-    // THE ANDROID CATCH-22 FIX (V2)
+    // THE ANDROID CATCH-22 FIX (V3 - Final)
     // Raylib needs the Window initialized to read files on Android.
     // We call InitWindow manually here just to wake up Android's AssetManager
     // BEFORE creating the Engine, so the Engine gets the real resolution later!
     // ====================================================================
     InitWindow(0, 0, "Booting...");
+
+    TraceLog(LOG_INFO, "Waiting for Android rendering surface to be ready...");
+    while (!IsWindowReady()) {
+        // Keep the app alive and process Android messages until the surface is valid
+        BeginDrawing();
+        ClearBackground(BLACK);
+        EndDrawing();
+    }
+    TraceLog(LOG_INFO, "Android surface ready! Proceeding with engine boot.");
 
     // On Android, current_path() returns "/" which triggers severe security denials (SELinux).
     // Raylib configures the internal data path automatically when InitWindow is called.
@@ -110,21 +119,6 @@ int main(int argc, char** argv) {
         } else {
             TraceLog(LOG_FATAL, "WARNING: No Start Scene defined in project.json!");
         }
-#endif
-
-        // ====================================================================
-        // ANDROID EGL_BAD_SURFACE FIX
-        // Wait for the Android Window Manager to fully prepare the rendering surface
-        // ====================================================================
-#ifdef __ANDROID__
-        TraceLog(LOG_INFO, "Waiting for Android rendering surface to be ready...");
-        while (!IsWindowReady()) {
-            // Keep the app alive and process Android messages until the surface is valid
-            BeginDrawing();
-            ClearBackground(BLACK);
-            EndDrawing();
-        }
-        TraceLog(LOG_INFO, "Android surface ready! Starting main game loop.");
 #endif
 
         // 5. Start the main game loop

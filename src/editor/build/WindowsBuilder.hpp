@@ -7,5 +7,5 @@ class WindowsBuilder : public IBuilder {
         bool Configure(const std::string& buildDir, const std::string& engineRoot) override;
         bool Compile(const std::string& buildDir) override;
         std::string GetExecutableExtension() const override { return ".exe"; }
-        bool CopyDependencies(const std::filesystem::path& buildDir, const std::string& engineRoot) override;
+        bool CopyDependencies(const std::filesystem::path& buildDir, const std::string& engineRoot, ScreenOrientation orientation = ScreenOrientation::Landscape) override;
 };

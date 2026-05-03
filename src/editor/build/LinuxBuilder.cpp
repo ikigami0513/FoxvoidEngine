@@ -25,7 +25,7 @@ bool LinuxBuilder::Compile(const std::string& buildDir) {
     return Build::ExecuteCommandWithOutput(cmakeBuildCmd, 10, 90) == 0;
 }
 
-bool LinuxBuilder::CopyDependencies(const std::filesystem::path& buildDir, const std::string& engineRoot) {
+bool LinuxBuilder::CopyDependencies(const std::filesystem::path& buildDir, const std::string& engineRoot, ScreenOrientation orientation) {
     // Linux usually resolves dependencies dynamically via package managers.
     // In the future, we could package .so files here if needed.
     return true; 
