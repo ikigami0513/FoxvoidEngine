@@ -1,5 +1,6 @@
 #include "AndroidBuilder.hpp"
 #include "Build.hpp"
+#include "core/ProjectSettings.hpp"
 #include <filesystem>
 #include <cstdlib>
 #include <fstream>
@@ -167,6 +168,7 @@ bool AndroidBuilder::CopyDependencies(const std::filesystem::path& buildDir, con
         std::string manifestContent = buffer.str();
         in.close();
 
+        std::string projectName = ProjectSettings::GetProjectName();
         // Determine the target string based on the selected enum
         std::string targetOrientation = (orientation == ScreenOrientation::Portrait) ? "sensorPortrait" : "sensorLandscape";
 
@@ -180,6 +182,10 @@ bool AndroidBuilder::CopyDependencies(const std::filesystem::path& buildDir, con
             std::regex nameRegex("android:name=\"\\.MainActivity\"");
             manifestContent = std::regex_replace(manifestContent, nameRegex, "android:name=\".MainActivity\"\n            android:screenOrientation=\"" + targetOrientation + "\"");
         }
+
+        // Inject App Name (Replaces all occurrences of android:label)
+        std::regex labelRegex("android:label=\"([^\"]*)\"");
+        manifestContent = std::regex_replace(manifestContent, labelRegex, "android:label=\"" + projectName + "\"");
 
         // Write the modified manifest back to disk
         std::ofstream out(manifestPath);
@@ -207,8 +213,12 @@ bool AndroidBuilder::CopyDependencies(const std::filesystem::path& buildDir, con
 
     // 9. Extract the final APK to the root of the build folder
     std::filesystem::path apkPath = androidProjectDir / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug.apk";
-    std::filesystem::path finalApkPath = buildDir / "FoxvoidGame.apk";
-    
+
+    // Create a safe APK name (replace spaces with underscores)
+    std::string safeApkName = ProjectSettings::GetProjectName();
+    std::replace(safeApkName.begin(), safeApkName.end(), ' ', '_');
+    std::filesystem::path finalApkPath = buildDir / (safeApkName + ".apk");
+
     if (std::filesystem::exists(apkPath)) {
         std::filesystem::copy_file(apkPath, finalApkPath, std::filesystem::copy_options::overwrite_existing);
         Build::LogMessage("==============================================");
