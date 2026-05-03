@@ -6,6 +6,12 @@
 #include <filesystem>
 
 std::unordered_map<std::string, std::vector<int>> InputManager::s_bindings;
+int InputManager::s_previousTouchCount = 0;
+
+void InputManager::Update() {
+    // Keep track of how many fingers were on screen last frame
+    s_previousTouchCount = GetTouchPointCount();
+}
 
 void InputManager::BindKey(const std::string& actionName, int key) {
     // Check if the key is already bound to avoid duplicates
@@ -22,10 +28,43 @@ void InputManager::UnbindKey(const std::string& actionName, int key) {
     }
 }
 
+bool InputManager::CheckInputDown(int inputCode) {
+    // Mouse & Primary Touch (Touch 1)
+    // Raylib's internal event queue handles the first touch as a left mouse click perfectly.
+    // This prevents us from missing extremely fast taps between frames.
+    if (inputCode == INPUT_MOUSE_LEFT || inputCode == INPUT_TOUCH_1) return IsMouseButtonDown(MOUSE_BUTTON_LEFT);
+    if (inputCode == INPUT_MOUSE_RIGHT)  return IsMouseButtonDown(MOUSE_BUTTON_RIGHT);
+    if (inputCode == INPUT_MOUSE_MIDDLE) return IsMouseButtonDown(MOUSE_BUTTON_MIDDLE);
+    
+    // Secondary Touches
+    int currentTouches = GetTouchPointCount();
+    if (inputCode == INPUT_TOUCH_2) return currentTouches >= 2;
+    if (inputCode == INPUT_TOUCH_3) return currentTouches >= 3;
+
+    // Keyboard (Fallback)
+    return IsKeyDown(inputCode);
+}
+
+bool InputManager::CheckInputPressed(int inputCode) {
+    // Mouse & Primary Touch (Touch 1)
+    // Using IsMouseButtonPressed guarantees we catch fast 1-frame taps.
+    if (inputCode == INPUT_MOUSE_LEFT || inputCode == INPUT_TOUCH_1) return IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+    if (inputCode == INPUT_MOUSE_RIGHT)  return IsMouseButtonPressed(MOUSE_BUTTON_RIGHT);
+    if (inputCode == INPUT_MOUSE_MIDDLE) return IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE);
+    
+    // Secondary Touches (Did this specific finger JUST touch the screen this frame?)
+    int currentTouches = GetTouchPointCount();
+    if (inputCode == INPUT_TOUCH_2) return currentTouches >= 2 && s_previousTouchCount < 2;
+    if (inputCode == INPUT_TOUCH_3) return currentTouches >= 3 && s_previousTouchCount < 3;
+
+    // Keyboard (Fallback)
+    return IsKeyPressed(inputCode);
+}
+
 bool InputManager::IsActionDown(const std::string& actionName) {
     if (s_bindings.find(actionName) != s_bindings.end()) {
         for (int key : s_bindings[actionName]) {
-            if (IsKeyDown(key)) {
+            if (CheckInputDown(key)) {
                 return true; // Return true as soon as ONE bound key is down
             }
         }
@@ -36,7 +75,7 @@ bool InputManager::IsActionDown(const std::string& actionName) {
 bool InputManager::IsActionPressed(const std::string& actionName) {
     if (s_bindings.find(actionName) != s_bindings.end()) {
         for (int key : s_bindings[actionName]) {
-            if (IsKeyPressed(key)) {
+            if (CheckInputPressed(key)) {
                 return true;
             }
         }
@@ -46,6 +85,31 @@ bool InputManager::IsActionPressed(const std::string& actionName) {
 
 std::unordered_map<std::string, std::vector<int>>& InputManager::GetBindings() {
     return s_bindings;
+}
+
+std::string InputManager::GetKeyName(int key) {
+    if (key == INPUT_MOUSE_LEFT) return "Mouse Left";
+    if (key == INPUT_MOUSE_RIGHT) return "Mouse Right";
+    if (key == INPUT_MOUSE_MIDDLE) return "Mouse Middle";
+    
+    if (key == INPUT_TOUCH_1) return "Touch 1 (Main)";
+    if (key == INPUT_TOUCH_2) return "Touch 2 (Secondary)";
+    if (key == INPUT_TOUCH_3) return "Touch 3";
+    
+    if (key >= 32 && key <= 126) {
+        std::string name(1, (char)key);
+        return "Key: " + name;
+    }
+    
+    if (key == KEY_SPACE) return "Space";
+    if (key == KEY_ENTER) return "Enter";
+    if (key == KEY_ESCAPE) return "Escape";
+    if (key == KEY_UP) return "Up Arrow";
+    if (key == KEY_DOWN) return "Down Arrow";
+    if (key == KEY_LEFT) return "Left Arrow";
+    if (key == KEY_RIGHT) return "Right Arrow";
+
+    return "Key Code: " + std::to_string(key);
 }
 
 void InputManager::Save(const std::string& filepath) {

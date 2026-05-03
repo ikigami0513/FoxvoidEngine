@@ -10,9 +10,6 @@ class InputSettingsPanel {
         void Draw();
 
     private:
-        // Helper to format raw Raylib KEY_ integers into readable strings
-        std::string GetKeyName(int key) const;
-
         bool m_isOpen = false;
         bool m_openRequested = false;
         

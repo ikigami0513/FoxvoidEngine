@@ -126,6 +126,14 @@ void BindInput(py::module_& m) {
     keys.attr("KEY_VOLUME_UP")   = (int)KEY_VOLUME_UP;
     keys.attr("KEY_VOLUME_DOWN") = (int)KEY_VOLUME_DOWN;
 
+    keys.attr("MOUSE_LEFT")   = 1001;
+    keys.attr("MOUSE_RIGHT")  = 1002;
+    keys.attr("MOUSE_MIDDLE") = 1003;
+
+    keys.attr("INPUT_TOUCH_1") = 2001;
+    keys.attr("INPUT_TOUCH_2") = 2002;
+    keys.attr("INPUT_TOUCH_3") = 2003;
+
     py::module_ input = m.def_submodule("Input", "Engine Input API");
 
     // Direct key mapping

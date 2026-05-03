@@ -109,6 +109,10 @@ void Engine::Run() {
         ProcessInput();
         Update(deltaTime);
         Render();
+
+        // IMPORTANT : Update input states for the NEXT frame here,
+        // AFTER all scripts and logic have finished evaluating!
+        InputManager::Update();
     }
 }
 
