@@ -5,6 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include "scripting/PythonStubs.hpp"
+#include <raylib.h>
 
 #ifdef STANDALONE_MODE
 #include "core/InputManager.hpp"
@@ -14,9 +15,25 @@
 #endif
 
 int main(int argc, char** argv) {
+
+#ifdef __ANDROID__
+    // ====================================================================
+    // THE ANDROID CATCH-22 FIX (V2)
+    // Raylib needs the Window initialized to read files on Android.
+    // We call InitWindow manually here just to wake up Android's AssetManager
+    // BEFORE creating the Engine, so the Engine gets the real resolution later!
+    // ====================================================================
+    InitWindow(0, 0, "Booting...");
+
+    // On Android, current_path() returns "/" which triggers severe security denials (SELinux).
+    // Raylib configures the internal data path automatically when InitWindow is called.
+    std::filesystem::path safeDir = GetWorkingDirectory(); 
+    ProjectSettings::SetEngineRoot(safeDir);
+#else
     // Save the original working directory (which contains the engine's CMakeLists.txt)
     // before the editor changes it to the project's directory later on.
     ProjectSettings::SetEngineRoot(std::filesystem::current_path());
+#endif
 
     std::filesystem::path projectPath;
 
@@ -33,7 +50,13 @@ int main(int argc, char** argv) {
         // The Engine will boot and the Editor will show the Project Hub.
 #else
         // In Standalone mode, we mount the VFS immediately using the executable's directory
+#ifdef __ANDROID__
+        std::filesystem::path exeDir = GetWorkingDirectory();
+#else
         std::filesystem::path exeDir = std::filesystem::current_path();
+#endif
+        
+        // On Android, Raylib is already initialized above, so this will succeed!
         AssetRegistry::MountVFS(exeDir);
         
         // We set the target to project.json, which will now be intercepted by the VFS
@@ -42,10 +65,10 @@ int main(int argc, char** argv) {
     }
 
     // Attempt to load the project configuration
-    // We removed std::filesystem::exists() because project.json is hidden inside the VFS!
     if (!projectPath.empty()) {
         if (!ProjectSettings::Load(projectPath)) {
-            std::cerr << "Failed to load project at: " << projectPath << std::endl;
+            // Using Raylib's TraceLog ensures this prints to Android Logcat
+            TraceLog(LOG_FATAL, "Failed to load project at: %s", projectPath.string().c_str());
 #ifdef STANDALONE_MODE
             // In Standalone, failing to load the project configuration is a fatal error
             return -1;
@@ -57,7 +80,9 @@ int main(int argc, char** argv) {
 
     try {
         // Initialize the Engine 
-        // Uses loaded settings, or fallback defaults if in the Editor Hub
+        // Uses loaded settings, or fallback defaults if in the Editor Hub.
+        // On Android, Raylib ignores the redundant internal InitWindow call safely, 
+        // BUT the Engine now gets the CORRECT width and height to create its rendering surface!
         Engine engine(
             ProjectSettings::GetWindowWidth(), 
             ProjectSettings::GetWindowHeight(), 
@@ -65,15 +90,10 @@ int main(int argc, char** argv) {
         );
 
 #ifdef STANDALONE_MODE
-        // NOUVEAU: The old std::filesystem::current_path change was removed here 
-        // to avoid conflicts with the VFS.
-
         // Initialize the global Asset Registry
-        // In Standalone, this will just skip the physical scan since IsPacked() is true
         AssetRegistry::Initialize(ProjectSettings::GetAssetsPath());
 
         // Register the project's script folder in Python
-        // Allows Pybind11 to find and import the user's Python component classes
         ScriptEngine::AddScriptPath(ProjectSettings::GetAssetsPath() / "scripts");
 
         // Load project specific settings in Standalone BEFORE loading the scene
@@ -83,30 +103,42 @@ int main(int argc, char** argv) {
         
         std::cout << "[Standalone] Project settings loaded." << std::endl;
 
-        // In Standalone Mode, we bypass the editor entirely and load the starting scene
         std::string startScene = ProjectSettings::GetStartScenePath();
         if (!startScene.empty()) {
             engine.LoadScene(startScene);
-            // We force a flush/start here to ensure the scene is ready on frame 1
             engine.GetActiveScene().Start(); 
         } else {
-            std::cerr << "WARNING: No Start Scene defined in project.json!" << std::endl;
+            TraceLog(LOG_FATAL, "WARNING: No Start Scene defined in project.json!");
         }
+#endif
+
+        // ====================================================================
+        // ANDROID EGL_BAD_SURFACE FIX
+        // Wait for the Android Window Manager to fully prepare the rendering surface
+        // ====================================================================
+#ifdef __ANDROID__
+        TraceLog(LOG_INFO, "Waiting for Android rendering surface to be ready...");
+        while (!IsWindowReady()) {
+            // Keep the app alive and process Android messages until the surface is valid
+            BeginDrawing();
+            ClearBackground(BLACK);
+            EndDrawing();
+        }
+        TraceLog(LOG_INFO, "Android surface ready! Starting main game loop.");
 #endif
 
         // 5. Start the main game loop
         engine.Run();
         
     } catch (const std::exception& e) {
+        TraceLog(LOG_FATAL, "Fatal C++ Exception: %s", e.what());
+        
         std::ofstream crashLog("crash.log");
         if (crashLog.is_open()) {
             crashLog << "=== FATAL ERROR ===" << std::endl;
             crashLog << e.what() << std::endl;
             crashLog.close();
         }
-
-        // Catch and display any standard exceptions thrown during execution
-        std::cerr << "Fatal Error: " << e.what() << std::endl;
         return -1;
     }
 

@@ -44,4 +44,7 @@ class [[gnu::visibility("default")]] AssetRegistry {
         static bool s_IsPacked;
         static std::unordered_map<std::string, PakEntry> s_PakToc;
         static fs::path s_PakFilePath;
+
+        // In-memory buffer for Android APK asset reading
+        static std::vector<unsigned char> s_PakMemory;
 };

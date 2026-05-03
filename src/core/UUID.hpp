@@ -22,12 +22,10 @@ class UUID {
 
 // We must provide a hash function so our UUID can be used as a key in std::unordered_map
 namespace std {
-    template <typename T> struct hash;
-
     template<>
     struct hash<UUID> {
         std::size_t operator()(const UUID& uuid) const {
-            return (uint64_t)uuid;
+            return hash<uint64_t>()((uint64_t)uuid);
         }
     };
 }

@@ -189,7 +189,7 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
 
         // Select Target OS
         static int targetOsIndex = 0;
-        const char* osOptions[] = { "Linux", "Windows" };
+        const char* osOptions[] = { "Linux", "Windows", "Android" };
         ImGui::TextUnformatted("Target Platform");
         ImGui::SetNextItemWidth(300.0f);
         ImGui::Combo("##TargetOS", &targetOsIndex, osOptions, IM_ARRAYSIZE(osOptions));
@@ -203,7 +203,9 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
             std::string outputDirStr(outputDirBuffer);
             
             // Map the dropdown index to our Enum
-            TargetOS targetPlatform = (targetOsIndex == 0) ? TargetOS::Linux : TargetOS::Windows;
+            TargetOS targetPlatform = TargetOS::Linux;
+            if (targetOsIndex == 1) targetPlatform = TargetOS::Windows;
+            if (targetOsIndex == 2) targetPlatform = TargetOS::Android;
             
             // Save the chosen start scene into the project configuration
             ProjectSettings::SetStartScenePath(startSceneStr);

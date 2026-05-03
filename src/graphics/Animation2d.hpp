@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../world/Component.hpp"
+#include <sstream>
 #include <vector>
 
 class SpriteSheetRenderer; // Forward declaration

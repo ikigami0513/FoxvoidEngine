@@ -2,6 +2,11 @@
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <iostream>
+#include <cstring>
+
+#ifdef __ANDROID__
+#include <raylib.h>
+#endif
 
 // Initialize static members
 std::unordered_map<uint64_t, fs::path> AssetRegistry::s_Registry;
@@ -13,6 +18,8 @@ bool AssetRegistry::s_IsPacked = false;
 std::unordered_map<std::string, PakEntry> AssetRegistry::s_PakToc;
 fs::path AssetRegistry::s_PakFilePath = "";
 
+std::vector<unsigned char> AssetRegistry::s_PakMemory;
+
 void AssetRegistry::Initialize(const fs::path& assetsDirectory) {
     s_AssetsDirectory = assetsDirectory;
 
@@ -22,6 +29,47 @@ void AssetRegistry::Initialize(const fs::path& assetsDirectory) {
 }
 
 void AssetRegistry::MountVFS(const fs::path& executableDirectory) {
+#ifdef __ANDROID__
+    // On Android, assets are packed inside the APK. We use Raylib to extract it.
+    // Raylib assumes the root is the "assets" folder inside the APK.
+    s_PakFilePath = "data.pak";
+    
+    int pakSize = 0;
+    std::cout << "[AssetRegistry] Attempting to load data.pak via Raylib from APK..." << std::endl;
+    unsigned char* fileData = LoadFileData(s_PakFilePath.string().c_str(), &pakSize);
+    
+    if (fileData != nullptr) {
+        s_IsPacked = true;
+        std::cout << "[AssetRegistry] VFS Mounted from RAM (Android). Size: " << pakSize << " bytes" << std::endl;
+
+        // Copy the raw C-array from Raylib into our C++ vector for safe keeping
+        s_PakMemory.assign(fileData, fileData + pakSize);
+        UnloadFileData(fileData); // Free Raylib's internal memory
+
+        // Parse the number of files (First 4 bytes)
+        uint32_t numFiles = 0;
+        std::memcpy(&numFiles, s_PakMemory.data(), sizeof(uint32_t));
+
+        // Read the Table of Contents (TOC) directly from our RAM buffer
+        std::vector<PakEntry> toc(numFiles);
+        size_t offset = sizeof(uint32_t);
+        std::memcpy(toc.data(), s_PakMemory.data() + offset, numFiles * sizeof(PakEntry));
+
+        for (const auto& entry : toc) {
+            // Recreate the absolute path standard expected by the engine
+            std::string absolutePath = fs::absolute(executableDirectory / entry.path).lexically_normal().string();
+            
+            s_PakToc[absolutePath] = entry;
+            s_PathToUUID[absolutePath] = entry.uuid;
+            if (entry.uuid != 1) { 
+                s_Registry[entry.uuid] = absolutePath;
+            }
+        }
+    } else {
+        std::cerr << "[AssetRegistry] FATAL ERROR: Could not load data.pak from Android assets!" << std::endl;
+    }
+
+#else
     s_PakFilePath = executableDirectory / "data.pak";
     
     if (fs::exists(s_PakFilePath)) {
@@ -49,6 +97,7 @@ void AssetRegistry::MountVFS(const fs::path& executableDirectory) {
             pakFile.close();
         }
     }
+#endif
 }
 
 bool AssetRegistry::IsPacked() {
@@ -62,6 +111,13 @@ std::vector<unsigned char> AssetRegistry::GetFileData(const std::string& path) {
     auto it = s_PakToc.find(normalizedPath);
 
     if (it != s_PakToc.end()) {
+#ifdef __ANDROID__
+        // On Android, the pak is entirely in RAM. Just copy the needed bytes instantly.
+        std::vector<unsigned char> buffer(it->second.size);
+        std::memcpy(buffer.data(), s_PakMemory.data() + it->second.offset, it->second.size);
+        return buffer;
+#else
+        // On Desktop, read the specific chunk from the hard drive to save RAM
         std::ifstream pakFile(s_PakFilePath, std::ios::binary);
         if (pakFile.is_open()) {
             // Jump instantly to the exact byte where our file starts in the .pak
@@ -73,6 +129,7 @@ std::vector<unsigned char> AssetRegistry::GetFileData(const std::string& path) {
             
             return buffer;
         }
+#endif
     }
     std::cerr << "[VFS] File not found in archive: " << path << std::endl;
     return {};

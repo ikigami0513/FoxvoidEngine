@@ -10,7 +10,8 @@
 // Define the available target operating systems for the build process
 enum class TargetOS {
     Linux,
-    Windows
+    Windows,
+    Android
 };
 
 class Build {
