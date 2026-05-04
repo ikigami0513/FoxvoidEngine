@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Foxvoid Engine Game</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #000; /* Dark background to act as letterbox bars */
+        width: 100vw;
+        height: 100vh;
+        /* Flexbox perfectly centers the canvas in the middle of the black screen */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden; /* Prevents scrollbars */
+      }
+
+      /* The Raylib canvas */
+      #canvas {
+        /* 1. Try to stretch to the full width of the screen */
+        width: 100%;
+        
+        /* 2. But NEVER exceed the screen's maximum height */
+        max-height: 100%;
+        
+        /* 3. Lock the DOM element to the strict 16:9 aspect ratio */
+        aspect-ratio: 16 / 9;
+        
+        outline: none; /* Removes the default blue selection outline */
+        box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.8); /* Nice drop shadow */
+      }
+      
+      /* Optional: Loading spinner */
+      #spinner {
+        position: absolute;
+        width: 50px;
+        height: 50px;
+        border: 5px solid rgba(255,255,255,0.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        animation: spin 1s ease-in-out infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <!-- Loading indicator -->
+    <div id="spinner"></div>
+
+    <!-- The Canvas where the game will be rendered -->
+    <canvas id="canvas" tabindex="1" oncontextmenu="event.preventDefault()"></canvas>
+
+    <script type="text/javascript">
+      var canvasElement = document.getElementById('canvas');
+      var spinnerElement = document.getElementById('spinner');
+
+      // Force keyboard/mouse focus as soon as the canvas is hovered or clicked
+      canvasElement.addEventListener("mouseenter", function() { window.focus(); canvasElement.focus(); });
+      canvasElement.addEventListener("click", function() { window.focus(); canvasElement.focus(); });
+
+      // --- EMSCRIPTEN CONFIGURATION ---
+      var Module = {
+        canvas: canvasElement,
+        print: (function() {
+            return function(text) {
+                if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+                console.log(text);
+            };
+        })(),
+        printErr: function(text) {
+            if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+            console.error(text);
+        },
+        setStatus: function(text) {
+            if (!text) { spinnerElement.style.display = 'none'; }
+        }
+      };
+      
+      window.onerror = function() {
+        spinnerElement.style.display = 'none';
+      };
+    </script>
+
+    <!-- THE MAGIC TAG: Emscripten will automatically inject the compiled JS code here -->
+    {{{ SCRIPT }}}
+  </body>
+</html>

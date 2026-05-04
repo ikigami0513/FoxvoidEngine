@@ -11,6 +11,7 @@
 #include "WindowsBuilder.hpp"
 #include "LinuxBuilder.hpp"
 #include "AndroidBuilder.hpp"
+#include "WebBuilder.hpp"
 
 // Initialize static members
 std::atomic<bool> Build::s_isBuilding{false};
@@ -85,6 +86,8 @@ void Build::RunThread(std::string startSceneStr, std::string outputDirStr, std::
         builder = std::make_unique<WindowsBuilder>();
     } else if (target == TargetOS::Android) {
         builder = std::make_unique<AndroidBuilder>();
+    } else if (target == TargetOS::Web) {
+        builder = std::make_unique<WebBuilder>();
     } else {
         builder = std::make_unique<LinuxBuilder>();
     }
@@ -98,26 +101,13 @@ void Build::RunThread(std::string startSceneStr, std::string outputDirStr, std::
         return;
     }
 
-    // Step 2: Compilation (OS Specific, handled by the builder)
+    // Step 2: Packing Assets (Universal Step - OS Independent)
+    // NOTE: Must happen BEFORE compilation because Emscripten needs data.pak during the linking phase!
     {
         std::lock_guard<std::mutex> lock(s_buildMutex);
-        s_buildStatusMsg = "Step 2/3: Compiling Game (This will take a moment)...";
+        s_buildStatusMsg = "Step 2/3: Packing Assets into data.pak...";
     }
-    
-    if (!builder->Compile(buildDir.string())) {
-        std::lock_guard<std::mutex> lock(s_buildMutex);
-        s_buildStatusMsg = "FAILED during compilation.";
-        s_buildProgress = -1;
-        s_isBuilding = false;
-        return;
-    }
-
-    // Step 3: Packing Assets (Universal Step - OS Independent)
-    {
-        std::lock_guard<std::mutex> lock(s_buildMutex);
-        s_buildStatusMsg = "Step 3/3: Packing Assets into data.pak...";
-    }
-    s_buildProgress = 95;
+    s_buildProgress = 20;
 
     try {
         // The packer (Virtual File System)
@@ -194,50 +184,76 @@ void Build::RunThread(std::string startSceneStr, std::string outputDirStr, std::
             throw std::runtime_error("Could not create data.pak file.");
         }
 
-        // Rename the executable based on the Project Name
-        std::string projectName = ProjectSettings::GetProjectName();
-        std::string safeProjectName = projectName;
-        std::replace(safeProjectName.begin(), safeProjectName.end(), ' ', '_');
-
-        // Ask the builder for the correct extension (.exe, .so, etc.)
-        std::string extension = builder->GetExecutableExtension();
-
-        // --- FIXED: Handle Android naming convention (libprefix) ---
-        std::filesystem::path originalExe;
-        if (target == TargetOS::Android) {
-            // Android CMake generates libFoxvoidStandalone.so
-            originalExe = buildDir / ("libFoxvoidStandalone" + extension);
-        } else {
-            originalExe = buildDir / ("FoxvoidStandalone" + extension);
+        // Step 3: Compilation (OS Specific, handled by the builder)
+        {
+            std::lock_guard<std::mutex> lock(s_buildMutex);
+            s_buildStatusMsg = "Step 3/3: Compiling Game (This will take a moment)...";
         }
+        s_buildProgress = 40;
         
-        // Fallback for CMake multi-config generators that create a Release/ folder
-        if (!std::filesystem::exists(originalExe)) {
-            std::string folderPrefix = (target == TargetOS::Android) ? "lib" : "";
-            originalExe = buildDir / "Release" / (folderPrefix + "FoxvoidStandalone" + extension); 
+        if (!builder->Compile(buildDir.string())) {
+            std::lock_guard<std::mutex> lock(s_buildMutex);
+            s_buildStatusMsg = "FAILED during compilation.";
+            s_buildProgress = -1;
+            s_isBuilding = false;
+            return;
         }
-        
-        // Final name: keep 'lib' prefix for Android shared libraries
-        std::string finalPrefix = (target == TargetOS::Android) ? "lib" : "";
-        std::filesystem::path newExe = buildDir / (finalPrefix + safeProjectName + extension);
 
-        if (std::filesystem::exists(originalExe)) {
-            std::filesystem::copy_file(originalExe, newExe, std::filesystem::copy_options::overwrite_existing);
-            
-            // Ask the builder to handle its specific dependencies (e.g., APK packaging)
-            // We call this BEFORE removing the originalExe because AndroidBuilder 
-            // might need the original filename to find it.
-            builder->CopyDependencies(buildDir, engineRoot);
-            
-            // Cleanup
-            std::filesystem::remove(originalExe);
-        } else {
-            Build::LogWarning("Could not find the executable to rename. Checked: " + originalExe.string());
-            
-            // Fallback for Android: Try to copy dependencies even if renaming failed
+        s_buildProgress = 95;
+
+        // For Web, the builder handles the renaming of HTML/JS/WASM internally in CopyDependencies.
+        // For Android and Desktop, we handle the primary binary renaming here.
+        if (target != TargetOS::Web) {
+            // Rename the executable based on the Project Name
+            std::string projectName = ProjectSettings::GetProjectName();
+            std::string safeProjectName = projectName;
+            std::replace(safeProjectName.begin(), safeProjectName.end(), ' ', '_');
+
+            // Ask the builder for the correct extension (.exe, .so, etc.)
+            std::string extension = builder->GetExecutableExtension();
+
+            // Handle Android naming convention (libprefix)
+            std::filesystem::path originalExe;
             if (target == TargetOS::Android) {
-                builder->CopyDependencies(buildDir, engineRoot);
+                // Android CMake generates libFoxvoidStandalone.so
+                originalExe = buildDir / ("libFoxvoidStandalone" + extension);
+            } else {
+                originalExe = buildDir / ("FoxvoidStandalone" + extension);
             }
+            
+            // Fallback for CMake multi-config generators that create a Release/ folder
+            if (!std::filesystem::exists(originalExe)) {
+                std::string folderPrefix = (target == TargetOS::Android) ? "lib" : "";
+                originalExe = buildDir / "Release" / (folderPrefix + "FoxvoidStandalone" + extension); 
+            }
+            
+            // Final name: keep 'lib' prefix for Android shared libraries
+            std::string finalPrefix = (target == TargetOS::Android) ? "lib" : "";
+            std::filesystem::path newExe = buildDir / (finalPrefix + safeProjectName + extension);
+
+            if (std::filesystem::exists(originalExe)) {
+                std::filesystem::copy_file(originalExe, newExe, std::filesystem::copy_options::overwrite_existing);
+                
+                // Ask the builder to handle its specific dependencies (e.g., APK packaging)
+                // We call this BEFORE removing the originalExe because AndroidBuilder 
+                // might need the original filename to find it.
+                builder->CopyDependencies(buildDir, engineRoot);
+                
+                // Cleanup
+                std::filesystem::remove(originalExe);
+            } else {
+                Build::LogWarning("Could not find the executable to rename. Checked: " + originalExe.string());
+                
+                // Fallback for Android: Try to copy dependencies even if renaming failed
+                if (target == TargetOS::Android) {
+                    builder->CopyDependencies(buildDir, engineRoot);
+                }
+            }
+        }
+        else {
+            // If it's a Web Build, we directly call CopyDependencies because WebBuilder
+            // takes care of renaming its own HTML, JS, WASM and DATA files.
+            builder->CopyDependencies(buildDir, engineRoot);
         }
 
         {

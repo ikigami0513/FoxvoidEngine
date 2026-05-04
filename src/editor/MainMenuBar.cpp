@@ -190,7 +190,7 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
 
         // Select Target OS
         static int targetOsIndex = 0;
-        const char* osOptions[] = { "Linux", "Windows", "Android" };
+        const char* osOptions[] = { "Linux", "Windows", "Android", "Web" };
         ImGui::TextUnformatted("Target Platform");
         ImGui::SetNextItemWidth(300.0f);
         ImGui::Combo("##TargetOS", &targetOsIndex, osOptions, IM_ARRAYSIZE(osOptions));
@@ -221,6 +221,7 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
             TargetOS targetPlatform = TargetOS::Linux;
             if (targetOsIndex == 1) targetPlatform = TargetOS::Windows;
             if (targetOsIndex == 2) targetPlatform = TargetOS::Android;
+            if (targetOsIndex == 3) targetPlatform = TargetOS::Web;
             
             // Map the orientation index to the enum
             ScreenOrientation orientation = (orientationIndex == 0) ? ScreenOrientation::Landscape : ScreenOrientation::Portrait;

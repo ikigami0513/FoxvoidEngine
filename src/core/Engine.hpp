@@ -27,6 +27,10 @@ class Engine {
         // Starts the main game loop
         void Run();
 
+        // Executes exactly one frame of the game.
+        // Extracted for WebAssembly compatibility.
+        void MainLoopStep();
+
         // Returns the active instance of the Engine
         static Engine* Get() { return s_instance; }
         

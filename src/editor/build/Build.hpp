@@ -12,7 +12,8 @@
 enum class TargetOS {
     Linux,
     Windows,
-    Android
+    Android,
+    Web
 };
 
 class Build {

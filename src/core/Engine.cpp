@@ -42,8 +42,10 @@ Engine::Engine(int width, int height, const std::string& title)
     // On Android, main.cpp already called InitWindow to boot the OS surface.
     // Calling it again would corrupt the physical viewport (the bottom-left bug).
     if (!IsWindowReady()) {
-        // Make the Engine window resizable (Desktop)
+        // Desktop can be resizable, but Web MUST be strictly locked
+#ifndef __EMSCRIPTEN__
         SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+#endif
         InitWindow(m_windowWidth, m_windowHeight, m_windowTitle.c_str());
     } else {
         // Window already exists, just update the title
@@ -98,46 +100,66 @@ Engine::~Engine() {
     std::cout << "[Engine] Shutdown complete." << std::endl;
 }
 
+#if defined(__EMSCRIPTEN__)
+#include <emscripten/emscripten.h>
+
+// Emscripten requires a C-style function pointer for its main loop.
+// We use this static wrapper to call the method on our Engine instance.
+static void EmscriptenMainLoop(void* arg) {
+    static_cast<Engine*>(arg)->MainLoopStep();
+}
+#endif
+
+void Engine::MainLoopStep() {
+    // Calculate the time taken by the last frame (Delta Time)
+    float deltaTime = GetFrameTime();
+
+    ProcessInput();
+    Update(deltaTime);
+    Render();
+
+    // Update input states for the NEXT frame,
+    // AFTER all scripts and logic have finished evaluating!
+    InputManager::Update();
+}
+
 void Engine::Run() {
-    // Main game loop: continues as long as the engine is running 
-    // and the user hasn't pressed ESC or the close button
+#if defined(__EMSCRIPTEN__)
+    // For WebAssembly, we hand over control of the loop to the browser.
+    // parameters: function_to_call, argument, fps (0 = let browser decide), simulate_infinite_loop (1 = true)
+    emscripten_set_main_loop_arg(EmscriptenMainLoop, this, 0, 1);
+#else
+    // Main game loop for Desktop and Android
     while (m_isRunning && !WindowShouldClose()) {
-        // Calculate the time taken by the last frame (Delta Time)
-        // Useful for frame-rate independent movement
-        float deltaTime = GetFrameTime();
-
-        ProcessInput();
-        Update(deltaTime);
-        Render();
-
-        // IMPORTANT : Update input states for the NEXT frame here,
-        // AFTER all scripts and logic have finished evaluating!
-        InputManager::Update();
+        MainLoopStep();
     }
+#endif
 }
 
 void Engine::ProcessInput() {
 #ifdef STANDALONE_MODE
-    // On Android, GetRenderWidth/Height gets the true physical pixels
-    int screenWidth = GetRenderWidth();
-    int screenHeight = GetRenderHeight();
+    // Fetch the physical screen size (which matches the browser window on Web)
+    int screenWidth = GetScreenWidth();
+    int screenHeight = GetScreenHeight();
 
+    // Calculate the exact scaling ratio and offsets used by the letterboxing
     float scale = std::min((float)screenWidth / m_windowWidth, (float)screenHeight / m_windowHeight);
     float offsetX = (screenWidth - (m_windowWidth * scale)) * 0.5f;
     float offsetY = (screenHeight - (m_windowHeight * scale)) * 0.5f;
 
-    // GetTouchPosition(0) is mapped to GetMousePosition() by Raylib automatically
+    // Get the raw mouse position in physical screen coordinates
     Vector2 mousePos = GetMousePosition();
-    
-    // Map physical screen coordinates back to the virtual game coordinates
     Vector2 virtualMouse;
+    
+    // Reverse the letterbox math to find the exact coordinate in our virtual game space
     virtualMouse.x = (mousePos.x - offsetX) / scale;
     virtualMouse.y = (mousePos.y - offsetY) / scale;
 
-    // Clamp coordinates to prevent "clicking" outside the letterbox bounds
+    // Clamp coordinates to prevent interacting outside the game bounds
     virtualMouse.x = std::clamp(virtualMouse.x, 0.0f, (float)m_windowWidth);
     virtualMouse.y = std::clamp(virtualMouse.y, 0.0f, (float)m_windowHeight);
 
+    // Store the perfectly mapped position in our custom Mouse wrapper
     Mouse::SetVirtualPosition(virtualMouse);
 #endif
 
@@ -193,6 +215,7 @@ void Engine::UpdateResolution(int width, int height) {
 }
 
 void Engine::Render() {
+    // --- VIRTUAL SPACE (e.g., 1280x720) ---
     // Pass 1: Game Rendering (What the player sees)
     BeginTextureMode(m_gameTexture);
         ClearBackground(m_activeScene.GetMainCameraBackgroundColor());
@@ -216,9 +239,10 @@ void Engine::Render() {
 
     EndDrawing();
 #else
+    // --- PHYSICAL SCREEN SPACE (e.g., 1920x1080) ---
     // Pass 2: Standalone Rendering (Letterboxing / Pillarboxing)
-    int screenWidth = GetRenderWidth();
-    int screenHeight = GetRenderHeight();
+    int screenWidth = GetScreenWidth();
+    int screenHeight = GetScreenHeight();
 
     // Calculate scale to fit the target resolution perfectly inside the screen
     float scale = std::min((float)screenWidth / m_windowWidth, (float)screenHeight / m_windowHeight);
@@ -238,7 +262,7 @@ void Engine::Render() {
         
         Vector2 origin = { 0.0f, 0.0f };
 
-        // Draw the final composition
+        // Draw the final composition: Raylib scales and centers the texture onto the physical screen
         DrawTexturePro(m_gameTexture.texture, sourceRec, destRec, origin, 0.0f, WHITE);
     EndDrawing();
 #endif

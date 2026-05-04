@@ -52,7 +52,7 @@ FetchContent_Declare(
 set(IMGUI_DIR ${imgui_SOURCE_DIR}) 
 FetchContent_MakeAvailable(rlImGui)
 
-# 3. Fetch ImGuizmo (Using Populate to avoid running its broken CMakeLists.txt)
+# 3. Fetch ImGuizmo
 FetchContent_Declare(
     imguizmo
     GIT_REPOSITORY https://github.com/CedricGuillemet/ImGuizmo.git
@@ -84,7 +84,6 @@ FetchContent_MakeAvailable(pfd)
 
 # --- PYTHON & PYBIND11 SETUP ---
 
-# 1. Setup Python depending on the target OS
 if (CMAKE_CROSSCOMPILING AND WIN32)
     message(STATUS "Cross-compiling for Windows: Forcing Windows Python 3.11")
     
@@ -116,9 +115,37 @@ if (CMAKE_CROSSCOMPILING AND WIN32)
 elseif (ANDROID)
     message(STATUS "Cross-compiling for Android: Using BeeWare Python 3.10")
     
-    # We point directly to the headers and the ARM64 shared library (.so)
     set(Python3_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/vendor/python_android/include/python3.10")
     set(Python3_LIBRARIES "${CMAKE_SOURCE_DIR}/vendor/python_android/libs/arm64-v8a/libpython3.10.so")
+    
+    set(Python3_FOUND TRUE)
+    set(Python3_Development_FOUND TRUE)
+    set(Python3_Interpreter_FOUND TRUE)
+    set(Python3_Development.Module_FOUND TRUE)
+    set(Python3_Development.Embed_FOUND TRUE)
+    
+    find_program(Python3_EXECUTABLE NAMES python3 python REQUIRED)
+
+    if(NOT TARGET Python3::Python)
+        add_library(Python3::Python UNKNOWN IMPORTED)
+        set_target_properties(Python3::Python PROPERTIES
+            IMPORTED_LOCATION "${Python3_LIBRARIES}"
+            INTERFACE_INCLUDE_DIRECTORIES "${Python3_INCLUDE_DIRS}"
+        )
+    endif()
+    if(NOT TARGET Python3::Module)
+        add_library(Python3::Module ALIAS Python3::Python)
+    endif()
+    if(NOT TARGET Python3::Embed)
+        add_library(Python3::Embed ALIAS Python3::Python)
+    endif()
+
+elseif (EMSCRIPTEN)
+    message(STATUS "Cross-compiling for Web (Wasm): Using custom Python 3.11")
+    
+    # Point directly to our freshly compiled Wasm Python static library
+    set(Python3_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/vendor/python_wasm/include")
+    set(Python3_LIBRARIES "${CMAKE_SOURCE_DIR}/vendor/python_wasm/lib/libpython3.11.a")
     
     set(Python3_FOUND TRUE)
     set(Python3_Development_FOUND TRUE)
@@ -158,7 +185,6 @@ FetchContent_MakeAvailable(pybind11)
 # SOURCE FILES EXPLICIT GATHERING
 # =========================================================================
 
-# 1. Grab Core Engine files (Physics, Graphics, Scripting, Audio, World, etc.)
 file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS 
     "src/audio/*.cpp"
     "src/core/*.cpp"
@@ -173,13 +199,10 @@ file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS
 # =========================================================================
 # EDITOR BUILD TARGET (FoxvoidEngine) - Desktop Only
 # =========================================================================
-if (NOT ANDROID)
-    # Grab Editor ONLY files
-    file(GLOB_RECURSE EDITOR_SOURCES CONFIGURE_DEPENDS 
-        "src/editor/*.cpp"
-    )
+# We DO NOT compile the Editor on Android or WebAssembly
+if (NOT ANDROID AND NOT EMSCRIPTEN)
+    file(GLOB_RECURSE EDITOR_SOURCES CONFIGURE_DEPENDS "src/editor/*.cpp")
 
-    # Grab ImGui files
     set(IMGUI_SOURCES
         ${imgui_SOURCE_DIR}/imgui.cpp
         ${imgui_SOURCE_DIR}/imgui_draw.cpp
@@ -212,22 +235,13 @@ endif()
 # STANDALONE BUILD TARGET (FoxvoidStandalone)
 # =========================================================================
 
-# On Android, the engine is compiled as a Shared Library (.so) to be loaded by Java/Kotlin
 if (ANDROID)
-    # The Android NDK requires native_app_glue to bridge the Activity and our C++ main()
     set(ANDROID_NATIVE_APP_GLUE "${CMAKE_SOURCE_DIR}/vendor/android_ndk/sources/android/native_app_glue")
-    
-    add_library(FoxvoidStandalone SHARED 
-        ${ENGINE_SOURCES}
-        "${ANDROID_NATIVE_APP_GLUE}/android_native_app_glue.c"
-    )
-    
-    # Expose the app glue headers so Raylib and our code can use them
+    add_library(FoxvoidStandalone SHARED ${ENGINE_SOURCES} "${ANDROID_NATIVE_APP_GLUE}/android_native_app_glue.c")
     target_include_directories(FoxvoidStandalone PRIVATE "${ANDROID_NATIVE_APP_GLUE}")
-    
-    # We must link standard Android libraries needed by the glue and OpenGL
     target_link_libraries(FoxvoidStandalone PRIVATE android log EGL GLESv2)
 else()
+    # Desktop & Web
     add_executable(FoxvoidStandalone ${ENGINE_SOURCES})
 endif()
 
@@ -237,13 +251,44 @@ target_link_libraries(FoxvoidStandalone PRIVATE
     pybind11::embed
 )
 
-target_include_directories(FoxvoidStandalone PRIVATE 
-    src
-)
+target_include_directories(FoxvoidStandalone PRIVATE src)
 
-# Force MinGW to embed the C and C++ runtimes directly into the .exe
 if (CMAKE_CROSSCOMPILING AND WIN32)
     target_link_options(FoxvoidStandalone PRIVATE -static -static-libgcc -static-libstdc++)
+endif()
+
+# WebAssembly Specific Linker Flags
+if (EMSCRIPTEN)
+    # Output an HTML file containing the WebGL Canvas context
+    set_target_properties(FoxvoidStandalone PROPERTIES SUFFIX ".html")
+
+    target_link_libraries(FoxvoidStandalone PRIVATE 
+        "${CMAKE_SOURCE_DIR}/vendor/python_wasm/lib/libmpdec.a"
+        "${CMAKE_SOURCE_DIR}/vendor/python_wasm/lib/libexpat.a"
+    )
+
+    target_link_options(FoxvoidStandalone PRIVATE 
+        "-sUSE_GLFW=3"
+        "-sUSE_ZLIB=1"                           
+        "-sASYNCIFY=1"                           
+        "-sALLOW_MEMORY_GROWTH=1"                
+        "-sFORCE_FILESYSTEM=1"                   
+        
+        "-sEXPORTED_RUNTIME_METHODS=ccall,cwrap,getValue,setValue,HEAPF32,HEAP8,HEAPU8"
+        "-sEXPORTED_FUNCTIONS=_main,_malloc,_free"
+        
+        "SHELL:-s ERROR_ON_UNDEFINED_SYMBOLS=0"
+        "SHELL:-s WARN_ON_UNDEFINED_SYMBOLS=0"
+        "LINKER:--allow-undefined"
+
+        "SHELL:--shell-file ${CMAKE_SOURCE_DIR}/web/web_shell.html"
+        
+        # Inject the Python Standard Library into the VFS at the path /lib/python3.11
+        "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/vendor/python_wasm/lib/python3.11@/lib/python3.11"
+        
+        # Inject our Game Assets (data.pak) into the VFS right next to the executable
+        "SHELL:--preload-file ${CMAKE_BINARY_DIR}/data.pak@/data.pak"
+    )
 endif()
 
 # Define a macro so the C++ code knows it's running in Standalone mode
