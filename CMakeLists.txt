@@ -85,10 +85,17 @@ FetchContent_MakeAvailable(pfd)
 # --- PYTHON & PYBIND11 SETUP ---
 
 if (CMAKE_CROSSCOMPILING AND WIN32)
-    message(STATUS "Cross-compiling for Windows: Forcing Windows Python 3.11")
+    message(STATUS "Cross-compiling for Windows: Fetching Windows Python 3.11 from GitHub...")
     
-    set(Python3_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/vendor/python_win/tools/include")
-    set(Python3_LIBRARIES "${CMAKE_SOURCE_DIR}/vendor/python_win/tools/libs/python311.lib")
+    FetchContent_Declare(
+        python_win_deps
+        URL "https://github.com/foxvoid-studio/FoxvoidEngine/releases/download/dependencies-v1/python_win.zip"
+    )
+    FetchContent_MakeAvailable(python_win_deps)
+    
+    # On pointe maintenant vers le dossier téléchargé par CMake (python_win_deps_SOURCE_DIR)
+    set(Python3_INCLUDE_DIRS "${python_win_deps_SOURCE_DIR}/tools/include")
+    set(Python3_LIBRARIES "${python_win_deps_SOURCE_DIR}/tools/libs/python311.lib")
     
     set(Python3_FOUND TRUE)
     set(Python3_Development_FOUND TRUE)
@@ -141,11 +148,17 @@ elseif (ANDROID)
     endif()
 
 elseif (EMSCRIPTEN)
-    message(STATUS "Cross-compiling for Web (Wasm): Using custom Python 3.11")
+    message(STATUS "Cross-compiling for Web (Wasm): Fetching custom Python 3.11 from GitHub...")
     
-    # Point directly to our freshly compiled Wasm Python static library
-    set(Python3_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/vendor/python_wasm/include")
-    set(Python3_LIBRARIES "${CMAKE_SOURCE_DIR}/vendor/python_wasm/lib/libpython3.11.a")
+    FetchContent_Declare(
+        python_wasm_deps
+        URL "https://github.com/foxvoid-studio/FoxvoidEngine/releases/download/dependencies-v1/python_wasm.zip"
+    )
+    FetchContent_MakeAvailable(python_wasm_deps)
+    
+    # Point directly to our freshly downloaded Wasm Python static library
+    set(Python3_INCLUDE_DIRS "${python_wasm_deps_SOURCE_DIR}/include")
+    set(Python3_LIBRARIES "${python_wasm_deps_SOURCE_DIR}/lib/libpython3.11.a")
     
     set(Python3_FOUND TRUE)
     set(Python3_Development_FOUND TRUE)
@@ -236,7 +249,8 @@ endif()
 # =========================================================================
 
 if (ANDROID)
-    set(ANDROID_NATIVE_APP_GLUE "${CMAKE_SOURCE_DIR}/vendor/android_ndk/sources/android/native_app_glue")
+    # Remplacement du gros NDK par un petit dossier contenant uniquement le code source de native_app_glue
+    set(ANDROID_NATIVE_APP_GLUE "${CMAKE_SOURCE_DIR}/vendor/android_native_app_glue")
     add_library(FoxvoidStandalone SHARED ${ENGINE_SOURCES} "${ANDROID_NATIVE_APP_GLUE}/android_native_app_glue.c")
     target_include_directories(FoxvoidStandalone PRIVATE "${ANDROID_NATIVE_APP_GLUE}")
     target_link_libraries(FoxvoidStandalone PRIVATE android log EGL GLESv2)
@@ -262,9 +276,10 @@ if (EMSCRIPTEN)
     # Output an HTML file containing the WebGL Canvas context
     set_target_properties(FoxvoidStandalone PROPERTIES SUFFIX ".html")
 
+    # Utilisation du dossier téléchargé au lieu du dossier vendor
     target_link_libraries(FoxvoidStandalone PRIVATE 
-        "${CMAKE_SOURCE_DIR}/vendor/python_wasm/lib/libmpdec.a"
-        "${CMAKE_SOURCE_DIR}/vendor/python_wasm/lib/libexpat.a"
+        "${python_wasm_deps_SOURCE_DIR}/lib/libmpdec.a"
+        "${python_wasm_deps_SOURCE_DIR}/lib/libexpat.a"
     )
 
     target_link_options(FoxvoidStandalone PRIVATE 
@@ -284,7 +299,7 @@ if (EMSCRIPTEN)
         "SHELL:--shell-file ${CMAKE_SOURCE_DIR}/web/web_shell.html"
         
         # Inject the Python Standard Library into the VFS at the path /lib/python3.11
-        "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/vendor/python_wasm/lib/python3.11@/lib/python3.11"
+        "SHELL:--preload-file ${python_wasm_deps_SOURCE_DIR}/lib/python3.11@/lib/python3.11"
         
         # Inject our Game Assets (data.pak) into the VFS right next to the executable
         "SHELL:--preload-file ${CMAKE_BINARY_DIR}/data.pak@/data.pak"
