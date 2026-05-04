@@ -10,10 +10,22 @@
 bool AndroidBuilder::Configure(const std::string& buildDir, const std::string& engineRoot) {
     Build::LogMessage("Cross-compiling for Android (ARM64) using the NDK...");
 
-    std::filesystem::path ndkPath = std::filesystem::path(engineRoot) / "vendor" / "android_ndk";
+    // 1. SEARCH FOR THE NDK ON THE SYSTEM (No longer in vendor/)
+    const char* envNdk = std::getenv("ANDROID_NDK_HOME");
+    std::string ndkPath;
+
+    if (envNdk) {
+        ndkPath = envNdk;
+    } else {
+        // Typical fallback path if the variable is not set (adapt if necessary)
+        ndkPath = "/home/ikigami/Android/Sdk/ndk/25.2.9519653"; 
+        Build::LogWarning("ANDROID_NDK_HOME not found in environment. Falling back to: " + ndkPath);
+    }
+
+    std::filesystem::path toolchainPath = std::filesystem::path(ndkPath) / "build" / "cmake" / "android.toolchain.cmake";
     
-    if (!std::filesystem::exists(ndkPath)) {
-        Build::LogError("Android NDK not found in vendor/android_ndk! Please download it first.");
+    if (!std::filesystem::exists(toolchainPath)) {
+        Build::LogError("Android NDK Toolchain not found at: " + toolchainPath.string() + " ! Please install the NDK via Android Studio and set ANDROID_NDK_HOME.");
         return false;
     }
 
@@ -43,7 +55,7 @@ bool AndroidBuilder::Configure(const std::string& buildDir, const std::string& e
     std::string cmakeConfigCmd = "cmake -S \"" + engineRoot + "\" -B \"" + buildDir + "\" -DCMAKE_BUILD_TYPE=Release";
     
     // Tell CMake to use the official Android Toolchain included in the NDK
-    cmakeConfigCmd += " -DCMAKE_TOOLCHAIN_FILE=\"" + ndkPath.string() + "/build/cmake/android.toolchain.cmake\"";
+    cmakeConfigCmd += " -DCMAKE_TOOLCHAIN_FILE=\"" + toolchainPath.string() + "\"";
     
     // Define the Target Architecture (Modern 64-bit phones)
     cmakeConfigCmd += " -DANDROID_ABI=arm64-v8a";

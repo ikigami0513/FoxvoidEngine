@@ -250,7 +250,7 @@ endif()
 
 if (ANDROID)
     # Remplacement du gros NDK par un petit dossier contenant uniquement le code source de native_app_glue
-    set(ANDROID_NATIVE_APP_GLUE "${CMAKE_SOURCE_DIR}/vendor/android_native_app_glue")
+    set(ANDROID_NATIVE_APP_GLUE "${CMAKE_SOURCE_DIR}/vendor/android_ndk/sources/android/native_app_glue")
     add_library(FoxvoidStandalone SHARED ${ENGINE_SOURCES} "${ANDROID_NATIVE_APP_GLUE}/android_native_app_glue.c")
     target_include_directories(FoxvoidStandalone PRIVATE "${ANDROID_NATIVE_APP_GLUE}")
     target_link_libraries(FoxvoidStandalone PRIVATE android log EGL GLESv2)
